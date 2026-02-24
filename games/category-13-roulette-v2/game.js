@@ -374,7 +374,13 @@ function attachRoundBets(roundId) {
 }
 
 async function init() {
-  await ensureState();
+  drawWheel();
+  try {
+    await ensureState();
+  } catch (e) {
+    resultEl.textContent = "권한 오류: Firestore Rules를 최신으로 Publish 해주세요.";
+    throw e;
+  }
 
   const unsubProfile = onSnapshot(doc(db, "users", user.uid), (snap) => {
     const p = snap.data() || {};
@@ -404,8 +410,6 @@ async function init() {
       resultEl.textContent = `오류: ${e.message}`;
     });
   });
-
-  drawWheel();
 
   countdownTimer = setInterval(() => {
     updateCountdown();

@@ -68,6 +68,7 @@ header p {
   background: #0c213ad9;
   display: grid;
   grid-template-rows: 1fr auto;
+  height: min(72vh, 620px);
   min-height: 430px;
 }
 
@@ -77,6 +78,7 @@ header p {
   display: grid;
   gap: 8px;
   align-content: start;
+  min-height: 0;
 }
 
 .msg {

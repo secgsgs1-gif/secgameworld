@@ -128,7 +128,8 @@ header h1 {
   display: grid;
   grid-template-rows: auto auto 1fr auto auto;
   gap: 8px;
-  min-height: 620px;
+  height: min(78vh, 720px);
+  min-height: 520px;
 }
 
 .side-chat h2 {
@@ -163,6 +164,7 @@ header h1 {
   gap: 6px;
   align-content: start;
   background: rgba(14, 28, 46, 0.78);
+  min-height: 0;
 }
 
 .main-msg {
@@ -211,6 +213,7 @@ header h1 {
     grid-template-columns: 1fr;
   }
   .side-chat {
-    min-height: 420px;
+    height: min(58vh, 560px);
+    min-height: 360px;
   }
 }
