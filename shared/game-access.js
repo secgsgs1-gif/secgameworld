@@ -40,10 +40,10 @@ function timeLabel(ts) {
 
 function rankLabel(rank) {
   if (!rank) return "";
-  if (rank === 1) return "[1등]";
-  if (rank === 2) return "[2등]";
-  if (rank === 3) return "[3등]";
-  return `[#${rank}]`;
+  if (rank === 1) return "🥇1등";
+  if (rank === 2) return "🥈2등";
+  if (rank === 3) return "🥉3등";
+  return `#${rank}`;
 }
 
 function injectSideChat() {
