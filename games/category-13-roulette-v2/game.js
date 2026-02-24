@@ -18,6 +18,7 @@ const roundStatusEl = document.getElementById("round-status");
 const pointsEl = document.getElementById("points");
 const placeBetBtn = document.getElementById("place-bet");
 const resultEl = document.getElementById("result");
+const recentResultsEl = document.getElementById("recent-results");
 
 const betInputs = {
   1: document.getElementById("bet-1"),
@@ -151,8 +152,10 @@ function animateTo(targetRotation, duration) {
   return new Promise((resolve) => {
     function step(now) {
       const t = Math.min(1, (now - t0) / duration);
-      const ease = 1 - Math.pow(1 - t, 3);
-      rotation = start + diff * ease;
+      // Long easing tail for a more dramatic, less abrupt stop.
+      const ease = 1 - Math.pow(1 - t, 5);
+      const wobble = t > 0.78 ? Math.sin((t - 0.78) * 45) * (1 - t) * 0.012 : 0;
+      rotation = start + diff * (ease + wobble);
       drawWheel();
       if (t < 1) requestAnimationFrame(step);
       else resolve();
@@ -309,6 +312,20 @@ function attachBetList(roundId) {
   );
 }
 
+function renderRecentResults(lastCompletedRound) {
+  if (!recentResultsEl) return;
+  recentResultsEl.innerHTML = "";
+  for (let i = 0; i < 10; i += 1) {
+    const r = lastCompletedRound - i;
+    if (r <= 0) break;
+    const idx = resultIndexForRound(r);
+    const mult = slots[idx] ?? 1;
+    const li = document.createElement("li");
+    li.textContent = `R${r}: x${mult}`;
+    recentResultsEl.appendChild(li);
+  }
+}
+
 async function tickLoop() {
   const c = currentClock();
 
@@ -337,6 +354,8 @@ async function tickLoop() {
     });
     attachBetList(c.bettingRoundId);
   }
+
+  renderRecentResults(c.spinningRoundId);
 }
 
 function init() {

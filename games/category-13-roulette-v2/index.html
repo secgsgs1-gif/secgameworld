@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>13번 카테고리 - 룰렛 V2</title>
-  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="styles.css?v=20260224o" />
 </head>
 <body>
   <main class="shell">
@@ -43,11 +43,16 @@
       </div>
     </section>
 
+    <section class="recent">
+      <h2>최근 10회 결과</h2>
+      <ul id="recent-results" class="recent-list"></ul>
+    </section>
+
     <a href="../../index.html">카테고리로 돌아가기</a>
   </main>
   <script>window.APP_ROOT = "../../";</script>
   <script type="module" src="../../shared/auth-guard.js?v=20260224m"></script>
   <script type="module" src="../../shared/game-access.js?v=20260224m"></script>
-  <script type="module" src="game.js?v=20260224n"></script>
+  <script type="module" src="game.js?v=20260224o"></script>
 </body>
 </html>

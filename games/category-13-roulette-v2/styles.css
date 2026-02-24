@@ -103,6 +103,36 @@ button {
   background: #3d291b;
 }
 
+.recent {
+  margin-top: 10px;
+  border: 1px solid #d7ad7a55;
+  border-radius: 10px;
+  padding: 10px;
+  background: #2b1d14b0;
+}
+
+.recent h2 {
+  margin: 0 0 8px;
+  font-size: 1.02rem;
+}
+
+.recent-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+  gap: 6px;
+}
+
+.recent-list li {
+  border: 1px solid #d7ad7a45;
+  border-radius: 8px;
+  padding: 6px;
+  background: #3a281b;
+  font-size: 0.82rem;
+}
+
 a {
   color: #ffd4a6;
 }
