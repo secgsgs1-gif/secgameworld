@@ -1,0 +1,47 @@
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(140deg, #222026, #3a1f2d);
+  color: #fff3f9;
+  font-family: "Segoe UI", sans-serif;
+}
+
+.shell {
+  width: min(94vw, 560px);
+  padding: 16px;
+  border-radius: 14px;
+  border: 1px solid #ffb8cf4d;
+  background: #1b141dcf;
+}
+
+canvas {
+  width: min(90vw, 360px);
+  height: auto;
+  display: block;
+  margin: 6px auto 12px;
+}
+
+.panel {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 8px;
+}
+
+label {
+  display: grid;
+  gap: 4px;
+  font-size: 0.9rem;
+}
+
+select, button {
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid #ffcce266;
+  background: #32202f;
+  color: #fff3f9;
+}
+
+a { color: #ffc6df; }

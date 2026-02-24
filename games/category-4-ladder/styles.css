@@ -1,0 +1,48 @@
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(145deg, #10273f, #1e4d4f);
+  color: #effcff;
+  font-family: "Segoe UI", sans-serif;
+}
+
+.shell {
+  width: min(94vw, 560px);
+  padding: 16px;
+  border-radius: 14px;
+  border: 1px solid #6cb9da66;
+  background: #0f1f2dbf;
+}
+
+.toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+label {
+  display: grid;
+  gap: 4px;
+  font-size: 0.9rem;
+}
+
+select, button {
+  padding: 7px 10px;
+  border-radius: 8px;
+  border: 1px solid #9ed8ff55;
+  background: #152c42;
+  color: #effcff;
+}
+
+canvas {
+  width: 100%;
+  height: auto;
+  background: #081822;
+  border-radius: 10px;
+  border: 1px solid #8fd3ff33;
+}
+
+a { color: #8be3ff; }

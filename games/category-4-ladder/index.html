@@ -1,0 +1,30 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>4번 카테고리 - 사다리타기</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="shell">
+    <h1>4번 카테고리 게임이름 (사다리타기)</h1>
+    <div class="toolbar">
+      <label>라인 수
+        <select id="line-count">
+          <option>3</option><option selected>4</option><option>5</option><option>6</option><option>7</option><option>8</option>
+        </select>
+      </label>
+      <label>시작 라인
+        <select id="start-line"></select>
+      </label>
+      <button id="regen">다시 생성</button>
+      <button id="play">시작</button>
+    </div>
+    <canvas id="stage" width="440" height="460" aria-label="Ladder game stage"></canvas>
+    <p id="status">라인을 고르고 시작을 누르세요.</p>
+    <a href="../../index.html">카테고리로 돌아가기</a>
+  </main>
+  <script src="game.js"></script>
+</body>
+</html>
