@@ -1,4 +1,4 @@
-import { addPoints, spendPoints, watchUserProfile } from "./points.js";
+import { addPoints, spendPoints, watchUserProfile } from "./points.js?v=20260224b";
 
 const ENTRY_DEFAULT = 10;
 
