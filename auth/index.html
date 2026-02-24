@@ -26,7 +26,7 @@
     </div>
 
     <form id="auth-form">
-      <input id="email" type="email" placeholder="이메일" required />
+      <input id="username" type="text" placeholder="아이디(영문/숫자/_)" required />
       <input id="password" type="password" placeholder="비밀번호(6자 이상)" required />
       <button id="submit" type="submit">로그인</button>
       <p class="msg" id="msg"></p>
@@ -34,9 +34,9 @@
   </main>
 
   <script>window.APP_ROOT = "../";</script>
-  <script type="module" src="../shared/auth-guard.js?v=20260224b"></script>
+  <script type="module" src="../shared/auth-guard.js?v=20260224c"></script>
   <script type="module">
-    import { signIn, signUp } from "../shared/auth.js";
+    import { signInWithUsername, signUpWithUsername } from "../shared/auth.js?v=20260224c";
 
     const form = document.getElementById("auth-form");
     const tabLogin = document.getElementById("tab-login");
@@ -57,13 +57,13 @@
 
     form.onsubmit = async (e) => {
       e.preventDefault();
-      const email = document.getElementById("email").value.trim();
+      const username = document.getElementById("username").value.trim();
       const password = document.getElementById("password").value;
 
       submit.disabled = true;
       try {
-        if (mode === "login") await signIn(email, password);
-        else await signUp(email, password);
+        if (mode === "login") await signInWithUsername(username, password);
+        else await signUpWithUsername(username, password);
         msg.textContent = "성공. 이동 중...";
       } catch (err) {
         msg.textContent = err.message;

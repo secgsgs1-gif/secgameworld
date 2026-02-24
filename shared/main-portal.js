@@ -1,5 +1,5 @@
-import { logOut } from "./auth.js?v=20260224b";
-import { claimDailyCheckIn, watchUserProfile } from "./points.js?v=20260224b";
+import { logOut } from "./auth.js?v=20260224c";
+import { claimDailyCheckIn, watchUserProfile } from "./points.js?v=20260224c";
 
 let unsub = null;
 
@@ -12,11 +12,12 @@ function mountUI(user) {
   const messageEl = document.getElementById("account-message");
 
   host.hidden = false;
-  emailEl.textContent = user.email || "익명";
+  emailEl.textContent = "로딩 중...";
 
   if (unsub) unsub();
   unsub = watchUserProfile(user.uid, (profile) => {
     if (!profile) return;
+    emailEl.textContent = profile.username || profile.email || user.email || "익명";
     pointsEl.textContent = String(profile.points || 0);
   });
 

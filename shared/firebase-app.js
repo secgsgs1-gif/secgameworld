@@ -1,7 +1,7 @@
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-app.js";
 import { getAuth } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
 import { getFirestore } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
-import { firebaseConfig, isFirebaseConfigured } from "./firebase-config.js?v=20260224b";
+import { firebaseConfig, isFirebaseConfigured } from "./firebase-config.js?v=20260224c";
 
 let app = null;
 let auth = null;
