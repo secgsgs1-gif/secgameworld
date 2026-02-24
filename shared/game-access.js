@@ -87,6 +87,8 @@ function setupGameChat(user) {
 
   let username = normalizeUsername(user, "");
   let rankMap = new Map();
+  let latestMessageDocs = [];
+  let latestPresenceDocs = [];
 
   onSnapshot(doc(db, "users", user.uid), (snap) => {
     const p = snap.data() || {};
@@ -97,8 +99,55 @@ function setupGameChat(user) {
   onSnapshot(
     rankQ,
     (snap) => {
+      const rows = snap.docs.map((d) => ({ id: d.id, points: Number(d.data()?.points || 0) }))
+        .sort((a, b) => (b.points - a.points) || a.id.localeCompare(b.id));
       rankMap = new Map();
-      snap.docs.forEach((d, i) => rankMap.set(d.id, i + 1));
+      rows.forEach((r, i) => rankMap.set(r.id, i + 1));
+      if (latestMessageDocs.length) {
+        const fakeSnap = { docs: latestMessageDocs };
+        // keep message rank labels in sync whenever ranking changes
+        (function rerenderMessages(s) {
+          messagesEl.innerHTML = "";
+          s.docs.forEach((docSnap) => {
+            const data = docSnap.data();
+            const mine = data.uid === user.uid;
+            const rank = rankMap.get(data.uid);
+            const shownName = normalizeUsername(user, data.username);
+            const row = document.createElement("article");
+            row.style.cssText = `border:1px solid #7eb5ff33;border-radius:8px;padding:5px 7px;background:${mine ? "#215447" : "#1a3b62"}`;
+            row.innerHTML = `<span style="display:block;font-size:11px;opacity:.82">${rankLabel(rank)} ${esc(shownName)} · ${timeLabel(data.createdAt)}</span>${esc(data.text || "")}`;
+            messagesEl.appendChild(row);
+          });
+          messagesEl.scrollTop = messagesEl.scrollHeight;
+        }(fakeSnap));
+      }
+      if (latestPresenceDocs.length) {
+        const now = Date.now();
+        const rows2 = latestPresenceDocs.map((s) => s.data()).filter((p) => p?.uid).sort((a, b) => {
+          const aName = normalizeUsername(user, a.username).toLowerCase();
+          const bName = normalizeUsername(user, b.username).toLowerCase();
+          return aName > bName ? 1 : -1;
+        });
+        presenceEl.innerHTML = "";
+        let onlineCount = 0;
+        rows2.forEach((p) => {
+          const lastSeen = p.lastSeen?.toDate ? p.lastSeen.toDate().getTime() : 0;
+          const online = p.online && now - lastSeen < 70000;
+          if (!online) return;
+          onlineCount += 1;
+          const li = document.createElement("li");
+          li.style.cssText = "border:1px solid #7eb5ff33;border-radius:7px;padding:4px 6px;background:#133154";
+          const rank = rankMap.get(p.uid);
+          li.textContent = `${rankLabel(rank)} ${normalizeUsername(user, p.username)} ●`.trim();
+          presenceEl.appendChild(li);
+        });
+        if (onlineCount === 0) {
+          const li = document.createElement("li");
+          li.style.cssText = "border:1px solid #7eb5ff33;border-radius:7px;padding:4px 6px;background:#133154";
+          li.textContent = "접속자 없음";
+          presenceEl.appendChild(li);
+        }
+      }
     },
     (err) => {
       statusEl.textContent = `랭킹 오류: ${err.message}`;
@@ -109,6 +158,7 @@ function setupGameChat(user) {
   onSnapshot(
     msgQ,
     (snap) => {
+      latestMessageDocs = snap.docs;
       messagesEl.innerHTML = "";
       snap.docs.forEach((docSnap) => {
         const data = docSnap.data();
@@ -131,6 +181,7 @@ function setupGameChat(user) {
   onSnapshot(
     presenceQ,
     (snap) => {
+      latestPresenceDocs = snap.docs;
       const now = Date.now();
       const rows = snap.docs.map((s) => s.data()).filter((p) => p?.uid).sort((a, b) => {
         const aName = normalizeUsername(user, a.username).toLowerCase();

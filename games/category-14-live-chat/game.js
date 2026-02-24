@@ -22,6 +22,8 @@ let user = null;
 let username = "";
 let rankMap = new Map();
 let heartbeat = null;
+let latestMessageDocs = [];
+let latestPresenceDocs = [];
 
 function normalizeUsername(currentUser, rawName) {
   const byProfile = String(rawName || "").trim();
@@ -122,8 +124,12 @@ async function init() {
   onSnapshot(
     rankQ,
     (snap) => {
+      const rows = snap.docs.map((d) => ({ id: d.id, points: Number(d.data()?.points || 0) }))
+        .sort((a, b) => (b.points - a.points) || a.id.localeCompare(b.id));
       rankMap = new Map();
-      snap.docs.forEach((d, i) => rankMap.set(d.id, i + 1));
+      rows.forEach((r, i) => rankMap.set(r.id, i + 1));
+      renderMessages(latestMessageDocs);
+      renderPresence(latestPresenceDocs);
     },
     (err) => {
       statusEl.textContent = `랭킹 오류: ${err.message}`;
@@ -133,7 +139,10 @@ async function init() {
   const msgQ = query(collection(db, "live_chat_messages"), orderBy("createdAt", "asc"), limit(120));
   onSnapshot(
     msgQ,
-    (snap) => renderMessages(snap.docs),
+    (snap) => {
+      latestMessageDocs = snap.docs;
+      renderMessages(latestMessageDocs);
+    },
     (err) => {
       statusEl.textContent = `메시지 오류: ${err.message}`;
     }
@@ -142,7 +151,10 @@ async function init() {
   const presenceQ = query(collection(db, "presence"), orderBy("username", "asc"));
   onSnapshot(
     presenceQ,
-    (snap) => renderPresence(snap.docs),
+    (snap) => {
+      latestPresenceDocs = snap.docs;
+      renderPresence(latestPresenceDocs);
+    },
     (err) => {
       statusEl.textContent = `접속자 오류: ${err.message}`;
     }
