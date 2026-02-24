@@ -143,7 +143,7 @@ async function applyDelta(delta) {
 function spin() {
   if (spinning || !wallet) return;
   const pick = Number(pickEl.value);
-  const bet = Math.max(5, Math.min(200, Number(betEl.value) || 0));
+  const bet = Math.max(1, Math.floor(Number(betEl.value) || 0));
 
   if (bet > points) {
     resultEl.textContent = "포인트가 부족합니다.";
