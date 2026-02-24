@@ -49,6 +49,30 @@ header h1 {
   opacity: 0.92;
 }
 
+.account-bar {
+  margin: 0 0 16px;
+  padding: 10px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: rgba(7, 20, 35, 0.75);
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 12px;
+  align-items: center;
+}
+
+.account-bar p {
+  margin: 0;
+}
+
+.account-bar button {
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #12304b;
+  color: var(--text);
+}
+
 .cards {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));

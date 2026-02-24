@@ -10,17 +10,26 @@ const TAU = Math.PI * 2;
 const POINTER_ANGLE = (3 * Math.PI) / 2;
 const slots = [1, 3, 1, 5, 1, 10, 1, 3, 1, 5, 1, 20, 1, 3, 1, 5, 1, 10, 1, 3];
 
+let wallet = null;
+let points = 0;
 let rotation = 0;
 let spinning = false;
-let points = Number(localStorage.getItem("cat13_points") || 300);
 
-pointsEl.textContent = `포인트: ${points}`;
 [1, 3, 5, 10, 20].forEach((v) => {
   const opt = document.createElement("option");
   opt.value = String(v);
   opt.textContent = `x${v}`;
   pickEl.appendChild(opt);
 });
+
+function bindWallet() {
+  wallet = window.AccountWallet || null;
+  if (!wallet) return;
+  wallet.onChange((next) => {
+    points = next;
+    pointsEl.textContent = `포인트: ${points}`;
+  });
+}
 
 function slotColor(v) {
   if (v >= 20) return "#b23a48";
@@ -50,7 +59,6 @@ function drawWheel() {
   const arc = TAU / slots.length;
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-
   drawGearRing(cx, cy, 186);
 
   ctx.save();
@@ -68,7 +76,6 @@ function drawWheel() {
     ctx.closePath();
     ctx.fillStyle = slotColor(val);
     ctx.fill();
-
     ctx.strokeStyle = "#2a1d16";
     ctx.lineWidth = 2;
     ctx.stroke();
@@ -86,14 +93,14 @@ function drawWheel() {
   ctx.arc(0, 0, 56, 0, TAU);
   ctx.fillStyle = "#9f7b61";
   ctx.fill();
-
   ctx.restore();
 
+  const cx2 = canvas.width / 2;
   ctx.fillStyle = "#eac28d";
   ctx.beginPath();
-  ctx.moveTo(cx, 34);
-  ctx.lineTo(cx - 14, 8);
-  ctx.lineTo(cx + 14, 8);
+  ctx.moveTo(cx2, 34);
+  ctx.lineTo(cx2 - 14, 8);
+  ctx.lineTo(cx2 + 14, 8);
   ctx.closePath();
   ctx.fill();
 }
@@ -124,8 +131,17 @@ function animateTo(target, done) {
   requestAnimationFrame(step);
 }
 
+async function applyDelta(delta) {
+  if (!wallet || delta === 0) return { ok: true };
+  if (delta > 0) {
+    await wallet.earn(delta, "roulette_v2_reward", { game: "category-13-roulette-v2" });
+    return { ok: true };
+  }
+  return wallet.spend(-delta, "roulette_v2_loss", { game: "category-13-roulette-v2" });
+}
+
 function spin() {
-  if (spinning) return;
+  if (spinning || !wallet) return;
   const pick = Number(pickEl.value);
   const bet = Math.max(5, Math.min(200, Number(betEl.value) || 0));
 
@@ -138,16 +154,16 @@ function spin() {
   resultEl.textContent = "회전 중...";
 
   const target = rotation + (8 + Math.random() * 4) * TAU + Math.random() * TAU;
-  animateTo(target, () => {
+  animateTo(target, async () => {
     const out = currentMultiplier();
-    let delta = -bet;
-    if (out === pick) {
-      delta = bet * out;
-    }
+    const delta = out === pick ? bet * out : -bet;
 
-    points = Math.max(0, points + delta);
-    pointsEl.textContent = `포인트: ${points}`;
-    localStorage.setItem("cat13_points", String(points));
+    const tx = await applyDelta(delta);
+    if (!tx.ok) {
+      resultEl.textContent = "포인트 처리 실패";
+      spinning = false;
+      return;
+    }
 
     const sign = delta >= 0 ? "+" : "";
     resultEl.textContent = `결과 x${out} / ${sign}${delta} 포인트`;
@@ -156,5 +172,6 @@ function spin() {
 }
 
 spinBtn.addEventListener("click", spin);
-
+document.addEventListener("app:wallet-ready", bindWallet);
+if (window.AccountWallet) bindWallet();
 drawWheel();

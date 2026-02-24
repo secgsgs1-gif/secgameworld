@@ -15,6 +15,13 @@
       <p class="eyebrow">WEB GAME PACK</p>
       <h1>게임 카테고리 선택</h1>
       <p class="desc">카테고리별로 바로 플레이할 수 있습니다.</p>
+      <section id="account-bar" class="account-bar" hidden>
+        <p><strong id="account-email"></strong></p>
+        <p>포인트: <strong id="account-points">0</strong></p>
+        <button id="checkin-btn" type="button">출석 +100</button>
+        <button id="logout-btn" type="button">로그아웃</button>
+        <p id="account-message"></p>
+      </section>
     </header>
 
     <section class="cards">
@@ -33,5 +40,8 @@
       <article class="card ready"><h2>13번 카테고리 게임이름</h2><p>룰렛 V2 (빈티지)</p><a href="./games/category-13-roulette-v2/index.html">플레이</a></article>
     </section>
   </main>
+  <script>window.APP_ROOT = "./";</script>
+  <script type="module" src="./shared/auth-guard.js"></script>
+  <script type="module" src="./shared/main-portal.js"></script>
 </body>
 </html>

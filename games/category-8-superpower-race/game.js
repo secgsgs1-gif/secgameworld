@@ -6,14 +6,24 @@ const statusEl = document.getElementById("status");
 const logEl = document.getElementById("log");
 const pointsEl = document.getElementById("points");
 
-const NAMES = ["루나","블레이즈","노바","팬텀"];
-const COLORS = ["#7bdcff","#ff9f7a","#98ffb3","#e0a4ff"];
+const NAMES = ["루나", "블레이즈", "노바", "팬텀"];
+const COLORS = ["#7bdcff", "#ff9f7a", "#98ffb3", "#e0a4ff"];
 const FINISH = 620;
 let runners = [];
 let running = false;
+let settling = false;
 let winner = -1;
-let points = Number(localStorage.getItem("cat8_points") || 100);
-pointsEl.textContent = points;
+let points = 0;
+let wallet = null;
+
+function bindWallet() {
+  wallet = window.AccountWallet || null;
+  if (!wallet) return;
+  wallet.onChange((next) => {
+    points = next;
+    pointsEl.textContent = String(points);
+  });
+}
 
 NAMES.forEach((name, i) => {
   const opt = document.createElement("option");
@@ -42,10 +52,10 @@ function resetRace() {
     speed: 1.1 + Math.random() * 0.55,
     boostUntil: 0,
     slowUntil: 0,
-    nextPowerAt: randPowerTime(now),
-    blinkReadyAt: now + 2200 + Math.random() * 2200
+    nextPowerAt: randPowerTime(now)
   }));
   winner = -1;
+  settling = false;
   statusEl.textContent = "레이스 진행 중...";
   logEl.innerHTML = "";
   addLog("레이스 시작");
@@ -69,6 +79,24 @@ function usePower(i, now) {
   me.nextPowerAt = randPowerTime(now);
 }
 
+async function settleResult(runnerName) {
+  const pick = Number(pickEl.value);
+  const win = pick === winner;
+  if (!wallet) return;
+
+  if (win) {
+    await wallet.earn(70, "race_predict_win", { game: "category-8-superpower-race" });
+    statusEl.textContent = `우승: ${runnerName}. 적중 +70`;
+  } else {
+    const loss = Math.min(25, points);
+    const spent = await wallet.spend(loss, "race_predict_loss", { game: "category-8-superpower-race" });
+    statusEl.textContent = spent.ok ? `우승: ${runnerName}. 실패 -${loss}` : `우승: ${runnerName}. 포인트 부족`;
+  }
+
+  addLog(statusEl.textContent);
+  settling = false;
+}
+
 function update(now) {
   for (let i = 0; i < runners.length; i += 1) {
     const r = runners[i];
@@ -82,17 +110,9 @@ function update(now) {
     if (r.x >= FINISH && winner < 0) {
       winner = i;
       running = false;
-      const pick = Number(pickEl.value);
-      if (pick === winner) {
-        points += 70;
-        statusEl.textContent = `우승: ${r.name}. 적중 +70`;
-      } else {
-        points = Math.max(0, points - 25);
-        statusEl.textContent = `우승: ${r.name}. 실패 -25`;
-      }
-      pointsEl.textContent = points;
-      localStorage.setItem("cat8_points", String(points));
-      addLog(statusEl.textContent);
+      settling = true;
+      settleResult(r.name);
+      break;
     }
   }
 }
@@ -116,16 +136,19 @@ function draw() {
 }
 
 function loop(now) {
-  if (running) update(now);
+  if (running && !settling) update(now);
   draw();
   requestAnimationFrame(loop);
 }
 
 startBtn.addEventListener("click", () => {
+  if (settling) return;
   resetRace();
   running = true;
 });
 
+document.addEventListener("app:wallet-ready", bindWallet);
+if (window.AccountWallet) bindWallet();
 resetRace();
 draw();
 requestAnimationFrame(loop);

@@ -9,11 +9,21 @@ const resultEl = document.getElementById("result");
 const numbers = Array.from({ length: 10 }, (_, i) => i);
 const colorOf = (n) => (n === 0 ? "green" : n % 2 === 0 ? "black" : "red");
 const TAU = Math.PI * 2;
-const POINTER_ANGLE = (3 * Math.PI) / 2; // top pointer (points downward)
+const POINTER_ANGLE = (3 * Math.PI) / 2;
 
-let points = 200;
+let wallet = null;
+let points = 0;
 let spinning = false;
 let rotation = 0;
+
+function bindWallet() {
+  wallet = window.AccountWallet || null;
+  if (!wallet) return;
+  wallet.onChange((next) => {
+    points = next;
+    pointsEl.textContent = `포인트: ${points}`;
+  });
+}
 
 numbers.forEach((n) => {
   const opt = document.createElement("option");
@@ -61,11 +71,12 @@ function drawWheel() {
   ctx.fill();
   ctx.restore();
 
+  const cx2 = canvas.width / 2;
   ctx.fillStyle = "#ffd3e6";
   ctx.beginPath();
-  ctx.moveTo(cx, 30);
-  ctx.lineTo(cx - 12, 8);
-  ctx.lineTo(cx + 12, 8);
+  ctx.moveTo(cx2, 30);
+  ctx.lineTo(cx2 - 12, 8);
+  ctx.lineTo(cx2 + 12, 8);
   ctx.closePath();
   ctx.fill();
 }
@@ -96,8 +107,17 @@ function animateTo(target, done) {
   requestAnimationFrame(step);
 }
 
+async function applyDelta(delta) {
+  if (!wallet || delta === 0) return { ok: true };
+  if (delta > 0) {
+    await wallet.earn(delta, "roulette_reward", { game: "category-6-roulette" });
+    return { ok: true };
+  }
+  return wallet.spend(-delta, "roulette_loss", { game: "category-6-roulette" });
+}
+
 function spin() {
-  if (spinning) return;
+  if (spinning || !wallet) return;
   spinning = true;
   resultEl.textContent = "회전 중...";
 
@@ -105,27 +125,37 @@ function spin() {
   const stopAngle = Math.random() * TAU;
   const target = rotation + extraTurns * TAU + stopAngle;
 
-  animateTo(target, () => {
+  animateTo(target, async () => {
     const num = currentNumber();
     const color = colorOf(num);
     const pickNum = Number(guessNumEl.value);
     const pickColor = guessColorEl.value;
 
-    let gain = -10;
-    if (pickNum === num) gain += 90;
-    if (pickColor !== "none" && pickColor === color) gain += 25;
+    let delta = -10;
+    if (pickNum === num) delta += 90;
+    if (pickColor !== "none" && pickColor === color) delta += 25;
 
-    points = Math.max(0, points + gain);
-    pointsEl.textContent = `포인트: ${points}`;
+    if (delta < 0 && points < Math.abs(delta)) {
+      resultEl.textContent = "포인트 부족으로 진행 불가";
+      spinning = false;
+      return;
+    }
+
+    const tx = await applyDelta(delta);
+    if (!tx.ok) {
+      resultEl.textContent = "포인트 처리 실패";
+      spinning = false;
+      return;
+    }
 
     const colorKo = color === "red" ? "빨강" : color === "black" ? "검정" : "초록";
-    const sign = gain >= 0 ? "+" : "";
-    resultEl.textContent = `결과 ${num}(${colorKo}) / ${sign}${gain} 포인트`;
-
+    const sign = delta >= 0 ? "+" : "";
+    resultEl.textContent = `결과 ${num}(${colorKo}) / ${sign}${delta} 포인트`;
     spinning = false;
   });
 }
 
 spinBtn.addEventListener("click", spin);
-
+document.addEventListener("app:wallet-ready", bindWallet);
+if (window.AccountWallet) bindWallet();
 drawWheel();
