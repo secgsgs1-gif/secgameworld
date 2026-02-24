@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>13번 카테고리 - 룰렛 V2</title>
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body>
+  <main class="shell">
+    <h1>13번 카테고리 게임이름 (룰렛 V2)</h1>
+    <p>빈티지/기계 느낌의 룰렛. 배수를 맞히면 포인트 획득.</p>
+
+    <canvas id="wheel" width="420" height="420" aria-label="Roulette V2"></canvas>
+
+    <div class="panel">
+      <label>예측 배수
+        <select id="pick"></select>
+      </label>
+      <label>베팅 포인트
+        <input id="bet" type="number" min="5" max="200" step="5" value="20" />
+      </label>
+      <button id="spin">SPIN</button>
+    </div>
+
+    <p id="points">포인트: 300</p>
+    <p id="result">배수와 베팅을 고른 뒤 SPIN.</p>
+    <a href="../../index.html">카테고리로 돌아가기</a>
+  </main>
+  <script src="game.js"></script>
+</body>
+</html>

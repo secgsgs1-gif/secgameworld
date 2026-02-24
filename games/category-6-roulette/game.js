@@ -8,6 +8,8 @@ const resultEl = document.getElementById("result");
 
 const numbers = Array.from({ length: 10 }, (_, i) => i);
 const colorOf = (n) => (n === 0 ? "green" : n % 2 === 0 ? "black" : "red");
+const TAU = Math.PI * 2;
+const POINTER_ANGLE = Math.PI / 2; // bottom pointer (points upward)
 
 let points = 200;
 let spinning = false;
@@ -24,7 +26,7 @@ function drawWheel() {
   const cx = canvas.width / 2;
   const cy = canvas.height / 2;
   const r = 145;
-  const arc = (Math.PI * 2) / numbers.length;
+  const arc = TAU / numbers.length;
 
   ctx.clearRect(0, 0, canvas.width, canvas.height);
   ctx.save();
@@ -61,17 +63,18 @@ function drawWheel() {
 
   ctx.fillStyle = "#ffd3e6";
   ctx.beginPath();
-  ctx.moveTo(cx, 8);
-  ctx.lineTo(cx - 12, 30);
-  ctx.lineTo(cx + 12, 30);
+  ctx.moveTo(cx, canvas.height - 8);
+  ctx.lineTo(cx - 12, canvas.height - 30);
+  ctx.lineTo(cx + 12, canvas.height - 30);
   ctx.closePath();
   ctx.fill();
 }
 
 function currentNumber() {
-  const arc = (Math.PI * 2) / numbers.length;
-  const pointerAngle = (Math.PI * 2 - (rotation % (Math.PI * 2))) % (Math.PI * 2);
-  const idx = Math.floor(pointerAngle / arc) % numbers.length;
+  const arc = TAU / numbers.length;
+  const normalizedRotation = ((rotation % TAU) + TAU) % TAU;
+  const relative = ((POINTER_ANGLE - normalizedRotation) % TAU + TAU) % TAU;
+  const idx = Math.floor(relative / arc) % numbers.length;
   return numbers[idx];
 }
 
@@ -99,8 +102,8 @@ function spin() {
   resultEl.textContent = "회전 중...";
 
   const extraTurns = 8 + Math.random() * 3;
-  const stopAngle = Math.random() * Math.PI * 2;
-  const target = rotation + extraTurns * Math.PI * 2 + stopAngle;
+  const stopAngle = Math.random() * TAU;
+  const target = rotation + extraTurns * TAU + stopAngle;
 
   animateTo(target, () => {
     const num = currentNumber();
