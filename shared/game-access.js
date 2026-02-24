@@ -1,6 +1,6 @@
-import { addPoints, spendPoints, watchUserProfile } from "./points.js?v=20260224d";
+import { addPoints, spendPoints, watchUserProfile } from "./points.js?v=20260224e";
 
-const ENTRY_DEFAULT = 10;
+const ENTRY_DEFAULT = 0;
 
 function gameCodeFromPath() {
   const parts = location.pathname.split("/");

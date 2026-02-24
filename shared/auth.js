@@ -5,7 +5,7 @@ import {
   onAuthStateChanged
 } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
 import { doc, getDoc, serverTimestamp, setDoc } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
-import { auth, db, isFirebaseConfigured } from "./firebase-app.js?v=20260224d";
+import { auth, db, isFirebaseConfigured } from "./firebase-app.js?v=20260224e";
 
 export function requireFirebaseConfigured() {
   if (!isFirebaseConfigured()) {
