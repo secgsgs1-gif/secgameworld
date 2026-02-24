@@ -281,8 +281,8 @@ async function settleMyBet(roundId) {
     if (bet.settled) return;
 
     const hitAmount = Number(bet.amounts?.[String(resultMultiplier)] || 0);
-    const appliedMultiplier = resultMultiplier === 1 ? 2 : resultMultiplier;
-    const payout = hitAmount > 0 ? hitAmount * appliedMultiplier : 0;
+    const payoutMultiplier = resultMultiplier + 1;
+    const payout = hitAmount > 0 ? hitAmount * payoutMultiplier : 0;
 
     tx.update(betRef, {
       settled: true,
@@ -304,7 +304,7 @@ async function settleMyBet(roundId) {
   if (mine.exists()) {
     const d = mine.data();
     if (d.payout > 0) {
-      const shownMultiplier = d.resultMultiplier === 1 ? "x1(2배 지급)" : `x${d.resultMultiplier}`;
+      const shownMultiplier = `x${d.resultMultiplier}(원금포함 ${Number(d.resultMultiplier) + 1}배 지급)`;
       resultEl.textContent = `당첨! ${shownMultiplier}, 총 지급 +${d.payout}`;
     }
     else resultEl.textContent = `미당첨. 결과 x${d.resultMultiplier}`;
