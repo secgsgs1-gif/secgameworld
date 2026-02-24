@@ -31,11 +31,11 @@ names.forEach((n, i) => {
   pick.appendChild(o);
 });
 
-function reset() {
+function reset(startNow = false) {
   racers = names.map((n, i) => ({ n, x: 26, y: 50 + i * 58, s: 1 + Math.random() * 0.8 }));
-  run = true;
+  run = startNow;
   settling = false;
-  statusEl.textContent = "진행 중";
+  statusEl.textContent = startNow ? "진행 중" : "플레이를 누르면 시작";
 }
 
 async function settle(winnerIndex) {
@@ -95,10 +95,10 @@ function loop() {
 
 start.addEventListener("click", () => {
   if (settling) return;
-  reset();
+  reset(true);
 });
 
 document.addEventListener("app:wallet-ready", bindWallet);
 if (window.AccountWallet) bindWallet();
-reset();
+reset(false);
 loop();
