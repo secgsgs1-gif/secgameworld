@@ -38,6 +38,14 @@ function timeLabel(ts) {
   return `${h}:${m}`;
 }
 
+function rankLabel(rank) {
+  if (!rank) return "";
+  if (rank === 1) return "[1등]";
+  if (rank === 2) return "[2등]";
+  if (rank === 3) return "[3등]";
+  return `[#${rank}]`;
+}
+
 function injectSideChat() {
   if (location.pathname.includes("category-14-live-chat")) return null;
 
@@ -91,7 +99,7 @@ function setupGameChat(user) {
       const rank = rankMap.get(data.uid);
       const row = document.createElement("article");
       row.style.cssText = `border:1px solid #7eb5ff33;border-radius:8px;padding:5px 7px;background:${mine ? "#215447" : "#1a3b62"}`;
-      row.innerHTML = `<span style="display:block;font-size:11px;opacity:.82">${rank ? `#${rank} ` : ""}${esc(data.username || "unknown")} · ${timeLabel(data.createdAt)}</span>${esc(data.text || "")}`;
+      row.innerHTML = `<span style="display:block;font-size:11px;opacity:.82">${rankLabel(rank)} ${esc(data.username || "unknown")} · ${timeLabel(data.createdAt)}</span>${esc(data.text || "")}`;
       messagesEl.appendChild(row);
     });
     messagesEl.scrollTop = messagesEl.scrollHeight;
@@ -108,7 +116,7 @@ function setupGameChat(user) {
       const li = document.createElement("li");
       li.style.cssText = "border:1px solid #7eb5ff33;border-radius:7px;padding:4px 6px;background:#133154";
       const rank = rankMap.get(p.uid);
-      li.textContent = `${rank ? `#${rank} ` : ""}${p.username || "unknown"} ${online ? "●" : "○"}`;
+      li.textContent = `${rankLabel(rank)} ${p.username || "unknown"} ${online ? "●" : "○"}`.trim();
       presenceEl.appendChild(li);
     });
   });

@@ -23,6 +23,14 @@ let username = "";
 let rankMap = new Map();
 let heartbeat = null;
 
+function rankLabel(rank) {
+  if (!rank) return "";
+  if (rank === 1) return "[1등]";
+  if (rank === 2) return "[2등]";
+  if (rank === 3) return "[3등]";
+  return `[#${rank}]`;
+}
+
 function esc(text) {
   return String(text)
     .replace(/&/g, "&amp;")
@@ -47,7 +55,7 @@ function renderMessages(docs) {
 
     const item = document.createElement("article");
     item.className = `msg${mine ? " me" : ""}`;
-    item.innerHTML = `<span class="meta">${rank ? `#${rank} ` : ""}${esc(data.username || "unknown")} · ${timeLabel(data.createdAt)}</span>${esc(data.text || "")}`;
+    item.innerHTML = `<span class="meta">${rankLabel(rank)} ${esc(data.username || "unknown")} · ${timeLabel(data.createdAt)}</span>${esc(data.text || "")}`;
     messagesEl.appendChild(item);
   });
   messagesEl.scrollTop = messagesEl.scrollHeight;
@@ -63,7 +71,7 @@ function renderPresence(docs) {
     const online = p.online && now - lastSeen < 70000;
     const li = document.createElement("li");
     const rank = rankMap.get(p.uid);
-    li.textContent = `${rank ? `#${rank} ` : ""}${p.username} ${online ? "●" : "○"}`;
+    li.textContent = `${rankLabel(rank)} ${p.username} ${online ? "●" : "○"}`.trim();
     presenceListEl.appendChild(li);
   });
 }

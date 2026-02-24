@@ -23,6 +23,14 @@ let username = "";
 let heartbeat = null;
 let rankMap = new Map();
 
+function rankLabel(rank) {
+  if (!rank) return "";
+  if (rank === 1) return "[1등]";
+  if (rank === 2) return "[2등]";
+  if (rank === 3) return "[3등]";
+  return `[#${rank}]`;
+}
+
 function esc(text) {
   return String(text)
     .replace(/&/g, "&amp;")
@@ -48,7 +56,7 @@ function renderPresence(docs) {
     const online = p.online && now - lastSeen < 70000;
     const rank = rankMap.get(p.uid);
     const li = document.createElement("li");
-    li.textContent = `${rank ? `#${rank} ` : ""}${p.username} ${online ? "●" : "○"}`;
+    li.textContent = `${rankLabel(rank)} ${p.username} ${online ? "●" : "○"}`.trim();
     presenceEl.appendChild(li);
   });
 }
@@ -61,7 +69,7 @@ function renderMessages(docs) {
     const rank = rankMap.get(data.uid);
     const row = document.createElement("article");
     row.className = `main-msg${mine ? " me" : ""}`;
-    row.innerHTML = `<span class="main-meta">${rank ? `#${rank} ` : ""}${esc(data.username || "unknown")} · ${timeLabel(data.createdAt)}</span>${esc(data.text || "")}`;
+    row.innerHTML = `<span class="main-meta">${rankLabel(rank)} ${esc(data.username || "unknown")} · ${timeLabel(data.createdAt)}</span>${esc(data.text || "")}`;
     messagesEl.appendChild(row);
   });
   messagesEl.scrollTop = messagesEl.scrollHeight;
