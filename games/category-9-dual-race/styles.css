@@ -1,0 +1,6 @@
+body{margin:0;min-height:100vh;display:grid;place-items:center;background:linear-gradient(140deg,#2a2238,#243e5b);color:#f2f4ff;font-family:"Segoe UI",sans-serif}
+.shell{width:min(95vw,760px);padding:16px;border:1px solid #b5b6ff55;border-radius:12px;background:#151a2fcf}
+button{padding:8px 12px;border-radius:8px;border:1px solid #b8c3ff66;background:#26335e;color:#f2f4ff}
+canvas{width:100%;height:auto;margin:10px 0;border-radius:10px;border:1px solid #c1d2ff33;background:#0b1224}
+.log{max-height:96px;overflow:auto;background:#0c1325;padding:8px;border-radius:8px;font-size:.9rem}
+a{color:#c4ceff}
