@@ -9,7 +9,7 @@ const resultEl = document.getElementById("result");
 const numbers = Array.from({ length: 10 }, (_, i) => i);
 const colorOf = (n) => (n === 0 ? "green" : n % 2 === 0 ? "black" : "red");
 const TAU = Math.PI * 2;
-const POINTER_ANGLE = Math.PI / 2; // bottom pointer (points upward)
+const POINTER_ANGLE = (3 * Math.PI) / 2; // top pointer (points downward)
 
 let points = 200;
 let spinning = false;
@@ -63,9 +63,9 @@ function drawWheel() {
 
   ctx.fillStyle = "#ffd3e6";
   ctx.beginPath();
-  ctx.moveTo(cx, canvas.height - 8);
-  ctx.lineTo(cx - 12, canvas.height - 30);
-  ctx.lineTo(cx + 12, canvas.height - 30);
+  ctx.moveTo(cx, 30);
+  ctx.lineTo(cx - 12, 8);
+  ctx.lineTo(cx + 12, 8);
   ctx.closePath();
   ctx.fill();
 }
