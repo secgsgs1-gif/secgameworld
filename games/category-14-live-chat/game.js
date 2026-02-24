@@ -10,7 +10,7 @@ import {
   setDoc,
   updateDoc
 } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
-import { db } from "../../shared/firebase-app.js?v=20260224j";
+import { db } from "../../shared/firebase-app.js?v=20260224m";
 
 const messagesEl = document.getElementById("messages");
 const form = document.getElementById("chat-form");

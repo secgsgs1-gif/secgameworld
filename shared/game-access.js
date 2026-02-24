@@ -1,4 +1,4 @@
-import { addPoints, spendPoints, watchUserProfile } from "./points.js?v=20260224j";
+import { addPoints, spendPoints, watchUserProfile } from "./points.js?v=20260224m";
 import {
   addDoc,
   collection,
@@ -11,7 +11,7 @@ import {
   setDoc,
   updateDoc
 } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
-import { db } from "./firebase-app.js?v=20260224j";
+import { db } from "./firebase-app.js?v=20260224m";
 
 function injectHud() {
   const hud = document.createElement("div");

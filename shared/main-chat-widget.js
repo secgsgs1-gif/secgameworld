@@ -10,7 +10,7 @@ import {
   setDoc,
   updateDoc
 } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
-import { db } from "./firebase-app.js?v=20260224j";
+import { db } from "./firebase-app.js?v=20260224m";
 
 const presenceEl = document.getElementById("main-presence-list");
 const messagesEl = document.getElementById("main-messages");

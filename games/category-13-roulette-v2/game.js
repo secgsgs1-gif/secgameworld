@@ -7,11 +7,9 @@ import {
   orderBy,
   query,
   runTransaction,
-  serverTimestamp,
-  setDoc,
-  updateDoc
+  serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
-import { db } from "../../shared/firebase-app.js?v=20260224j";
+import { db } from "../../shared/firebase-app.js?v=20260224m";
 
 const canvas = document.getElementById("wheel");
 const ctx = canvas.getContext("2d");
@@ -39,22 +37,19 @@ const bettorsEls = {
 
 const TAU = Math.PI * 2;
 const POINTER_ANGLE = (3 * Math.PI) / 2;
-const SPIN_INTERVAL_MS = 180000;
-const SPIN_DURATION_MS = 6300;
-const RESULT_HOLD_MS = 5000;
-
+const SPIN_INTERVAL_MS = 180000; // 3 min
+const SPIN_DURATION_MS = 6300; // about 3x old duration
 const slots = [1, 3, 1, 5, 1, 10, 1, 3, 1, 5, 1, 20, 1, 3, 1, 5, 1, 10, 1, 3];
 
 let user = null;
 let username = "";
 let points = 0;
 let rotation = 0;
-let state = null;
-let currentRoundBetsUnsub = null;
-let countdownTimer = null;
-let animatedRound = -1;
-
-const stateRef = doc(db, "roulette_v2_state", "global");
+let lastSpinRound = -1;
+let lastSettledRound = -1;
+let observedBetRound = -1;
+let roundBetsUnsub = null;
+let loopTimer = null;
 
 function slotColor(v) {
   if (v >= 20) return "#b23a48";
@@ -129,6 +124,12 @@ function drawWheel() {
   ctx.fill();
 }
 
+function resultIndexForRound(roundId) {
+  let x = (Number(roundId) * 1103515245 + 12345) >>> 0;
+  x ^= x >>> 16;
+  return x % slots.length;
+}
+
 function targetRotationForIndex(index) {
   const arc = TAU / slots.length;
   const center = index * arc + arc / 2;
@@ -153,92 +154,14 @@ function animateTo(targetRotation, duration) {
   });
 }
 
-function updateCountdown() {
-  if (!state) return;
-  const now = Date.now();
-
-  if (state.status === "betting") {
-    const ms = Math.max(0, (state.spinAtMs || 0) - now);
-    const m = String(Math.floor(ms / 60000)).padStart(2, "0");
-    const s = String(Math.floor((ms % 60000) / 1000)).padStart(2, "0");
-    countdownEl.textContent = `${m}:${s}`;
-  } else if (state.status === "spinning") {
-    countdownEl.textContent = "회전 중";
-  } else {
-    countdownEl.textContent = "결과 표시";
-  }
-}
-
-async function ensureState() {
-  const snap = await getDoc(stateRef);
-  if (snap.exists()) return;
-
-  const now = Date.now();
-  await setDoc(stateRef, {
-    roundId: 1,
-    status: "betting",
-    spinAtMs: now + SPIN_INTERVAL_MS,
-    spinningEndMs: 0,
-    resultIdx: -1,
-    resultMultiplier: 0,
-    updatedAt: serverTimestamp()
-  });
-}
-
-async function maybeStartSpin() {
-  await runTransaction(db, async (tx) => {
-    const snap = await tx.get(stateRef);
-    if (!snap.exists()) return;
-    const s = snap.data();
-    const now = Date.now();
-    if (s.status !== "betting" || now < s.spinAtMs) return;
-
-    const idx = Math.floor(Math.random() * slots.length);
-    tx.update(stateRef, {
-      status: "spinning",
-      resultIdx: idx,
-      resultMultiplier: slots[idx],
-      spinningEndMs: now + SPIN_DURATION_MS,
-      updatedAt: serverTimestamp()
-    });
-  });
-}
-
-async function maybeFinishSpin() {
-  await runTransaction(db, async (tx) => {
-    const snap = await tx.get(stateRef);
-    if (!snap.exists()) return;
-    const s = snap.data();
-    const now = Date.now();
-    if (s.status !== "spinning" || now < (s.spinningEndMs || 0)) return;
-
-    tx.update(stateRef, {
-      status: "done",
-      updatedAt: serverTimestamp()
-    });
-  });
-}
-
-async function maybeStartNextRound() {
-  await runTransaction(db, async (tx) => {
-    const snap = await tx.get(stateRef);
-    if (!snap.exists()) return;
-    const s = snap.data();
-    const now = Date.now();
-    if (s.status !== "done" || now < (s.spinningEndMs || 0) + RESULT_HOLD_MS) return;
-
-    const nextRound = (s.roundId || 1) + 1;
-    tx.set(doc(db, "roulette_v2_rounds", String(nextRound)), { createdAt: serverTimestamp() }, { merge: true });
-    tx.update(stateRef, {
-      roundId: nextRound,
-      status: "betting",
-      spinAtMs: now + SPIN_INTERVAL_MS,
-      spinningEndMs: 0,
-      resultIdx: -1,
-      resultMultiplier: 0,
-      updatedAt: serverTimestamp()
-    });
-  });
+function currentClock(now = Date.now()) {
+  const tick = Math.floor(now / SPIN_INTERVAL_MS);
+  const spinAt = tick * SPIN_INTERVAL_MS;
+  const nextSpinAt = spinAt + SPIN_INTERVAL_MS;
+  const inSpin = now >= spinAt && now < spinAt + SPIN_DURATION_MS;
+  const spinningRoundId = tick;
+  const bettingRoundId = tick + 1;
+  return { now, tick, spinAt, nextSpinAt, inSpin, spinningRoundId, bettingRoundId };
 }
 
 function parseBets() {
@@ -255,8 +178,9 @@ function parseBets() {
 }
 
 async function placeBet() {
-  if (!state || state.status !== "betting") {
-    resultEl.textContent = "배팅 시간 아님";
+  const c = currentClock();
+  if (c.inSpin) {
+    resultEl.textContent = "회전 중에는 배팅 불가";
     return;
   }
 
@@ -265,39 +189,48 @@ async function placeBet() {
     resultEl.textContent = "배팅 금액을 입력하세요.";
     return;
   }
-
   if (total > points) {
     resultEl.textContent = "포인트 부족";
     return;
   }
 
-  const roundId = String(state.roundId || 1);
+  const roundId = String(c.bettingRoundId);
   const betRef = doc(db, "roulette_v2_rounds", roundId, "bets", user.uid);
+
   const existing = await getDoc(betRef);
   if (existing.exists()) {
-    resultEl.textContent = "이번 라운드는 이미 배팅 완료";
+    resultEl.textContent = "이번 라운드 이미 배팅 완료";
     return;
   }
 
-  const spend = await window.AccountWallet.spend(total, "roulette_v2_bet", { game: "category-13-roulette-v2", roundId });
+  const spend = await window.AccountWallet.spend(total, "roulette_v2_bet", {
+    game: "category-13-roulette-v2",
+    roundId
+  });
   if (!spend.ok) {
     resultEl.textContent = "포인트 차감 실패";
     return;
   }
 
-  await setDoc(betRef, {
-    uid: user.uid,
-    username,
-    amounts,
-    total,
-    settled: false,
-    createdAt: serverTimestamp()
+  await runTransaction(db, async (tx) => {
+    tx.set(betRef, {
+      uid: user.uid,
+      username,
+      amounts,
+      total,
+      settled: false,
+      createdAt: serverTimestamp()
+    });
   });
 
   resultEl.textContent = `배팅 완료: 총 ${total}`;
 }
 
-async function settleMyBet(roundId, resultMultiplier) {
+async function settleMyBet(roundId) {
+  if (roundId <= 0 || lastSettledRound === roundId) return;
+
+  const idx = resultIndexForRound(roundId);
+  const resultMultiplier = slots[idx];
   const betRef = doc(db, "roulette_v2_rounds", String(roundId), "bets", user.uid);
   const userRef = doc(db, "users", user.uid);
 
@@ -326,17 +259,17 @@ async function settleMyBet(roundId, resultMultiplier) {
     }
   });
 
-  const myBet = await getDoc(betRef);
-  if (myBet.exists()) {
-    const d = myBet.data();
-    if (d.payout > 0) resultEl.textContent = `당첨! x${resultMultiplier}, +${d.payout}`;
-    else resultEl.textContent = `미당첨. 결과 x${resultMultiplier}`;
+  lastSettledRound = roundId;
+  const mine = await getDoc(betRef);
+  if (mine.exists()) {
+    const d = mine.data();
+    if (d.payout > 0) resultEl.textContent = `당첨! x${d.resultMultiplier}, +${d.payout}`;
+    else resultEl.textContent = `미당첨. 결과 x${d.resultMultiplier}`;
   }
 }
 
 function renderBettors(docs) {
   const map = { 1: [], 3: [], 5: [], 10: [], 20: [] };
-
   docs.forEach((snap) => {
     const b = snap.data();
     [1, 3, 5, 10, 20].forEach((m) => {
@@ -346,95 +279,92 @@ function renderBettors(docs) {
   });
 
   [1, 3, 5, 10, 20].forEach((m) => {
-    const ul = bettorsEls[m];
-    ul.innerHTML = "";
+    bettorsEls[m].innerHTML = "";
     map[m].forEach((name) => {
       const li = document.createElement("li");
       li.textContent = name;
-      ul.appendChild(li);
+      bettorsEls[m].appendChild(li);
     });
   });
 }
 
-async function animateForSpin(roundId, idx) {
-  if (animatedRound === roundId) return;
-  animatedRound = roundId;
-
-  const base = targetRotationForIndex(idx);
-  const target = rotation + (12 * TAU) + (base - (rotation % TAU));
-  await animateTo(target, SPIN_DURATION_MS);
-}
-
-function attachRoundBets(roundId) {
-  if (currentRoundBetsUnsub) currentRoundBetsUnsub();
+function attachBetList(roundId) {
+  if (observedBetRound === roundId) return;
+  observedBetRound = roundId;
+  if (roundBetsUnsub) roundBetsUnsub();
   const q = query(collection(db, "roulette_v2_rounds", String(roundId), "bets"), orderBy("createdAt", "asc"));
-  currentRoundBetsUnsub = onSnapshot(q, (snap) => {
-    renderBettors(snap.docs);
-  });
+  roundBetsUnsub = onSnapshot(
+    q,
+    (snap) => renderBettors(snap.docs),
+    (err) => {
+      resultEl.textContent = `권한 오류: ${err.message}`;
+    }
+  );
 }
 
-async function init() {
-  drawWheel();
-  try {
-    await ensureState();
-  } catch (e) {
-    resultEl.textContent = "권한 오류: Firestore Rules를 최신으로 Publish 해주세요.";
-    throw e;
+async function tickLoop() {
+  const c = currentClock();
+
+  const sec = Math.max(0, Math.floor((c.nextSpinAt - c.now) / 1000));
+  const mm = String(Math.floor(sec / 60)).padStart(2, "0");
+  const ss = String(sec % 60).padStart(2, "0");
+  countdownEl.textContent = `${mm}:${ss}`;
+
+  roundStatusEl.textContent = c.inSpin
+    ? `회전중 (Round ${c.spinningRoundId})`
+    : `배팅중 (Round ${c.bettingRoundId})`;
+
+  if (c.inSpin && lastSpinRound !== c.spinningRoundId) {
+    lastSpinRound = c.spinningRoundId;
+    const idx = resultIndexForRound(c.spinningRoundId);
+    const base = targetRotationForIndex(idx);
+    const normalized = ((rotation % TAU) + TAU) % TAU;
+    const target = rotation + (12 * TAU) + (base - normalized);
+    const remain = Math.max(900, c.spinAt + SPIN_DURATION_MS - c.now);
+    await animateTo(target, remain);
   }
 
-  const unsubProfile = onSnapshot(doc(db, "users", user.uid), (snap) => {
+  if (!c.inSpin) {
+    settleMyBet(c.spinningRoundId).catch((err) => {
+      resultEl.textContent = `정산 오류: ${err.message}`;
+    });
+    attachBetList(c.bettingRoundId);
+  }
+}
+
+function init() {
+  drawWheel();
+
+  onSnapshot(doc(db, "users", user.uid), (snap) => {
     const p = snap.data() || {};
     username = p.username || (user.email || "user").split("@")[0];
     points = p.points || 0;
     pointsEl.textContent = String(points);
   });
 
-  onSnapshot(stateRef, async (snap) => {
-    if (!snap.exists()) return;
-    state = snap.data();
-
-    roundStatusEl.textContent = state.status;
-    attachRoundBets(state.roundId || 1);
-
-    if (state.status === "spinning" && state.resultIdx >= 0) {
-      await animateForSpin(state.roundId || 1, state.resultIdx);
-    }
-
-    if (state.status === "done" && state.resultMultiplier) {
-      settleMyBet(state.roundId || 1, state.resultMultiplier).catch(() => {});
-    }
-  });
-
   placeBetBtn.addEventListener("click", () => {
-    placeBet().catch((e) => {
-      resultEl.textContent = `오류: ${e.message}`;
+    placeBet().catch((err) => {
+      resultEl.textContent = `배팅 오류: ${err.message}`;
     });
   });
 
-  countdownTimer = setInterval(() => {
-    updateCountdown();
-    maybeStartSpin().catch(() => {});
-    maybeFinishSpin().catch(() => {});
-    maybeStartNextRound().catch(() => {});
+  tickLoop().catch(() => {});
+  loopTimer = setInterval(() => {
+    tickLoop().catch(() => {});
   }, 1000);
 
   window.addEventListener("beforeunload", () => {
-    if (countdownTimer) clearInterval(countdownTimer);
-    unsubProfile?.();
-    currentRoundBetsUnsub?.();
+    if (loopTimer) clearInterval(loopTimer);
+    if (roundBetsUnsub) roundBetsUnsub();
   });
 }
 
 document.addEventListener("app:user-ready", (e) => {
   user = e.detail.user;
-  init().catch((err) => {
-    resultEl.textContent = `오류: ${err.message}`;
-  });
+  init();
 });
 
 if (window.__AUTH_USER__) {
   user = window.__AUTH_USER__;
-  init().catch((err) => {
-    resultEl.textContent = `오류: ${err.message}`;
-  });
+  init();
 }
