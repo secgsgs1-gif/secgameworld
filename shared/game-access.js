@@ -1,6 +1,4 @@
-import { addPoints, spendPoints, watchUserProfile } from "./points.js?v=20260224e";
-
-const ENTRY_DEFAULT = 0;
+import { addPoints, spendPoints, watchUserProfile } from "./points.js?v=20260224f";
 
 function gameCodeFromPath() {
   const parts = location.pathname.split("/");
@@ -45,19 +43,6 @@ async function run(user) {
       return { ok: true };
     }
   };
-
-  const entry = Number(window.GAME_ENTRY_COST || ENTRY_DEFAULT);
-  const code = gameCodeFromPath();
-
-  const tokenKey = `entry:${user.uid}:${code}:${Date.now().toString().slice(0, -5)}`;
-  if (!sessionStorage.getItem(tokenKey)) {
-    const spend = await spendPoints(user.uid, entry, "game_entry", { game: code });
-    if (!spend.ok) {
-      document.body.innerHTML = `<main style="font-family:sans-serif;padding:24px"><h2>포인트 부족</h2><p>이 게임 입장에는 ${entry} 포인트가 필요합니다.</p><a href="${window.APP_ROOT || '../../'}index.html">메인으로</a></main>`;
-      return;
-    }
-    sessionStorage.setItem(tokenKey, "1");
-  }
 
   document.dispatchEvent(new CustomEvent("app:wallet-ready"));
 }

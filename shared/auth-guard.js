@@ -1,6 +1,6 @@
-import { auth, isFirebaseConfigured } from "./firebase-app.js?v=20260224e";
+import { auth, isFirebaseConfigured } from "./firebase-app.js?v=20260224f";
 import { onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-auth.js";
-import { ensureUserProfile } from "./auth.js?v=20260224e";
+import { ensureUserProfile } from "./auth.js?v=20260224f";
 
 function showConfigMessage() {
   const msg = document.createElement("div");
