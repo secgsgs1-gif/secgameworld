@@ -23,6 +23,15 @@ let username = "";
 let heartbeat = null;
 let rankMap = new Map();
 
+function normalizeUsername(currentUser, rawName) {
+  const byProfile = String(rawName || "").trim();
+  if (byProfile) return byProfile;
+  const byEmail = String(currentUser?.email || "").split("@")[0].trim();
+  if (byEmail) return byEmail;
+  const byUid = String(currentUser?.uid || "").slice(0, 6);
+  return byUid ? `user_${byUid}` : "user";
+}
+
 function rankLabel(rank) {
   if (!rank) return "";
   if (rank === 1) return "🥇1등";
@@ -67,9 +76,10 @@ function renderMessages(docs) {
     const data = snap.data();
     const mine = data.uid === user.uid;
     const rank = rankMap.get(data.uid);
+    const shownName = normalizeUsername(user, data.username);
     const row = document.createElement("article");
     row.className = `main-msg${mine ? " me" : ""}`;
-    row.innerHTML = `<span class="main-meta">${rankLabel(rank)} ${esc(data.username || "unknown")} · ${timeLabel(data.createdAt)}</span>${esc(data.text || "")}`;
+    row.innerHTML = `<span class="main-meta">${rankLabel(rank)} ${esc(shownName)} · ${timeLabel(data.createdAt)}</span>${esc(data.text || "")}`;
     messagesEl.appendChild(row);
   });
   messagesEl.scrollTop = messagesEl.scrollHeight;
@@ -77,9 +87,10 @@ function renderMessages(docs) {
 
 async function touchPresence(online) {
   if (!user) return;
+  const safeUsername = normalizeUsername(user, username);
   await setDoc(doc(db, "presence", user.uid), {
     uid: user.uid,
-    username,
+    username: safeUsername,
     online,
     lastSeen: serverTimestamp()
   }, { merge: true });
@@ -88,10 +99,11 @@ async function touchPresence(online) {
 async function init() {
   if (!presenceEl || !messagesEl || !form || !input || !statusEl) return;
   statusEl.textContent = "채팅 연결 중...";
+  username = normalizeUsername(user, "");
 
   onSnapshot(doc(db, "users", user.uid), (snap) => {
     const p = snap.data() || {};
-    username = p.username || (user.email || "user").split("@")[0];
+    username = normalizeUsername(user, p.username);
   });
 
   const rankQ = query(collection(db, "users"), orderBy("points", "desc"), limit(500));
@@ -115,13 +127,19 @@ form?.addEventListener("submit", async (e) => {
   e.preventDefault();
   const text = input.value.trim();
   if (!user || !text) return;
+  const safeUsername = normalizeUsername(user, username);
   input.value = "";
-  await addDoc(collection(db, "live_chat_messages"), {
-    uid: user.uid,
-    username,
-    text,
-    createdAt: serverTimestamp()
-  });
+  try {
+    await addDoc(collection(db, "live_chat_messages"), {
+      uid: user.uid,
+      username: safeUsername,
+      text,
+      createdAt: serverTimestamp()
+    });
+    statusEl.textContent = "실시간 연결됨";
+  } catch (err) {
+    statusEl.textContent = `전송 실패: ${err.message}`;
+  }
 });
 
 window.addEventListener("beforeunload", () => {

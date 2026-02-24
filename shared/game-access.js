@@ -13,6 +13,15 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
 import { db } from "./firebase-app.js?v=20260224m";
 
+function normalizeUsername(currentUser, rawName) {
+  const byProfile = String(rawName || "").trim();
+  if (byProfile) return byProfile;
+  const byEmail = String(currentUser?.email || "").split("@")[0].trim();
+  if (byEmail) return byEmail;
+  const byUid = String(currentUser?.uid || "").slice(0, 6);
+  return byUid ? `user_${byUid}` : "user";
+}
+
 function injectHud() {
   const hud = document.createElement("div");
   hud.id = "wallet-hud";
@@ -76,12 +85,12 @@ function setupGameChat(user) {
   const input = document.getElementById("game-chat-input");
   const statusEl = document.getElementById("game-chat-status");
 
-  let username = "user";
+  let username = normalizeUsername(user, "");
   let rankMap = new Map();
 
   onSnapshot(doc(db, "users", user.uid), (snap) => {
     const p = snap.data() || {};
-    username = p.username || (user.email || "user").split("@")[0];
+    username = normalizeUsername(user, p.username);
   });
 
   const rankQ = query(collection(db, "users"), orderBy("points", "desc"), limit(500));
@@ -97,9 +106,10 @@ function setupGameChat(user) {
       const data = docSnap.data();
       const mine = data.uid === user.uid;
       const rank = rankMap.get(data.uid);
+      const shownName = normalizeUsername(user, data.username);
       const row = document.createElement("article");
       row.style.cssText = `border:1px solid #7eb5ff33;border-radius:8px;padding:5px 7px;background:${mine ? "#215447" : "#1a3b62"}`;
-      row.innerHTML = `<span style="display:block;font-size:11px;opacity:.82">${rankLabel(rank)} ${esc(data.username || "unknown")} · ${timeLabel(data.createdAt)}</span>${esc(data.text || "")}`;
+      row.innerHTML = `<span style="display:block;font-size:11px;opacity:.82">${rankLabel(rank)} ${esc(shownName)} · ${timeLabel(data.createdAt)}</span>${esc(data.text || "")}`;
       messagesEl.appendChild(row);
     });
     messagesEl.scrollTop = messagesEl.scrollHeight;
@@ -108,23 +118,28 @@ function setupGameChat(user) {
   const presenceQ = query(collection(db, "presence"), orderBy("username", "asc"));
   onSnapshot(presenceQ, (snap) => {
     const now = Date.now();
+    const rows = snap.docs.map((s) => s.data()).filter((p) => p?.uid).sort((a, b) => {
+      const aName = normalizeUsername(user, a.username).toLowerCase();
+      const bName = normalizeUsername(user, b.username).toLowerCase();
+      return aName > bName ? 1 : -1;
+    });
     presenceEl.innerHTML = "";
-    snap.docs.forEach((s) => {
-      const p = s.data();
+    rows.forEach((p) => {
       const lastSeen = p.lastSeen?.toDate ? p.lastSeen.toDate().getTime() : 0;
       const online = p.online && now - lastSeen < 70000;
       const li = document.createElement("li");
       li.style.cssText = "border:1px solid #7eb5ff33;border-radius:7px;padding:4px 6px;background:#133154";
       const rank = rankMap.get(p.uid);
-      li.textContent = `${rankLabel(rank)} ${p.username || "unknown"} ${online ? "●" : "○"}`.trim();
+      li.textContent = `${rankLabel(rank)} ${normalizeUsername(user, p.username)} ${online ? "●" : "○"}`.trim();
       presenceEl.appendChild(li);
     });
   });
 
   async function touchPresence(online) {
+    const safeUsername = normalizeUsername(user, username);
     await setDoc(doc(db, "presence", user.uid), {
       uid: user.uid,
-      username,
+      username: safeUsername,
       online,
       lastSeen: serverTimestamp()
     }, { merge: true });
@@ -137,13 +152,19 @@ function setupGameChat(user) {
     e.preventDefault();
     const text = input.value.trim();
     if (!text) return;
+    const safeUsername = normalizeUsername(user, username);
     input.value = "";
-    await addDoc(collection(db, "live_chat_messages"), {
-      uid: user.uid,
-      username,
-      text,
-      createdAt: serverTimestamp()
-    });
+    try {
+      await addDoc(collection(db, "live_chat_messages"), {
+        uid: user.uid,
+        username: safeUsername,
+        text,
+        createdAt: serverTimestamp()
+      });
+      statusEl.textContent = "실시간 연결됨";
+    } catch (err) {
+      statusEl.textContent = `전송 실패: ${err.message}`;
+    }
   });
 
   window.addEventListener("beforeunload", () => {
