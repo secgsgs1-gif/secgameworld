@@ -57,7 +57,11 @@ function timeLabel(ts) {
 
 function renderPresence(docs) {
   const now = Date.now();
-  const rows = docs.map((x) => x.data()).filter((p) => p?.username).sort((a, b) => (a.username > b.username ? 1 : -1));
+  const rows = docs.map((x) => x.data()).filter((p) => p?.uid).sort((a, b) => {
+    const aName = normalizeUsername(user, a.username).toLowerCase();
+    const bName = normalizeUsername(user, b.username).toLowerCase();
+    return aName > bName ? 1 : -1;
+  });
   presenceEl.innerHTML = "";
 
   rows.forEach((p) => {
@@ -65,7 +69,7 @@ function renderPresence(docs) {
     const online = p.online && now - lastSeen < 70000;
     const rank = rankMap.get(p.uid);
     const li = document.createElement("li");
-    li.textContent = `${rankLabel(rank)} ${p.username} ${online ? "●" : "○"}`.trim();
+    li.textContent = `${rankLabel(rank)} ${normalizeUsername(user, p.username)} ${online ? "●" : "○"}`.trim();
     presenceEl.appendChild(li);
   });
 }
