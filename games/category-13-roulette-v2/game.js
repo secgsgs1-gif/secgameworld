@@ -7,7 +7,7 @@ const pointsEl = document.getElementById("points");
 const resultEl = document.getElementById("result");
 
 const TAU = Math.PI * 2;
-const POINTER_ANGLE = Math.PI / 2;
+const POINTER_ANGLE = (3 * Math.PI) / 2;
 const slots = [1, 3, 1, 5, 1, 10, 1, 3, 1, 5, 1, 20, 1, 3, 1, 5, 1, 10, 1, 3];
 
 let rotation = 0;
@@ -91,9 +91,9 @@ function drawWheel() {
 
   ctx.fillStyle = "#eac28d";
   ctx.beginPath();
-  ctx.moveTo(cx, canvas.height - 8);
-  ctx.lineTo(cx - 14, canvas.height - 36);
-  ctx.lineTo(cx + 14, canvas.height - 36);
+  ctx.moveTo(cx, 34);
+  ctx.lineTo(cx - 14, 8);
+  ctx.lineTo(cx + 14, 8);
   ctx.closePath();
   ctx.fill();
 }
