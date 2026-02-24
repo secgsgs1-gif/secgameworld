@@ -125,9 +125,16 @@ function drawWheel() {
 }
 
 function resultIndexForRound(roundId) {
-  let x = (Number(roundId) * 1103515245 + 12345) >>> 0;
-  x ^= x >>> 16;
-  return x % slots.length;
+  try {
+    const n = BigInt(roundId);
+    let x = (n * 1103515245n + 12345n) & 0xffffffffn;
+    x = x ^ (x >> 16n);
+    const idx = Number(x % BigInt(slots.length));
+    if (!Number.isInteger(idx) || idx < 0 || idx >= slots.length) return 0;
+    return idx;
+  } catch {
+    return 0;
+  }
 }
 
 function targetRotationForIndex(index) {
@@ -230,7 +237,7 @@ async function settleMyBet(roundId) {
   if (roundId <= 0 || lastSettledRound === roundId) return;
 
   const idx = resultIndexForRound(roundId);
-  const resultMultiplier = slots[idx];
+  const resultMultiplier = slots[idx] ?? 1;
   const betRef = doc(db, "roulette_v2_rounds", String(roundId), "bets", user.uid);
   const userRef = doc(db, "users", user.uid);
 
