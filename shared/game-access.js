@@ -94,46 +94,73 @@ function setupGameChat(user) {
   });
 
   const rankQ = query(collection(db, "users"), orderBy("points", "desc"), limit(500));
-  onSnapshot(rankQ, (snap) => {
-    rankMap = new Map();
-    snap.docs.forEach((d, i) => rankMap.set(d.id, i + 1));
-  });
+  onSnapshot(
+    rankQ,
+    (snap) => {
+      rankMap = new Map();
+      snap.docs.forEach((d, i) => rankMap.set(d.id, i + 1));
+    },
+    (err) => {
+      statusEl.textContent = `랭킹 오류: ${err.message}`;
+    }
+  );
 
   const msgQ = query(collection(db, "live_chat_messages"), orderBy("createdAt", "asc"), limit(80));
-  onSnapshot(msgQ, (snap) => {
-    messagesEl.innerHTML = "";
-    snap.docs.forEach((docSnap) => {
-      const data = docSnap.data();
-      const mine = data.uid === user.uid;
-      const rank = rankMap.get(data.uid);
-      const shownName = normalizeUsername(user, data.username);
-      const row = document.createElement("article");
-      row.style.cssText = `border:1px solid #7eb5ff33;border-radius:8px;padding:5px 7px;background:${mine ? "#215447" : "#1a3b62"}`;
-      row.innerHTML = `<span style="display:block;font-size:11px;opacity:.82">${rankLabel(rank)} ${esc(shownName)} · ${timeLabel(data.createdAt)}</span>${esc(data.text || "")}`;
-      messagesEl.appendChild(row);
-    });
-    messagesEl.scrollTop = messagesEl.scrollHeight;
-  });
+  onSnapshot(
+    msgQ,
+    (snap) => {
+      messagesEl.innerHTML = "";
+      snap.docs.forEach((docSnap) => {
+        const data = docSnap.data();
+        const mine = data.uid === user.uid;
+        const rank = rankMap.get(data.uid);
+        const shownName = normalizeUsername(user, data.username);
+        const row = document.createElement("article");
+        row.style.cssText = `border:1px solid #7eb5ff33;border-radius:8px;padding:5px 7px;background:${mine ? "#215447" : "#1a3b62"}`;
+        row.innerHTML = `<span style="display:block;font-size:11px;opacity:.82">${rankLabel(rank)} ${esc(shownName)} · ${timeLabel(data.createdAt)}</span>${esc(data.text || "")}`;
+        messagesEl.appendChild(row);
+      });
+      messagesEl.scrollTop = messagesEl.scrollHeight;
+    },
+    (err) => {
+      statusEl.textContent = `메시지 오류: ${err.message}`;
+    }
+  );
 
   const presenceQ = query(collection(db, "presence"), orderBy("username", "asc"));
-  onSnapshot(presenceQ, (snap) => {
-    const now = Date.now();
-    const rows = snap.docs.map((s) => s.data()).filter((p) => p?.uid).sort((a, b) => {
-      const aName = normalizeUsername(user, a.username).toLowerCase();
-      const bName = normalizeUsername(user, b.username).toLowerCase();
-      return aName > bName ? 1 : -1;
-    });
-    presenceEl.innerHTML = "";
-    rows.forEach((p) => {
-      const lastSeen = p.lastSeen?.toDate ? p.lastSeen.toDate().getTime() : 0;
-      const online = p.online && now - lastSeen < 70000;
-      const li = document.createElement("li");
-      li.style.cssText = "border:1px solid #7eb5ff33;border-radius:7px;padding:4px 6px;background:#133154";
-      const rank = rankMap.get(p.uid);
-      li.textContent = `${rankLabel(rank)} ${normalizeUsername(user, p.username)} ${online ? "●" : "○"}`.trim();
-      presenceEl.appendChild(li);
-    });
-  });
+  onSnapshot(
+    presenceQ,
+    (snap) => {
+      const now = Date.now();
+      const rows = snap.docs.map((s) => s.data()).filter((p) => p?.uid).sort((a, b) => {
+        const aName = normalizeUsername(user, a.username).toLowerCase();
+        const bName = normalizeUsername(user, b.username).toLowerCase();
+        return aName > bName ? 1 : -1;
+      });
+      presenceEl.innerHTML = "";
+      let onlineCount = 0;
+      rows.forEach((p) => {
+        const lastSeen = p.lastSeen?.toDate ? p.lastSeen.toDate().getTime() : 0;
+        const online = p.online && now - lastSeen < 70000;
+        if (!online) return;
+        onlineCount += 1;
+        const li = document.createElement("li");
+        li.style.cssText = "border:1px solid #7eb5ff33;border-radius:7px;padding:4px 6px;background:#133154";
+        const rank = rankMap.get(p.uid);
+        li.textContent = `${rankLabel(rank)} ${normalizeUsername(user, p.username)} ●`.trim();
+        presenceEl.appendChild(li);
+      });
+      if (onlineCount === 0) {
+        const li = document.createElement("li");
+        li.style.cssText = "border:1px solid #7eb5ff33;border-radius:7px;padding:4px 6px;background:#133154";
+        li.textContent = "접속자 없음";
+        presenceEl.appendChild(li);
+      }
+    },
+    (err) => {
+      statusEl.textContent = `접속자 오류: ${err.message}`;
+    }
+  );
 
   async function touchPresence(online) {
     const safeUsername = normalizeUsername(user, username);

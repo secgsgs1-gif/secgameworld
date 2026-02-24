@@ -73,17 +73,29 @@ function renderMessages(docs) {
 
 function renderPresence(docs) {
   const now = Date.now();
-  const rows = docs.map((snap) => snap.data()).filter((p) => p?.username).sort((a, b) => (a.username > b.username ? 1 : -1));
+  const rows = docs.map((snap) => snap.data()).filter((p) => p?.uid).sort((a, b) => {
+    const aName = normalizeUsername(user, a.username).toLowerCase();
+    const bName = normalizeUsername(user, b.username).toLowerCase();
+    return aName > bName ? 1 : -1;
+  });
 
   presenceListEl.innerHTML = "";
+  let onlineCount = 0;
   rows.forEach((p) => {
     const lastSeen = p.lastSeen?.toDate ? p.lastSeen.toDate().getTime() : 0;
     const online = p.online && now - lastSeen < 70000;
+    if (!online) return;
+    onlineCount += 1;
     const li = document.createElement("li");
     const rank = rankMap.get(p.uid);
-    li.textContent = `${rankLabel(rank)} ${p.username} ${online ? "●" : "○"}`.trim();
+    li.textContent = `${rankLabel(rank)} ${normalizeUsername(user, p.username)} ●`.trim();
     presenceListEl.appendChild(li);
   });
+  if (onlineCount === 0) {
+    const li = document.createElement("li");
+    li.textContent = "접속자 없음";
+    presenceListEl.appendChild(li);
+  }
 }
 
 async function updatePresence(online) {
@@ -107,16 +119,34 @@ async function init() {
   });
 
   const rankQ = query(collection(db, "users"), orderBy("points", "desc"), limit(500));
-  onSnapshot(rankQ, (snap) => {
-    rankMap = new Map();
-    snap.docs.forEach((d, i) => rankMap.set(d.id, i + 1));
-  });
+  onSnapshot(
+    rankQ,
+    (snap) => {
+      rankMap = new Map();
+      snap.docs.forEach((d, i) => rankMap.set(d.id, i + 1));
+    },
+    (err) => {
+      statusEl.textContent = `랭킹 오류: ${err.message}`;
+    }
+  );
 
   const msgQ = query(collection(db, "live_chat_messages"), orderBy("createdAt", "asc"), limit(120));
-  onSnapshot(msgQ, (snap) => renderMessages(snap.docs));
+  onSnapshot(
+    msgQ,
+    (snap) => renderMessages(snap.docs),
+    (err) => {
+      statusEl.textContent = `메시지 오류: ${err.message}`;
+    }
+  );
 
   const presenceQ = query(collection(db, "presence"), orderBy("username", "asc"));
-  onSnapshot(presenceQ, (snap) => renderPresence(snap.docs));
+  onSnapshot(
+    presenceQ,
+    (snap) => renderPresence(snap.docs),
+    (err) => {
+      statusEl.textContent = `접속자 오류: ${err.message}`;
+    }
+  );
 
   await updatePresence(true);
   heartbeat = setInterval(() => updatePresence(true).catch(() => {}), 30000);

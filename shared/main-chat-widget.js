@@ -64,14 +64,22 @@ function renderPresence(docs) {
   });
   presenceEl.innerHTML = "";
 
+  let onlineCount = 0;
   rows.forEach((p) => {
     const lastSeen = p.lastSeen?.toDate ? p.lastSeen.toDate().getTime() : 0;
     const online = p.online && now - lastSeen < 70000;
+    if (!online) return;
+    onlineCount += 1;
     const rank = rankMap.get(p.uid);
     const li = document.createElement("li");
-    li.textContent = `${rankLabel(rank)} ${normalizeUsername(user, p.username)} ${online ? "●" : "○"}`.trim();
+    li.textContent = `${rankLabel(rank)} ${normalizeUsername(user, p.username)} ●`.trim();
     presenceEl.appendChild(li);
   });
+  if (onlineCount === 0) {
+    const li = document.createElement("li");
+    li.textContent = "접속자 없음";
+    presenceEl.appendChild(li);
+  }
 }
 
 function renderMessages(docs) {
@@ -111,16 +119,34 @@ async function init() {
   });
 
   const rankQ = query(collection(db, "users"), orderBy("points", "desc"), limit(500));
-  onSnapshot(rankQ, (snap) => {
-    rankMap = new Map();
-    snap.docs.forEach((d, i) => rankMap.set(d.id, i + 1));
-  });
+  onSnapshot(
+    rankQ,
+    (snap) => {
+      rankMap = new Map();
+      snap.docs.forEach((d, i) => rankMap.set(d.id, i + 1));
+    },
+    (err) => {
+      statusEl.textContent = `랭킹 오류: ${err.message}`;
+    }
+  );
 
   const msgQ = query(collection(db, "live_chat_messages"), orderBy("createdAt", "asc"), limit(80));
-  onSnapshot(msgQ, (snap) => renderMessages(snap.docs));
+  onSnapshot(
+    msgQ,
+    (snap) => renderMessages(snap.docs),
+    (err) => {
+      statusEl.textContent = `메시지 오류: ${err.message}`;
+    }
+  );
 
   const presenceQ = query(collection(db, "presence"), orderBy("username", "asc"));
-  onSnapshot(presenceQ, (snap) => renderPresence(snap.docs));
+  onSnapshot(
+    presenceQ,
+    (snap) => renderPresence(snap.docs),
+    (err) => {
+      statusEl.textContent = `접속자 오류: ${err.message}`;
+    }
+  );
 
   await touchPresence(true);
   heartbeat = setInterval(() => touchPresence(true).catch(() => {}), 30000);
