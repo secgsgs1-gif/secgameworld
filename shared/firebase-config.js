@@ -1,10 +1,11 @@
 export const firebaseConfig = {
-  apiKey: "REPLACE_ME",
-  authDomain: "REPLACE_ME.firebaseapp.com",
-  projectId: "REPLACE_ME",
-  storageBucket: "REPLACE_ME.appspot.com",
-  messagingSenderId: "REPLACE_ME",
-  appId: "REPLACE_ME"
+  apiKey: "AIzaSyAwGVCFews7nz277e7gZ9ZDEOypdU_vfBY",
+  authDomain: "secgameworld2.firebaseapp.com",
+  projectId: "secgameworld2",
+  storageBucket: "secgameworld2.firebasestorage.app",
+  messagingSenderId: "694157942896",
+  appId: "1:694157942896:web:17329e91a5ebf95b9054b5",
+  measurementId: "G-GBX71L8NTS"
 };
 
 export function isFirebaseConfigured() {
