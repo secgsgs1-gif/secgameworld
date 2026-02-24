@@ -40,15 +40,18 @@ const TAU = Math.PI * 2;
 const POINTER_ANGLE = (3 * Math.PI) / 2;
 const SPIN_INTERVAL_MS = 180000; // 3 min
 const SPIN_DURATION_MS = 6300; // about 3x old duration
+const DAY_MS = 86400000;
+const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
+const ROUNDS_PER_DAY = DAY_MS / SPIN_INTERVAL_MS; // 480
 const slots = [1, 3, 1, 5, 1, 10, 1, 3, 1, 5, 1, 20, 1, 3, 1, 5, 1, 10, 1, 3];
 
 let user = null;
 let username = "";
 let points = 0;
 let rotation = 0;
-let lastSpinRound = -1;
-let lastSettledRound = -1;
-let observedBetRound = -1;
+let lastSpinRound = "";
+let lastSettledRound = "";
+let observedBetRound = "";
 let roundBetsUnsub = null;
 let loopTimer = null;
 
@@ -125,17 +128,19 @@ function drawWheel() {
   ctx.fill();
 }
 
-function resultIndexForRound(roundId) {
-  try {
-    const n = BigInt(roundId);
-    let x = (n * 1103515245n + 12345n) & 0xffffffffn;
-    x = x ^ (x >> 16n);
-    const idx = Number(x % BigInt(slots.length));
-    if (!Number.isInteger(idx) || idx < 0 || idx >= slots.length) return 0;
-    return idx;
-  } catch {
-    return 0;
+function hashRoundId(roundId) {
+  let h = 2166136261 >>> 0;
+  const s = String(roundId);
+  for (let i = 0; i < s.length; i += 1) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
   }
+  return h >>> 0;
+}
+
+function resultIndexForRound(roundId) {
+  const idx = hashRoundId(roundId) % slots.length;
+  return Number.isInteger(idx) && idx >= 0 && idx < slots.length ? idx : 0;
 }
 
 function targetRotationForIndex(index) {
@@ -165,13 +170,37 @@ function animateTo(targetRotation, duration) {
 }
 
 function currentClock(now = Date.now()) {
-  const tick = Math.floor(now / SPIN_INTERVAL_MS);
-  const spinAt = tick * SPIN_INTERVAL_MS;
+  const kstNow = now + KST_OFFSET_MS;
+  const dayStartKst = Math.floor(kstNow / DAY_MS) * DAY_MS;
+  const dayStartUtc = dayStartKst - KST_OFFSET_MS;
+  const dayKey = new Date(dayStartUtc).toISOString().slice(0, 10);
+
+  const elapsedInDay = kstNow - dayStartKst;
+  const tickInDay = Math.floor(elapsedInDay / SPIN_INTERVAL_MS);
+  const spinAt = dayStartUtc + tickInDay * SPIN_INTERVAL_MS;
   const nextSpinAt = spinAt + SPIN_INTERVAL_MS;
   const inSpin = now >= spinAt && now < spinAt + SPIN_DURATION_MS;
-  const spinningRoundId = tick;
-  const bettingRoundId = tick + 1;
-  return { now, tick, spinAt, nextSpinAt, inSpin, spinningRoundId, bettingRoundId };
+  const spinningRoundNo = tickInDay + 1;
+  const bettingRoundNoRaw = spinningRoundNo + 1;
+  const bettingCrossDay = bettingRoundNoRaw > ROUNDS_PER_DAY;
+  const bettingRoundNo = bettingCrossDay ? 1 : bettingRoundNoRaw;
+  const bettingDayKey = bettingCrossDay
+    ? new Date(dayStartUtc + DAY_MS).toISOString().slice(0, 10)
+    : dayKey;
+  const spinningRoundId = `${dayKey}-R${spinningRoundNo}`;
+  const bettingRoundId = `${bettingDayKey}-R${bettingRoundNo}`;
+
+  return {
+    now,
+    dayKey,
+    spinAt,
+    nextSpinAt,
+    inSpin,
+    spinningRoundNo,
+    bettingRoundNo,
+    spinningRoundId,
+    bettingRoundId
+  };
 }
 
 function parseBets() {
@@ -237,7 +266,7 @@ async function placeBet() {
 }
 
 async function settleMyBet(roundId) {
-  if (roundId <= 0 || lastSettledRound === roundId) return;
+  if (!roundId || lastSettledRound === roundId) return;
 
   const idx = resultIndexForRound(roundId);
   const resultMultiplier = slots[idx] ?? 1;
@@ -312,13 +341,14 @@ function attachBetList(roundId) {
   );
 }
 
-function renderRecentResults(lastCompletedRound) {
+function renderRecentResults(dayKey, lastCompletedRoundNo) {
   if (!recentResultsEl) return;
   recentResultsEl.innerHTML = "";
   for (let i = 0; i < 10; i += 1) {
-    const r = lastCompletedRound - i;
+    const r = lastCompletedRoundNo - i;
     if (r <= 0) break;
-    const idx = resultIndexForRound(r);
+    const rid = `${dayKey}-R${r}`;
+    const idx = resultIndexForRound(rid);
     const mult = slots[idx] ?? 1;
     const li = document.createElement("li");
     li.textContent = `R${r}: x${mult}`;
@@ -335,8 +365,8 @@ async function tickLoop() {
   countdownEl.textContent = `${mm}:${ss}`;
 
   roundStatusEl.textContent = c.inSpin
-    ? `회전중 (Round ${c.spinningRoundId})`
-    : `배팅중 (Round ${c.bettingRoundId})`;
+    ? `회전중 (Round ${c.spinningRoundNo})`
+    : `배팅중 (Round ${c.bettingRoundNo})`;
 
   if (c.inSpin && lastSpinRound !== c.spinningRoundId) {
     lastSpinRound = c.spinningRoundId;
@@ -355,7 +385,7 @@ async function tickLoop() {
     attachBetList(c.bettingRoundId);
   }
 
-  renderRecentResults(c.spinningRoundId);
+  renderRecentResults(c.dayKey, c.spinningRoundNo);
 }
 
 function init() {
