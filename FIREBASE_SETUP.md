@@ -13,7 +13,8 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if request.auth != null;
+      allow write: if request.auth != null && request.auth.uid == userId;
 
       match /transactions/{txId} {
         allow read, write: if request.auth != null && request.auth.uid == userId;
@@ -35,6 +36,24 @@ service cloud.firestore {
       allow create, update: if request.auth != null
                             && request.auth.uid == userId;
       allow delete: if false;
+    }
+
+    match /roulette_v2_state/{docId} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null;
+      allow delete: if false;
+    }
+
+    match /roulette_v2_rounds/{roundId} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null;
+      allow delete: if false;
+
+      match /bets/{userId} {
+        allow read: if request.auth != null;
+        allow create, update: if request.auth != null && request.auth.uid == userId;
+        allow delete: if false;
+      }
     }
   }
 }

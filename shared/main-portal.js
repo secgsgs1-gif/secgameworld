@@ -1,5 +1,5 @@
-import { logOut } from "./auth.js?v=20260224f";
-import { claimDailyCheckIn, watchUserProfile } from "./points.js?v=20260224f";
+import { logOut } from "./auth.js?v=20260224j";
+import { claimDailyCheckIn, watchUserProfile } from "./points.js?v=20260224j";
 
 let unsub = null;
 

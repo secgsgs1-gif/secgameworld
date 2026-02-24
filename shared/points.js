@@ -8,7 +8,7 @@ import {
   updateDoc,
   addDoc
 } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
-import { db } from "./firebase-app.js?v=20260224f";
+import { db } from "./firebase-app.js?v=20260224j";
 
 function todayKey() {
   const d = new Date();

@@ -9,27 +9,45 @@
 <body>
   <main class="shell">
     <h1>13번 카테고리 게임이름 (룰렛 V2)</h1>
-    <p>빈티지/기계 느낌의 룰렛. 배수를 맞히면 포인트 획득.</p>
+    <p>3분 주기 자동 룰렛. 배수별 복수 배팅 가능.</p>
+
+    <div class="round-bar">
+      <p>다음 스핀: <strong id="countdown">--:--</strong></p>
+      <p>상태: <strong id="round-status">대기</strong></p>
+      <p>포인트: <strong id="points">0</strong></p>
+    </div>
 
     <canvas id="wheel" width="420" height="420" aria-label="Roulette V2"></canvas>
 
-    <div class="panel">
-      <label>예측 배수
-        <select id="pick"></select>
-      </label>
-      <label>베팅 포인트
-        <input id="bet" type="number" min="1" step="1" value="20" />
-      </label>
-      <button id="spin">SPIN</button>
-    </div>
+    <section class="bet-panel">
+      <h2>복수 배팅</h2>
+      <div class="bets-grid">
+        <label>x1 <input id="bet-1" type="number" min="0" step="1" value="0" /></label>
+        <label>x3 <input id="bet-3" type="number" min="0" step="1" value="0" /></label>
+        <label>x5 <input id="bet-5" type="number" min="0" step="1" value="0" /></label>
+        <label>x10 <input id="bet-10" type="number" min="0" step="1" value="0" /></label>
+        <label>x20 <input id="bet-20" type="number" min="0" step="1" value="0" /></label>
+      </div>
+      <button id="place-bet">배팅 확정</button>
+      <p id="result">배팅 후 자동 스핀을 기다리세요.</p>
+    </section>
 
-    <p id="points">포인트: 300</p>
-    <p id="result">배수와 베팅을 고른 뒤 SPIN.</p>
+    <section class="bettors">
+      <h2>배팅자 표시</h2>
+      <div class="bettor-grid">
+        <div><h3>x1</h3><ul id="bettors-1"></ul></div>
+        <div><h3>x3</h3><ul id="bettors-3"></ul></div>
+        <div><h3>x5</h3><ul id="bettors-5"></ul></div>
+        <div><h3>x10</h3><ul id="bettors-10"></ul></div>
+        <div><h3>x20</h3><ul id="bettors-20"></ul></div>
+      </div>
+    </section>
+
     <a href="../../index.html">카테고리로 돌아가기</a>
   </main>
   <script>window.APP_ROOT = "../../";</script>
-  <script type="module" src="../../shared/auth-guard.js?v=20260224f"></script>
-  <script type="module" src="../../shared/game-access.js?v=20260224f"></script>
-  <script src="game.js?v=20260224i"></script>
+  <script type="module" src="../../shared/auth-guard.js?v=20260224j"></script>
+  <script type="module" src="../../shared/game-access.js?v=20260224j"></script>
+  <script type="module" src="game.js?v=20260224k"></script>
 </body>
 </html>

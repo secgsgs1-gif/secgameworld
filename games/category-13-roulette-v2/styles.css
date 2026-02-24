@@ -3,19 +3,27 @@ body {
   min-height: 100vh;
   display: grid;
   place-items: center;
-  color: #f7ebdc;
+  background: linear-gradient(140deg, #241913, #3c271a);
+  color: #fff3e6;
   font-family: "Segoe UI", sans-serif;
-  background: radial-gradient(circle at 20% 20%, #6d4c34 0%, transparent 35%),
-              radial-gradient(circle at 80% 80%, #3c2d22 0%, transparent 38%),
-              linear-gradient(150deg, #1a120e, #2f1f16);
 }
 
 .shell {
-  width: min(94vw, 620px);
+  width: min(96vw, 900px);
   padding: 16px;
   border-radius: 14px;
-  border: 1px solid #c39a6a55;
-  background: #1b1511d9;
+  border: 1px solid #d7ad7a55;
+  background: #1f160fd4;
+}
+
+.round-bar {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.round-bar p {
+  margin: 4px 0;
 }
 
 canvas {
@@ -25,11 +33,23 @@ canvas {
   margin: 8px auto 12px;
 }
 
-.panel {
-  display: flex;
-  flex-wrap: wrap;
+.bet-panel {
+  border: 1px solid #d7ad7a55;
+  border-radius: 10px;
+  padding: 10px;
+  background: #3021169e;
+}
+
+.bet-panel h2,
+.bettors h2 {
+  margin: 0 0 8px;
+  font-size: 1.05rem;
+}
+
+.bets-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
   gap: 8px;
-  align-items: end;
 }
 
 label {
@@ -37,12 +57,52 @@ label {
   gap: 4px;
 }
 
-select, input, button {
-  padding: 8px 10px;
+input,
+button {
+  padding: 8px;
   border-radius: 8px;
-  border: 1px solid #c39a6a66;
-  background: #34261b;
-  color: #f7ebdc;
+  border: 1px solid #d7ad7a66;
+  background: #3a271a;
+  color: #fff3e6;
 }
 
-a { color: #f2c590; }
+.bettors {
+  margin-top: 10px;
+  border: 1px solid #d7ad7a55;
+  border-radius: 10px;
+  padding: 10px;
+  background: #2a1d14a8;
+}
+
+.bettor-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+}
+
+.bettor-grid h3 {
+  margin: 0 0 6px;
+  font-size: 0.95rem;
+}
+
+.bettor-grid ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+  max-height: 120px;
+  overflow: auto;
+}
+
+.bettor-grid li {
+  font-size: 0.82rem;
+  border: 1px solid #d7ad7a40;
+  border-radius: 7px;
+  padding: 3px 6px;
+  background: #3d291b;
+}
+
+a {
+  color: #ffd4a6;
+}
