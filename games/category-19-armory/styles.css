@@ -31,6 +31,7 @@ body {
 }
 
 .weapon-panel,
+.crate-panel,
 .armor-panel {
   margin-top: 10px;
   border: 1px solid #d6be9745;
@@ -40,9 +41,34 @@ body {
 }
 
 .weapon-panel h2,
+.crate-panel h2,
 .armor-panel h2 {
   margin: 0 0 8px;
   font-size: 1.04rem;
+}
+
+.crate-panel p {
+  margin: 6px 0;
+}
+
+.crate-panel button {
+  margin-top: 6px;
+  border: 1px solid #d6be9766;
+  border-radius: 8px;
+  background: #5b416d;
+  color: #f6f1e9;
+  padding: 9px 12px;
+  cursor: pointer;
+}
+
+.crate-panel button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.crate-result {
+  min-height: 1.3em;
+  color: #c7f5d8;
 }
 
 .weapon-list {
@@ -63,6 +89,27 @@ body {
 .weapon-card h3 {
   margin: 0;
   font-size: 0.96rem;
+}
+
+.weapon-rarity {
+  display: inline-block;
+  width: fit-content;
+  border: 1px solid #d6be9755;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 0.74rem;
+}
+
+.weapon-rarity.common {
+  background: #4c4f5f;
+}
+
+.weapon-rarity.rare {
+  background: #2f4e79;
+}
+
+.weapon-rarity.legendary {
+  background: #7a4f1c;
 }
 
 .weapon-card p {
