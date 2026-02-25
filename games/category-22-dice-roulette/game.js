@@ -268,9 +268,13 @@ function setupUi() {
   drawWheel();
   renderHistory();
 
-  betTypeEl.addEventListener("change", () => {
-    numberRowEl.hidden = betTypeEl.value !== "number";
-  });
+  const syncNumberInputVisibility = () => {
+    const isSingle = betTypeEl.value === "number";
+    numberRowEl.hidden = !isSingle;
+    betNumberEl.disabled = !isSingle;
+  };
+  syncNumberInputVisibility();
+  betTypeEl.addEventListener("change", syncNumberInputVisibility);
 
   document.querySelectorAll(".quick-row button").forEach((btn) => {
     btn.addEventListener("click", () => {
