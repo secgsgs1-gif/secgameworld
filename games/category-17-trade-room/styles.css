@@ -9,11 +9,24 @@ body {
 }
 
 .shell {
-  width: min(96vw, 980px);
+  width: min(96vw, 860px);
   padding: 16px;
   border-radius: 14px;
   border: 1px solid #91b8de55;
   background: #101b2ad4;
+}
+
+.guide {
+  margin: 8px 0 10px;
+  border: 1px solid #91b8de55;
+  border-radius: 10px;
+  padding: 10px;
+  background: #182946;
+}
+
+.guide p {
+  margin: 4px 0;
+  font-size: 0.9rem;
 }
 
 .summary {
@@ -32,49 +45,51 @@ body {
 }
 
 .board {
-  display: grid;
-  grid-template-columns: 260px 1fr;
-  gap: 10px;
-}
-
-.users,
-.chat {
   border: 1px solid #91b8de55;
   border-radius: 10px;
   padding: 10px;
   background: #16263d;
 }
 
-.users h2 {
+.board h2 {
   margin: 0 0 8px;
   font-size: 1rem;
 }
 
-#presence-list {
+.presence-box {
   list-style: none;
   margin: 0;
   padding: 0;
   display: grid;
-  gap: 5px;
-  max-height: 420px;
+  gap: 4px;
+  max-height: 160px;
   overflow: auto;
+  border: 1px solid #91b8de55;
+  border-radius: 8px;
+  background: #13223a;
+  margin-bottom: 10px;
 }
 
-#presence-list li {
+.presence-box li {
   border: 1px solid #91b8de33;
-  border-radius: 8px;
-  padding: 6px;
+  border-radius: 6px;
+  padding: 5px 6px;
   background: #233a5b;
-  font-size: 0.84rem;
+  font-size: 0.8rem;
+  margin: 4px;
 }
 
 .messages {
-  min-height: 350px;
-  max-height: 420px;
+  min-height: 300px;
+  max-height: 380px;
   overflow: auto;
   display: grid;
   gap: 6px;
   align-content: start;
+  border: 1px solid #91b8de55;
+  border-radius: 8px;
+  background: #13223a;
+  padding: 8px;
 }
 
 .msg {
@@ -113,10 +128,4 @@ button {
 
 a {
   color: #cde9ff;
-}
-
-@media (max-width: 820px) {
-  .board {
-    grid-template-columns: 1fr;
-  }
 }

@@ -4,12 +4,20 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>17번 카테고리 - 포인트 거래소</title>
-  <link rel="stylesheet" href="styles.css?v=20260225a" />
+  <link rel="stylesheet" href="styles.css?v=20260225b" />
 </head>
 <body>
   <main class="shell">
     <h1>17번 카테고리 게임이름 (포인트 거래소)</h1>
-    <p>이 방에서만 <code>/give username amount</code> 명령으로 포인트 송금 가능 (수수료 5%).</p>
+    <p>이 방에서만 <code>/give username amount</code> 명령으로 포인트 송금 가능.</p>
+
+    <section class="guide">
+      <p><strong>사용법</strong>: <code>/give username amount</code></p>
+      <p><strong>예시</strong>: <code>/give secman 100</code></p>
+      <p><strong>수수료</strong>: 5% (받는 사람 기준 차감)</p>
+      <p><strong>예시 정산</strong>: 100 전송 시 수수료 5, 상대 수령 95</p>
+      <p><strong>제한</strong>: 최소 20 / 최대 100000</p>
+    </section>
 
     <section class="summary">
       <p>내 포인트: <strong id="points">0</strong></p>
@@ -18,18 +26,14 @@
     </section>
 
     <section class="board">
-      <aside class="users">
-        <h2>현재 접속자</h2>
-        <ul id="presence-list"></ul>
-      </aside>
-
-      <section class="chat">
-        <div id="messages" class="messages"></div>
-        <form id="chat-form" class="composer">
-          <input id="chat-input" maxlength="240" placeholder="메시지 또는 /give username amount" required />
-          <button type="submit">전송</button>
-        </form>
-      </section>
+      <h2>현재 접속자</h2>
+      <ul id="presence-list" class="presence-box"></ul>
+      <h2>거래/채팅 로그</h2>
+      <div id="messages" class="messages"></div>
+      <form id="chat-form" class="composer">
+        <input id="chat-input" maxlength="240" placeholder="메시지 또는 /give username amount" required />
+        <button type="submit">전송</button>
+      </form>
     </section>
 
     <a href="../../index.html">카테고리로 돌아가기</a>
@@ -38,6 +42,6 @@
   <script>window.APP_ROOT = "../../";</script>
   <script type="module" src="../../shared/auth-guard.js?v=20260224m"></script>
   <script type="module" src="../../shared/game-access.js?v=20260225c"></script>
-  <script type="module" src="game.js?v=20260225a"></script>
+  <script type="module" src="game.js?v=20260225b"></script>
 </body>
 </html>
