@@ -61,6 +61,8 @@ let booted = false;
 let settleBlockedUntil = 0;
 let settleBackoffMs = 10000;
 let betsPaused = false;
+let recentRenderedRound = "";
+const roundResultCache = new Map();
 
 function isQuotaError(err) {
   const msg = String(err?.message || "").toLowerCase();
@@ -140,19 +142,45 @@ function drawWheel() {
   ctx.fill();
 }
 
-function hashRoundId(roundId) {
-  let h = 2166136261 >>> 0;
-  const s = String(roundId);
-  for (let i = 0; i < s.length; i += 1) {
-    h ^= s.charCodeAt(i);
-    h = Math.imul(h, 16777619);
-  }
-  return h >>> 0;
+function coerceIndex(v) {
+  const n = Number(v);
+  if (!Number.isInteger(n)) return null;
+  if (n < 0 || n >= slots.length) return null;
+  return n;
 }
 
-function resultIndexForRound(roundId) {
-  const idx = hashRoundId(roundId) % slots.length;
-  return Number.isInteger(idx) && idx >= 0 && idx < slots.length ? idx : 0;
+async function getRoundResultIndex(roundId, createIfMissing = true) {
+  const key = String(roundId || "");
+  if (!key) return 0;
+  if (roundResultCache.has(key)) return roundResultCache.get(key);
+
+  const roundRef = doc(db, "roulette_v2_rounds", key);
+  if (!createIfMissing) {
+    const snap = await getDoc(roundRef);
+    const idx = coerceIndex(snap.data()?.resultIndex);
+    if (idx != null) {
+      roundResultCache.set(key, idx);
+      return idx;
+    }
+    return null;
+  }
+
+  const idx = await runTransaction(db, async (tx) => {
+    const snap = await tx.get(roundRef);
+    const existing = coerceIndex(snap.data()?.resultIndex);
+    if (existing != null) return existing;
+    const next = Math.floor(Math.random() * slots.length);
+    tx.set(roundRef, {
+      resultIndex: next,
+      resultMultiplier: slots[next],
+      generatedAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    }, { merge: true });
+    return next;
+  });
+  const safe = coerceIndex(idx) ?? 0;
+  roundResultCache.set(key, safe);
+  return safe;
 }
 
 function targetRotationForIndex(index) {
@@ -280,7 +308,7 @@ async function placeBet() {
 async function settleMyBet(roundId) {
   if (!roundId || lastSettledRound === roundId) return;
 
-  const idx = resultIndexForRound(roundId);
+  const idx = await getRoundResultIndex(roundId, true);
   const resultMultiplier = slots[idx] ?? 1;
   const betRef = doc(db, "roulette_v2_rounds", String(roundId), "bets", user.uid);
   const userRef = doc(db, "users", user.uid);
@@ -382,15 +410,15 @@ function attachBetList(roundId) {
   );
 }
 
-function renderRecentResults(dayKey, lastCompletedRoundNo) {
+async function renderRecentResults(dayKey, lastCompletedRoundNo) {
   if (!recentResultsEl) return;
   recentResultsEl.innerHTML = "";
   for (let i = 0; i < 10; i += 1) {
     const r = lastCompletedRoundNo - i;
     if (r <= 0) break;
     const rid = `${dayKey}-R${r}`;
-    const idx = resultIndexForRound(rid);
-    const mult = slots[idx] ?? 1;
+    const idx = await getRoundResultIndex(rid, false);
+    const mult = idx == null ? "?" : (slots[idx] ?? "?");
     const li = document.createElement("li");
     li.textContent = `R${r}: x${mult}`;
     recentResultsEl.appendChild(li);
@@ -411,7 +439,7 @@ async function tickLoop() {
 
   if (c.inSpin && lastSpinRound !== c.spinningRoundId) {
     lastSpinRound = c.spinningRoundId;
-    const idx = resultIndexForRound(c.spinningRoundId);
+    const idx = await getRoundResultIndex(c.spinningRoundId, true);
     const base = targetRotationForIndex(idx);
     const normalized = ((rotation % TAU) + TAU) % TAU;
     const target = rotation + (12 * TAU) + (base - normalized);
@@ -436,7 +464,10 @@ async function tickLoop() {
     attachBetList(c.bettingRoundId);
   }
 
-  renderRecentResults(c.dayKey, c.spinningRoundNo);
+  if (recentRenderedRound !== c.spinningRoundId) {
+    recentRenderedRound = c.spinningRoundId;
+    renderRecentResults(c.dayKey, c.spinningRoundNo).catch(() => {});
+  }
 }
 
 function init() {
