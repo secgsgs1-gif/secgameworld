@@ -183,68 +183,75 @@ function toInt(v, fallback = 0) {
   return n;
 }
 
-async function settleStakeInTx(tx, roomRef, room, winnerRole) {
-  if (room.stakePayoutDone) return;
-  if (!room.stakeLocked) return;
+async function settleStakeAfterGame(roomId, winnerRole) {
+  if (!roomId) return;
+  const roomRef = doc(db, "mp_rooms", roomId);
+  await runTransaction(db, async (tx) => {
+    const roomSnap = await tx.get(roomRef);
+    if (!roomSnap.exists()) return;
+    const room = roomSnap.data();
+    if (room.stakePayoutDone) return;
+    if (!room.stakeLocked) return;
 
-  const stakeAmount = Math.max(0, toInt(room.stakeAmount));
-  if (stakeAmount <= 0) {
-    tx.update(roomRef, {
-      stakePayoutDone: true,
-      stakeNetPayout: 0,
-      stakeFee: 0,
-      updatedAt: serverTimestamp()
-    });
-    return;
-  }
+    const stakeAmount = Math.max(0, toInt(room.stakeAmount));
+    if (stakeAmount <= 0) {
+      tx.update(roomRef, {
+        stakePayoutDone: true,
+        stakeNetPayout: 0,
+        stakeFee: 0,
+        updatedAt: serverTimestamp()
+      });
+      return;
+    }
 
-  const blackRef = doc(db, "users", room.blackUid);
-  const whiteRef = doc(db, "users", room.whiteUid);
-  const blackSnap = await tx.get(blackRef);
-  const whiteSnap = await tx.get(whiteRef);
-  if (!blackSnap.exists() || !whiteSnap.exists()) return;
+    const blackRef = doc(db, "users", room.blackUid);
+    const whiteRef = doc(db, "users", room.whiteUid);
+    const blackSnap = await tx.get(blackRef);
+    const whiteSnap = await tx.get(whiteRef);
+    if (!blackSnap.exists() || !whiteSnap.exists()) return;
 
-  const blackPoints = toInt(blackSnap.data()?.points);
-  const whitePoints = toInt(whiteSnap.data()?.points);
-  const pot = stakeAmount * 2;
-  const fee = Math.floor(pot * 0.05);
-  const net = pot - fee;
+    const blackPoints = toInt(blackSnap.data()?.points);
+    const whitePoints = toInt(whiteSnap.data()?.points);
+    const pot = stakeAmount * 2;
+    const fee = Math.floor(pot * 0.05);
+    const net = pot - fee;
 
-  if (winnerRole === "draw") {
-    tx.update(blackRef, { points: blackPoints + stakeAmount, updatedAt: serverTimestamp() });
-    tx.update(whiteRef, { points: whitePoints + stakeAmount, updatedAt: serverTimestamp() });
-    tx.update(roomRef, {
-      stakePayoutDone: true,
-      stakeNetPayout: 0,
-      stakeFee: 0,
-      stakeWinnerUid: "",
-      updatedAt: serverTimestamp()
-    });
-    return;
-  }
+    if (winnerRole === "draw") {
+      tx.update(blackRef, { points: blackPoints + stakeAmount, updatedAt: serverTimestamp() });
+      tx.update(whiteRef, { points: whitePoints + stakeAmount, updatedAt: serverTimestamp() });
+      tx.update(roomRef, {
+        stakePayoutDone: true,
+        stakeNetPayout: 0,
+        stakeFee: 0,
+        stakeWinnerUid: "",
+        updatedAt: serverTimestamp()
+      });
+      return;
+    }
 
-  if (winnerRole === "black") {
-    tx.update(blackRef, { points: blackPoints + net, updatedAt: serverTimestamp() });
-    tx.update(roomRef, {
-      stakePayoutDone: true,
-      stakeNetPayout: net,
-      stakeFee: fee,
-      stakeWinnerUid: room.blackUid,
-      updatedAt: serverTimestamp()
-    });
-    return;
-  }
+    if (winnerRole === "black") {
+      tx.update(blackRef, { points: blackPoints + net, updatedAt: serverTimestamp() });
+      tx.update(roomRef, {
+        stakePayoutDone: true,
+        stakeNetPayout: net,
+        stakeFee: fee,
+        stakeWinnerUid: room.blackUid,
+        updatedAt: serverTimestamp()
+      });
+      return;
+    }
 
-  if (winnerRole === "white") {
-    tx.update(whiteRef, { points: whitePoints + net, updatedAt: serverTimestamp() });
-    tx.update(roomRef, {
-      stakePayoutDone: true,
-      stakeNetPayout: net,
-      stakeFee: fee,
-      stakeWinnerUid: room.whiteUid,
-      updatedAt: serverTimestamp()
-    });
-  }
+    if (winnerRole === "white") {
+      tx.update(whiteRef, { points: whitePoints + net, updatedAt: serverTimestamp() });
+      tx.update(roomRef, {
+        stakePayoutDone: true,
+        stakeNetPayout: net,
+        stakeFee: fee,
+        stakeWinnerUid: room.whiteUid,
+        updatedAt: serverTimestamp()
+      });
+    }
+  });
 }
 
 function drawBoard(room) {
@@ -664,20 +671,23 @@ async function leaveRoom() {
 async function surrender() {
   if (!currentRoomId || !currentRoom) return;
   const ref = doc(db, "mp_rooms", currentRoomId);
+  let winner = "";
   await runTransaction(db, async (tx) => {
     const snap = await tx.get(ref);
     if (!snap.exists()) throw new Error("Room not found");
     const room = snap.data();
     const role = room.blackUid === user.uid ? "black" : room.whiteUid === user.uid ? "white" : "spectator";
     if (!(role === "black" || role === "white")) throw new Error("Only players can surrender");
-    const winner = role === "black" ? "white" : "black";
+    winner = role === "black" ? "white" : "black";
     tx.update(ref, {
       status: "finished",
       winner,
       turn: "",
       updatedAt: serverTimestamp()
     });
-    await settleStakeInTx(tx, ref, room, winner);
+  });
+  settleStakeAfterGame(currentRoomId, winner).catch((err) => {
+    statusEl.textContent = `Stake settlement pending: ${err.message}`;
   });
   statusEl.textContent = "Surrendered.";
 }
@@ -687,6 +697,7 @@ async function placeStone(x, y) {
   if (currentRoom.gameType !== "gomoku") return;
 
   const ref = doc(db, "mp_rooms", currentRoomId);
+  let gameWinner = "";
   await runTransaction(db, async (tx) => {
     const snap = await tx.get(ref);
     if (!snap.exists()) throw new Error("Room not found");
@@ -717,20 +728,22 @@ async function placeStone(x, y) {
       nextData.status = "finished";
       nextData.winner = role;
       nextData.turn = "";
+      gameWinner = role;
     } else if (full) {
       nextData.status = "finished";
       nextData.winner = "draw";
       nextData.turn = "";
+      gameWinner = "draw";
     } else {
       nextData.turn = nextTurn;
     }
     tx.update(ref, nextData);
-    if (won) {
-      await settleStakeInTx(tx, ref, room, role);
-    } else if (full) {
-      await settleStakeInTx(tx, ref, room, "draw");
-    }
   });
+  if (gameWinner) {
+    settleStakeAfterGame(currentRoomId, gameWinner).catch((err) => {
+      statusEl.textContent = `Stake settlement pending: ${err.message}`;
+    });
+  }
 }
 
 function onBoardClick(e) {
