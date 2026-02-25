@@ -210,6 +210,7 @@ async function handleGiveCommand(targetName, grossAmount) {
       updatedAt: serverTimestamp()
     });
     tx.set(transferRef, {
+      senderUid: user.uid,
       fromUid: user.uid,
       fromUsername: username,
       toUid: recipient.uid,
