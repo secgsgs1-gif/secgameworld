@@ -111,10 +111,14 @@ function maybeTriggerBurst(now) {
 }
 
 function rewardForLap() {
-  if (Math.random() < 0.001) {
-    return { points: 10000, jackpot: true };
+  const roll = Math.random();
+  if (roll < 0.001) {
+    return { points: 10000, jackpot: true, tier: "mega" };
   }
-  return { points: 20 + Math.floor(Math.random() * 121), jackpot: false };
+  if (roll < 0.011) {
+    return { points: 1000, jackpot: true, tier: "bonus" };
+  }
+  return { points: 20 + Math.floor(Math.random() * 121), jackpot: false, tier: "normal" };
 }
 
 function renderTrack() {
@@ -242,8 +246,10 @@ async function grantLapReward() {
       lap: targetLap,
       jackpot: reward.jackpot
     });
-    if (reward.jackpot) {
+    if (reward.tier === "mega") {
       eventLogEl.textContent = `대박! ${targetLap}바퀴 보상으로 +10000 포인트 지급`;
+    } else if (reward.tier === "bonus") {
+      eventLogEl.textContent = `보너스! ${targetLap}바퀴 보상으로 +1000 포인트 지급`;
     } else {
       eventLogEl.textContent = `${targetLap}바퀴 달성! +${reward.points} 포인트 지급`;
     }
