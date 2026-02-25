@@ -174,6 +174,20 @@ async function clearMyRoomPresence() {
 
 function drawBoard(room) {
   const size = canvas.width;
+  if (!room) {
+    ctx.clearRect(0, 0, size, size);
+    ctx.fillStyle = "#1a2334";
+    ctx.fillRect(0, 0, size, size);
+    ctx.fillStyle = "#cfe4ff";
+    ctx.font = "600 20px Segoe UI, sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("Create or enter a room to view the board", size / 2, size / 2 - 6);
+    ctx.font = "400 14px Segoe UI, sans-serif";
+    ctx.fillStyle = "#9ec3ec";
+    ctx.fillText("Use Join or Watch after selecting a room", size / 2, size / 2 + 22);
+    return;
+  }
+
   const pad = 28;
   const span = size - (pad * 2);
   const gap = span / (BOARD_SIZE - 1);
@@ -209,7 +223,6 @@ function drawBoard(room) {
     });
   });
 
-  if (!room) return;
   const board = parseBoard(room.board);
   for (let y = 0; y < BOARD_SIZE; y += 1) {
     for (let x = 0; x < BOARD_SIZE; x += 1) {
