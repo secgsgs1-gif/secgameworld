@@ -18,6 +18,16 @@ const placeBetBtn = document.getElementById("place-bet");
 const resultEl = document.getElementById("result");
 const tableResultEl = document.getElementById("table-result");
 const recentResultsEl = document.getElementById("recent-results");
+const cardSlots = {
+  player: [
+    document.getElementById("player-card-1"),
+    document.getElementById("player-card-2")
+  ],
+  banker: [
+    document.getElementById("banker-card-1"),
+    document.getElementById("banker-card-2")
+  ]
+};
 
 const betInputs = {
   player: document.getElementById("bet-player"),
@@ -29,6 +39,11 @@ const bettorsEls = {
   player: document.getElementById("bettors-player"),
   banker: document.getElementById("bettors-banker"),
   tie: document.getElementById("bettors-tie")
+};
+const tableBettorsEls = {
+  player: document.getElementById("table-bettors-player"),
+  banker: document.getElementById("table-bettors-banker"),
+  tie: document.getElementById("table-bettors-tie")
 };
 
 const ROUND_INTERVAL_MS = 120000; // 2 min
@@ -46,6 +61,8 @@ let observedBetRound = "";
 let roundBetsUnsub = null;
 let loopTimer = null;
 let booted = false;
+let lastRevealRound = "";
+let dealTimer = null;
 
 function hashRoundId(roundId) {
   let h = 2166136261 >>> 0;
@@ -58,9 +75,9 @@ function hashRoundId(roundId) {
 }
 
 function outcomeForRound(roundId) {
-  const roll = hashRoundId(roundId) % 100;
-  if (roll < 45) return "player";
-  if (roll < 90) return "banker";
+  const cards = cardsForRound(roundId);
+  if (cards.playerTotal > cards.bankerTotal) return "player";
+  if (cards.bankerTotal > cards.playerTotal) return "banker";
   return "tie";
 }
 
@@ -68,6 +85,76 @@ function outcomeLabel(key) {
   if (key === "player") return "Player";
   if (key === "banker") return "Banker";
   return "Tie";
+}
+
+function nextRand(seed) {
+  return (Math.imul(seed, 1664525) + 1013904223) >>> 0;
+}
+
+function cardFromSeed(seed) {
+  const ranks = ["A", "2", "3", "4", "5", "6", "7", "8", "9", "10", "J", "Q", "K"];
+  const suits = ["♠", "♥", "♦", "♣"];
+  const rank = ranks[seed % 13];
+  const suit = suits[(seed >>> 4) % 4];
+  const faceVal = rank === "A" ? 1 : Number(rank);
+  const value = Number.isNaN(faceVal) ? 0 : faceVal;
+  return {
+    label: `${rank}${suit}`,
+    value
+  };
+}
+
+function cardsForRound(roundId) {
+  let seed = hashRoundId(roundId);
+  const draw = () => {
+    seed = nextRand(seed);
+    return cardFromSeed(seed);
+  };
+  const playerCards = [draw(), draw()];
+  const bankerCards = [draw(), draw()];
+  const playerTotal = (playerCards[0].value + playerCards[1].value) % 10;
+  const bankerTotal = (bankerCards[0].value + bankerCards[1].value) % 10;
+  return { playerCards, bankerCards, playerTotal, bankerTotal };
+}
+
+function resetCards() {
+  ["player", "banker"].forEach((side) => {
+    cardSlots[side].forEach((slot) => {
+      slot.textContent = "?";
+      slot.classList.remove("deal-in");
+    });
+  });
+}
+
+function fillCard(slot, card) {
+  slot.classList.remove("deal-in");
+  slot.textContent = card.label;
+  // retrigger animation
+  void slot.offsetWidth;
+  slot.classList.add("deal-in");
+}
+
+function animateReveal(roundId) {
+  if (dealTimer) clearInterval(dealTimer);
+  resetCards();
+  const cards = cardsForRound(roundId);
+  const sequence = [
+    { slot: cardSlots.player[0], card: cards.playerCards[0] },
+    { slot: cardSlots.banker[0], card: cards.bankerCards[0] },
+    { slot: cardSlots.player[1], card: cards.playerCards[1] },
+    { slot: cardSlots.banker[1], card: cards.bankerCards[1] }
+  ];
+  let i = 0;
+  dealTimer = setInterval(() => {
+    const item = sequence[i];
+    if (item) fillCard(item.slot, item.card);
+    i += 1;
+    if (i >= sequence.length) {
+      clearInterval(dealTimer);
+      dealTimer = null;
+      tableResultEl.textContent = `${outcomeLabel(outcomeForRound(roundId))} 승 (P${cards.playerTotal} : B${cards.bankerTotal})`;
+    }
+  }, 430);
 }
 
 function currentClock(now = Date.now()) {
@@ -224,10 +311,16 @@ function renderBettors(docs) {
 
   ["player", "banker", "tie"].forEach((key) => {
     bettorsEls[key].innerHTML = "";
-    map[key].forEach((name) => {
+    tableBettorsEls[key].innerHTML = "";
+    map[key].forEach((name, idx) => {
       const li = document.createElement("li");
       li.textContent = name;
       bettorsEls[key].appendChild(li);
+      if (idx < 8) {
+        const chip = document.createElement("li");
+        chip.textContent = name;
+        tableBettorsEls[key].appendChild(chip);
+      }
     });
   });
 }
@@ -271,13 +364,21 @@ async function tickLoop() {
     : `배팅중 (Round ${c.bettingRoundNo})`;
 
   if (!c.inReveal) {
+    lastRevealRound = "";
+    if (dealTimer) {
+      clearInterval(dealTimer);
+      dealTimer = null;
+    }
     settleMyBet(c.revealRoundId).catch((err) => {
       resultEl.textContent = `정산 오류: ${err.message}`;
     });
     attachBetList(c.bettingRoundId);
   }
   else {
-    tableResultEl.textContent = `${outcomeLabel(outcomeForRound(c.revealRoundId))} 승`;
+    if (lastRevealRound !== c.revealRoundId) {
+      lastRevealRound = c.revealRoundId;
+      animateReveal(c.revealRoundId);
+    }
   }
 
   renderRecentResults(c.dayKey, c.revealRoundNo);
@@ -305,6 +406,7 @@ function init() {
   window.addEventListener("beforeunload", () => {
     if (loopTimer) clearInterval(loopTimer);
     if (roundBetsUnsub) roundBetsUnsub();
+    if (dealTimer) clearInterval(dealTimer);
   });
 }
 

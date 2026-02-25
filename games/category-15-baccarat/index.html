@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>15번 카테고리 - 바카라 라이브</title>
-  <link rel="stylesheet" href="styles.css?v=20260225a" />
+  <link rel="stylesheet" href="styles.css?v=20260225b" />
 </head>
 <body>
   <main class="shell">
@@ -21,6 +21,28 @@
       <h2>현재 회차 결과</h2>
       <p id="table-result" class="table-result">결과 대기중</p>
       <p class="odds">배당(원금 포함): Player x2 / Banker x2 / Tie x9</p>
+      <div class="board">
+        <section class="lane player">
+          <h3>Player</h3>
+          <div class="cards">
+            <div id="player-card-1" class="card-slot">?</div>
+            <div id="player-card-2" class="card-slot">?</div>
+          </div>
+          <ul id="table-bettors-player" class="table-bettors"></ul>
+        </section>
+        <section class="lane tie">
+          <h3>Tie</h3>
+          <ul id="table-bettors-tie" class="table-bettors"></ul>
+        </section>
+        <section class="lane banker">
+          <h3>Banker</h3>
+          <div class="cards">
+            <div id="banker-card-1" class="card-slot">?</div>
+            <div id="banker-card-2" class="card-slot">?</div>
+          </div>
+          <ul id="table-bettors-banker" class="table-bettors"></ul>
+        </section>
+      </div>
     </section>
 
     <section class="bet-panel">
@@ -54,6 +76,6 @@
   <script>window.APP_ROOT = "../../";</script>
   <script type="module" src="../../shared/auth-guard.js?v=20260224m"></script>
   <script type="module" src="../../shared/game-access.js?v=20260225a"></script>
-  <script type="module" src="game.js?v=20260225a"></script>
+  <script type="module" src="game.js?v=20260225b"></script>
 </body>
 </html>
