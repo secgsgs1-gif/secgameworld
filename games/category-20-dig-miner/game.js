@@ -16,12 +16,12 @@ const BASE_UPGRADE_COST = 300;
 const UPGRADE_GROWTH = 1.9;
 
 const BLOCKS = {
-  dirt: { hp: 1, color: "#7a573d", value: 1 },
-  stone: { hp: 2, color: "#6f7a85", value: 2 },
-  coal: { hp: 2, color: "#313841", value: 8 },
-  iron: { hp: 3, color: "#7f705f", value: 16 },
-  gold: { hp: 3, color: "#c7a641", value: 35 },
-  diamond: { hp: 4, color: "#4ec8dc", value: 95 }
+  dirt: { hp: 1, color: "#7a573d", value: 1, speck: "#63452f" },
+  stone: { hp: 2, color: "#6f7a85", value: 2, speck: "#56606a" },
+  coal: { hp: 2, color: "#313841", value: 8, speck: "#1f242b" },
+  iron: { hp: 3, color: "#7f705f", value: 16, speck: "#b49c86" },
+  gold: { hp: 3, color: "#c7a641", value: 35, speck: "#f2d16b" },
+  diamond: { hp: 4, color: "#4ec8dc", value: 95, speck: "#9ff5ff" }
 };
 
 const INVENTORY_KEYS = ["dirt", "stone", "coal", "iron", "gold", "diamond"];
@@ -91,6 +91,48 @@ function breakPower() {
   return 1 + Math.floor((pickaxeLevel - 1) * 0.55);
 }
 
+function noiseVal(x, y, salt = 0) {
+  const n = rngSeed(x + (salt * 19), y + (salt * 73));
+  return n % 1000;
+}
+
+function drawSkyTile(px, py, x, y) {
+  const n = noiseVal(x, y, 7);
+  const c = 96 + Math.floor((n / 1000) * 28);
+  ctx.fillStyle = `rgb(${Math.floor(c * 0.45)}, ${Math.floor(c * 0.7)}, ${c})`;
+  ctx.fillRect(px, py, TILE, TILE);
+}
+
+function drawBlockTile(block, px, py, x, y) {
+  const base = BLOCKS[block];
+  ctx.fillStyle = base.color;
+  ctx.fillRect(px, py, TILE, TILE);
+  for (let i = 0; i < 6; i += 1) {
+    const nx = noiseVal(x + i, y + i, i + 1);
+    const sx = nx % TILE;
+    const sy = Math.floor(nx / TILE) % TILE;
+    const size = (nx % 3) + 1;
+    ctx.fillStyle = base.speck;
+    ctx.fillRect(px + sx, py + sy, size, size);
+  }
+  ctx.strokeStyle = "#0000002f";
+  ctx.strokeRect(px, py, TILE, TILE);
+}
+
+function drawPlayerSprite() {
+  const px = player.x * TILE;
+  const py = player.y * TILE;
+  ctx.fillStyle = "#4ea7ff";
+  ctx.fillRect(px + 8, py + 3, 8, 7);
+  ctx.fillStyle = "#ffd3a3";
+  ctx.fillRect(px + 8, py + 10, 8, 5);
+  ctx.fillStyle = "#3d2f24";
+  ctx.fillRect(px + 8, py + 15, 8, 5);
+  ctx.fillStyle = "#24344e";
+  ctx.fillRect(px + 7, py + 20, 4, 4);
+  ctx.fillRect(px + 13, py + 20, 4, 4);
+}
+
 function draw() {
   ctx.clearRect(0, 0, canvas.width, canvas.height);
 
@@ -101,18 +143,14 @@ function draw() {
       const py = y * TILE;
       if (!block || block === "wall") {
         if (y < SKY_ROWS) {
-          ctx.fillStyle = "#315d8f";
-          ctx.fillRect(px, py, TILE, TILE);
+          drawSkyTile(px, py, x, y);
         } else {
           ctx.fillStyle = "#102130";
           ctx.fillRect(px, py, TILE, TILE);
         }
         continue;
       }
-      ctx.fillStyle = BLOCKS[block].color;
-      ctx.fillRect(px, py, TILE, TILE);
-      ctx.strokeStyle = "#0000002f";
-      ctx.strokeRect(px, py, TILE, TILE);
+      drawBlockTile(block, px, py, x, y);
 
       const key = `${x},${y}`;
       const dmg = Number(breakProgress[key] || 0);
@@ -125,14 +163,7 @@ function draw() {
     }
   }
 
-  const px = player.x * TILE + (TILE / 2);
-  const py = player.y * TILE + (TILE / 2);
-  ctx.fillStyle = "#ffd67b";
-  ctx.beginPath();
-  ctx.arc(px, py, 8, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.fillStyle = "#2f1d00";
-  ctx.fillRect(px - 2, py - 10, 4, 5);
+  drawPlayerSprite();
 }
 
 function renderHud() {
@@ -154,17 +185,6 @@ function renderInventory() {
   });
 }
 
-function fallIfNeeded() {
-  let moved = false;
-  while (player.y + 1 < ROWS && !tileAt(player.x, player.y + 1)) {
-    player.y += 1;
-    moved = true;
-  }
-  if (moved) {
-    statusEl.textContent = "You dropped deeper.";
-  }
-}
-
 function canMoveTo(x, y) {
   if (x < 0 || x >= COLS || y < 0 || y >= ROWS) return false;
   return !tileAt(x, y);
@@ -176,7 +196,6 @@ function move(dx, dy) {
   if (!canMoveTo(nx, ny)) return;
   player.x = nx;
   player.y = ny;
-  fallIfNeeded();
   draw();
   renderHud();
 }
@@ -199,7 +218,6 @@ function mineTile(tx, ty) {
     delete breakProgress[key];
     inventory[block] += 1;
     statusEl.textContent = `Mined ${block}.`;
-    if (tx === player.x && ty === player.y + 1) fallIfNeeded();
   } else {
     statusEl.textContent = `Mining ${block}...`;
   }
