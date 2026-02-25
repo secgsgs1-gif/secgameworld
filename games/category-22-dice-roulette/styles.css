@@ -65,6 +65,21 @@ h1 {
   gap: 14px;
 }
 
+.round-bar {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: linear-gradient(180deg, #11343c, #122e35);
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+  padding: 10px 12px;
+  margin-bottom: 14px;
+}
+
+.round-bar p {
+  margin: 0;
+}
+
 .wheel-card,
 .bet-card {
   border: 1px solid var(--line);
@@ -174,6 +189,23 @@ label {
   gap: 7px;
 }
 
+.bet-users {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+  max-height: 180px;
+  overflow: auto;
+}
+
+.bet-users li {
+  border: 1px solid #94d6e244;
+  border-radius: 8px;
+  padding: 5px 8px;
+  background: #12343b;
+}
+
 .chip {
   min-width: 36px;
   text-align: center;
@@ -194,6 +226,9 @@ label {
 }
 
 @media (max-width: 980px) {
+  .round-bar {
+    grid-template-columns: 1fr;
+  }
   .layout { grid-template-columns: 1fr; }
   .stats { text-align: left; }
 }

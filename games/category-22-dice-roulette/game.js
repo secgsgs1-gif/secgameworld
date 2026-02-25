@@ -1,7 +1,24 @@
+import {
+  collection,
+  doc,
+  getDoc,
+  increment,
+  limit,
+  onSnapshot,
+  orderBy,
+  query,
+  runTransaction,
+  serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
+import { db } from "../../shared/firebase-app.js?v=20260224m";
+
 const wheelCanvas = document.getElementById("wheel");
 const ctx = wheelCanvas.getContext("2d");
 const pointsEl = document.getElementById("points");
 const lastNumberEl = document.getElementById("last-number");
+const countdownEl = document.getElementById("countdown");
+const roundStatusEl = document.getElementById("round-status");
+const roundIdEl = document.getElementById("round-id");
 const betTypeEl = document.getElementById("bet-type");
 const numberRowEl = document.getElementById("number-row");
 const betNumberEl = document.getElementById("bet-number");
@@ -9,6 +26,7 @@ const betAmountEl = document.getElementById("bet-amount");
 const spinBtn = document.getElementById("spin");
 const statusEl = document.getElementById("status");
 const resultEl = document.getElementById("result");
+const betUsersEl = document.getElementById("bet-users");
 const historyEl = document.getElementById("history");
 const die1El = document.getElementById("die-1");
 const die2El = document.getElementById("die-2");
@@ -19,6 +37,11 @@ const TAU = Math.PI * 2;
 const POINTER_ANGLE = (3 * Math.PI) / 2;
 const MIN_BET = 10;
 const MAX_BET = 100000;
+const SPIN_INTERVAL_MS = 180000;
+const SPIN_DURATION_MS = 6500;
+const DAY_MS = 86400000;
+const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
+const ROUNDS_PER_DAY = DAY_MS / SPIN_INTERVAL_MS;
 
 const WHEEL_NUMBERS = [
   0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10,
@@ -27,10 +50,28 @@ const WHEEL_NUMBERS = [
 
 const RED_SET = new Set([1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]);
 
+let user = null;
+let username = "";
 let points = 0;
 let rotation = 0;
 let spinning = false;
-const history = [];
+let loopTimer = null;
+let booted = false;
+let roundBetsUnsub = null;
+let observedBetRound = "";
+let lastSpinRound = "";
+let lastSettledRound = "";
+let recentRenderedRound = "";
+const roundResultCache = new Map();
+
+function normalizeUsername(currentUser, rawName) {
+  const byProfile = String(rawName || "").trim();
+  if (byProfile) return byProfile;
+  const byEmail = String(currentUser?.email || "").split("@")[0].trim();
+  if (byEmail) return byEmail;
+  const byUid = String(currentUser?.uid || "").slice(0, 6);
+  return byUid ? `user_${byUid}` : "user";
+}
 
 function pocketColor(n) {
   if (n === 0) return "green";
@@ -91,17 +132,6 @@ function drawWheel() {
   ctx.fill();
 
   ctx.restore();
-}
-
-function renderHistory() {
-  historyEl.innerHTML = "";
-  history.forEach((n) => {
-    const chip = document.createElement("span");
-    const col = pocketColor(n);
-    chip.className = `chip ${col}`;
-    chip.textContent = String(n);
-    historyEl.appendChild(chip);
-  });
 }
 
 function setDiceFromNumber(n) {
@@ -181,6 +211,52 @@ function isWinningBet(bet, n) {
   return false;
 }
 
+function betTypeLabel(type, number) {
+  if (type === "number") return `Number ${number}`;
+  if (type === "red") return "Red";
+  if (type === "black") return "Black";
+  if (type === "odd") return "Odd";
+  if (type === "even") return "Even";
+  if (type === "low") return "Low 1-18";
+  if (type === "high") return "High 19-36";
+  if (type === "dozen1") return "Dozen1";
+  if (type === "dozen2") return "Dozen2";
+  if (type === "dozen3") return "Dozen3";
+  return type;
+}
+
+function currentClock(now = Date.now()) {
+  const kstNow = now + KST_OFFSET_MS;
+  const dayStartKst = Math.floor(kstNow / DAY_MS) * DAY_MS;
+  const dayStartUtc = dayStartKst - KST_OFFSET_MS;
+  const dayKey = new Date(dayStartUtc).toISOString().slice(0, 10);
+
+  const elapsedInDay = kstNow - dayStartKst;
+  const tickInDay = Math.floor(elapsedInDay / SPIN_INTERVAL_MS);
+  const spinAt = dayStartUtc + tickInDay * SPIN_INTERVAL_MS;
+  const nextSpinAt = spinAt + SPIN_INTERVAL_MS;
+  const inSpin = now >= spinAt && now < spinAt + SPIN_DURATION_MS;
+  const spinningRoundNo = tickInDay + 1;
+  const bettingRoundNoRaw = spinningRoundNo + 1;
+  const bettingCrossDay = bettingRoundNoRaw > ROUNDS_PER_DAY;
+  const bettingRoundNo = bettingCrossDay ? 1 : bettingRoundNoRaw;
+  const bettingDayKey = bettingCrossDay
+    ? new Date(dayStartUtc + DAY_MS).toISOString().slice(0, 10)
+    : dayKey;
+
+  return {
+    now,
+    dayKey,
+    spinAt,
+    nextSpinAt,
+    inSpin,
+    spinningRoundNo,
+    bettingRoundNo,
+    spinningRoundId: `${dayKey}-R${spinningRoundNo}`,
+    bettingRoundId: `${bettingDayKey}-R${bettingRoundNo}`
+  };
+}
+
 function updateStatus(text) {
   statusEl.textContent = text;
 }
@@ -190,11 +266,51 @@ function syncPoints(nextPoints) {
   pointsEl.textContent = String(points);
 }
 
-async function spinOnce() {
-  if (spinning) return;
+async function getRoundResultNumber(roundId, createIfMissing = true) {
+  const key = String(roundId || "");
+  if (!key) return 0;
+  if (roundResultCache.has(key)) return roundResultCache.get(key);
+
+  const roundRef = doc(db, "dice_roulette_rounds", key);
+  if (!createIfMissing) {
+    const snap = await getDoc(roundRef);
+    const n = Number(snap.data()?.resultNumber);
+    if (Number.isInteger(n) && n >= 0 && n <= 36) {
+      roundResultCache.set(key, n);
+      return n;
+    }
+    return null;
+  }
+
+  const n = await runTransaction(db, async (tx) => {
+    const snap = await tx.get(roundRef);
+    const existing = Number(snap.data()?.resultNumber);
+    if (Number.isInteger(existing) && existing >= 0 && existing <= 36) return existing;
+
+    const next = Math.floor(Math.random() * 37);
+    tx.set(roundRef, {
+      resultNumber: next,
+      generatedAt: serverTimestamp(),
+      updatedAt: serverTimestamp()
+    }, { merge: true });
+    return next;
+  });
+
+  const safe = (Number.isInteger(n) && n >= 0 && n <= 36) ? n : 0;
+  roundResultCache.set(key, safe);
+  return safe;
+}
+
+async function placeBet() {
   const wallet = window.AccountWallet;
   if (!wallet) {
     updateStatus("Wallet not ready.");
+    return;
+  }
+
+  const c = currentClock();
+  if (c.inSpin) {
+    updateStatus("Spinning now. Wait for next betting round.");
     return;
   }
 
@@ -212,61 +328,192 @@ async function spinOnce() {
     return;
   }
 
-  spinning = true;
-  spinBtn.disabled = true;
-  updateStatus("Spinning...");
-  resultEl.textContent = "Wheel is rolling...";
+  const roundId = String(c.bettingRoundId);
+  const betRef = doc(db, "dice_roulette_rounds", roundId, "bets", user.uid);
+  const existing = await getDoc(betRef);
+  if (existing.exists()) {
+    updateStatus("Already bet in this round.");
+    return;
+  }
 
   const spent = await wallet.spend(bet.amount, "dice_roulette_bet", {
+    game: "category-22-dice-roulette",
+    roundId,
     type: bet.type,
     number: bet.type === "number" ? bet.number : null
   });
   if (!spent?.ok) {
-    spinning = false;
-    spinBtn.disabled = false;
-    updateStatus("Spend failed.");
+    updateStatus("Point spend failed.");
     return;
   }
 
-  const resultNumber = Math.floor(Math.random() * 37);
-  const finalRotation = rotation + (8 * TAU) + (targetRotationForNumber(resultNumber) - (rotation % TAU));
-
-  await Promise.all([
-    animateSpin(finalRotation, 4700),
-    animateDice()
-  ]);
-
-  setDiceFromNumber(resultNumber);
-  lastNumberEl.textContent = String(resultNumber);
-  history.unshift(resultNumber);
-  if (history.length > 14) history.length = 14;
-  renderHistory();
-
-  const multiplier = payoutMultiplier(bet.type);
-  const win = isWinningBet(bet, resultNumber);
-  let payout = 0;
-
-  if (win) {
-    payout = bet.amount * multiplier;
-    await wallet.earn(payout, "dice_roulette_win", {
+  await runTransaction(db, async (tx) => {
+    tx.set(betRef, {
+      uid: user.uid,
+      username,
       type: bet.type,
       number: bet.type === "number" ? bet.number : null,
+      amount: bet.amount,
+      settled: false,
+      createdAt: serverTimestamp()
+    });
+  });
+
+  updateStatus(`Bet placed: ${betTypeLabel(bet.type, bet.number)} (${bet.amount})`);
+}
+
+async function settleMyBet(roundId) {
+  if (!roundId || lastSettledRound === roundId) return;
+
+  const resultNumber = await getRoundResultNumber(roundId, true);
+  const betRef = doc(db, "dice_roulette_rounds", String(roundId), "bets", user.uid);
+  const userRef = doc(db, "users", user.uid);
+
+  await runTransaction(db, async (tx) => {
+    const betSnap = await tx.get(betRef);
+    if (!betSnap.exists()) return;
+    const userSnap = await tx.get(userRef);
+    if (!userSnap.exists()) return;
+
+    const bet = betSnap.data();
+    if (bet.settled) return;
+
+    const pick = {
+      type: String(bet.type || ""),
+      number: Number(bet.number ?? -1)
+    };
+    const amount = Math.max(0, Number(bet.amount || 0));
+    const mult = payoutMultiplier(pick.type);
+    const win = isWinningBet(pick, resultNumber);
+    const payout = win ? amount * mult : 0;
+
+    tx.update(betRef, {
+      settled: true,
+      settledAt: serverTimestamp(),
       resultNumber,
-      multiplier
+      win,
+      payout,
+      multiplier: win ? mult : 0
+    });
+
+    if (payout > 0) {
+      tx.update(userRef, {
+        points: increment(payout),
+        updatedAt: serverTimestamp()
+      });
+    }
+  });
+
+  lastSettledRound = roundId;
+  const mine = await getDoc(betRef);
+  if (!mine.exists()) return;
+  const d = mine.data();
+  const net = Number(d.payout || 0) - Number(d.amount || 0);
+  const tone = net >= 0 ? "+" : "";
+  if (d.win) {
+    resultEl.textContent = `Round ${roundId} · ${d.resultNumber} (${pocketColor(d.resultNumber).toUpperCase()}) · WIN · Net ${tone}${net}`;
+  } else {
+    resultEl.textContent = `Round ${roundId} · ${d.resultNumber} (${pocketColor(d.resultNumber).toUpperCase()}) · LOSE · Net ${net}`;
+  }
+}
+
+function renderBetUsers(docs) {
+  betUsersEl.innerHTML = "";
+  if (!docs.length) {
+    const li = document.createElement("li");
+    li.textContent = "No bets yet.";
+    betUsersEl.appendChild(li);
+    return;
+  }
+
+  docs.forEach((snap) => {
+    const b = snap.data();
+    const li = document.createElement("li");
+    const amount = Math.max(0, Number(b.amount || 0));
+    li.textContent = `${b.username || "user"}: ${betTypeLabel(b.type, b.number)} (${amount})`;
+    betUsersEl.appendChild(li);
+  });
+}
+
+function attachBetList(roundId) {
+  if (observedBetRound === roundId) return;
+  observedBetRound = roundId;
+  if (roundBetsUnsub) roundBetsUnsub();
+
+  const q = query(
+    collection(db, "dice_roulette_rounds", String(roundId), "bets"),
+    orderBy("createdAt", "asc"),
+    limit(60)
+  );
+
+  roundBetsUnsub = onSnapshot(q, (snap) => {
+    renderBetUsers(snap.docs);
+  }, (err) => {
+    updateStatus(`Bet list error: ${err.message}`);
+  });
+}
+
+async function renderRecentResults(dayKey, lastCompletedRoundNo) {
+  historyEl.innerHTML = "";
+  for (let i = 0; i < 10; i += 1) {
+    const r = lastCompletedRoundNo - i;
+    if (r <= 0) break;
+    const rid = `${dayKey}-R${r}`;
+    const n = await getRoundResultNumber(rid, false);
+    const chip = document.createElement("span");
+    const cls = n == null ? "black" : pocketColor(n);
+    chip.className = `chip ${cls}`;
+    chip.textContent = n == null ? `R${r}: ?` : `R${r}: ${n}`;
+    historyEl.appendChild(chip);
+  }
+}
+
+async function tickLoop() {
+  const c = currentClock();
+
+  const sec = Math.max(0, Math.floor((c.nextSpinAt - c.now) / 1000));
+  const mm = String(Math.floor(sec / 60)).padStart(2, "0");
+  const ss = String(sec % 60).padStart(2, "0");
+  countdownEl.textContent = `${mm}:${ss}`;
+  roundStatusEl.textContent = c.inSpin
+    ? `Spinning (R${c.spinningRoundNo})`
+    : `Betting (R${c.bettingRoundNo})`;
+  roundIdEl.textContent = c.bettingRoundId;
+
+  spinBtn.disabled = c.inSpin;
+
+  if (c.inSpin && lastSpinRound !== c.spinningRoundId) {
+    lastSpinRound = c.spinningRoundId;
+    spinning = true;
+    const resultNumber = await getRoundResultNumber(c.spinningRoundId, true);
+    const base = targetRotationForNumber(resultNumber);
+    const normalized = ((rotation % TAU) + TAU) % TAU;
+    const target = rotation + (10 * TAU) + (base - normalized);
+    const remain = Math.max(900, (c.spinAt + SPIN_DURATION_MS) - c.now);
+    await Promise.all([
+      animateSpin(target, remain),
+      animateDice()
+    ]);
+    setDiceFromNumber(resultNumber);
+    lastNumberEl.textContent = String(resultNumber);
+    spinning = false;
+  }
+
+  if (!c.inSpin) {
+    attachBetList(c.bettingRoundId);
+    settleMyBet(c.spinningRoundId).catch((err) => {
+      updateStatus(`Settle error: ${err.message}`);
     });
   }
 
-  const net = payout - bet.amount;
-  const tone = net >= 0 ? "+" : "";
-  resultEl.textContent = `Result ${resultNumber} (${pocketColor(resultNumber).toUpperCase()}) · ${win ? "WIN" : "LOSE"} · Net ${tone}${net}`;
-  updateStatus("Ready");
-  spinning = false;
-  spinBtn.disabled = false;
+  if (recentRenderedRound !== c.spinningRoundId) {
+    recentRenderedRound = c.spinningRoundId;
+    renderRecentResults(c.dayKey, c.spinningRoundNo).catch(() => {});
+  }
 }
 
 function setupUi() {
   drawWheel();
-  renderHistory();
 
   const syncNumberInputVisibility = () => {
     const isSingle = betTypeEl.value === "number";
@@ -291,26 +538,39 @@ function setupUi() {
   });
 
   spinBtn.addEventListener("click", () => {
-    spinOnce().catch((err) => {
-      updateStatus(`Spin failed: ${err.message}`);
-      spinning = false;
-      spinBtn.disabled = false;
+    placeBet().catch((err) => {
+      updateStatus(`Bet failed: ${err.message}`);
     });
   });
 }
 
-function bootWallet() {
-  const wallet = window.AccountWallet;
-  if (!wallet) return false;
-  syncPoints(wallet.getPoints());
-  wallet.onChange((p) => syncPoints(p));
-  return true;
+function init() {
+  setupUi();
+
+  onSnapshot(doc(db, "users", user.uid), (snap) => {
+    const p = snap.data() || {};
+    username = normalizeUsername(user, p.username);
+    syncPoints(p.points || 0);
+  });
+
+  tickLoop().catch(() => {});
+  loopTimer = setInterval(() => {
+    tickLoop().catch(() => {});
+  }, 1000);
+
+  window.addEventListener("beforeunload", () => {
+    if (loopTimer) clearInterval(loopTimer);
+    if (roundBetsUnsub) roundBetsUnsub();
+  });
 }
 
-setupUi();
-
-if (!bootWallet()) {
-  document.addEventListener("app:wallet-ready", () => {
-    bootWallet();
-  }, { once: true });
+function boot(nextUser) {
+  if (booted) return;
+  booted = true;
+  user = nextUser;
+  username = normalizeUsername(user, "");
+  init();
 }
+
+document.addEventListener("app:user-ready", (e) => boot(e.detail.user));
+if (window.__AUTH_USER__) boot(window.__AUTH_USER__);

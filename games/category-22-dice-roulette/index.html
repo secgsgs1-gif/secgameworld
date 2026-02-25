@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Dice Roulette</title>
-  <link rel="stylesheet" href="styles.css?v=20260225a" />
+  <link rel="stylesheet" href="styles.css?v=20260225c" />
 </head>
 <body>
   <main class="shell">
@@ -18,6 +18,12 @@
         <p>Last Number: <strong id="last-number">-</strong></p>
       </div>
     </header>
+
+    <section class="round-bar">
+      <p>Next Spin: <strong id="countdown">--:--</strong></p>
+      <p>Status: <strong id="round-status">Waiting</strong></p>
+      <p>Bet Round: <strong id="round-id">-</strong></p>
+    </section>
 
     <section class="layout">
       <article class="wheel-card">
@@ -33,7 +39,7 @@
           <div class="die" id="die-1">1</div>
           <div class="die" id="die-2">1</div>
         </div>
-        <p id="result" class="result">Place your bet and spin.</p>
+        <p id="result" class="result">Place bet and wait for auto spin every 3 minutes.</p>
       </article>
 
       <article class="bet-card">
@@ -71,10 +77,13 @@
           <button type="button" data-amt="5000">+5000</button>
         </div>
 
-        <button id="spin" class="spin-btn" type="button">Spin</button>
-        <p id="status" class="status">Ready</p>
+        <button id="spin" class="spin-btn" type="button">Place Bet</button>
+        <p id="status" class="status">Waiting</p>
 
-        <h3>Recent Results</h3>
+        <h3>Current Round Bets</h3>
+        <ul id="bet-users" class="bet-users"></ul>
+
+        <h3>Recent 10 Results</h3>
         <div id="history" class="history"></div>
       </article>
     </section>
@@ -85,6 +94,6 @@
   <script>window.APP_ROOT = "../../";</script>
   <script type="module" src="../../shared/auth-guard.js?v=20260224m"></script>
   <script type="module" src="../../shared/game-access.js?v=20260225c"></script>
-  <script type="module" src="game.js?v=20260225b"></script>
+  <script type="module" src="game.js?v=20260225c"></script>
 </body>
 </html>
