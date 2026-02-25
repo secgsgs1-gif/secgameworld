@@ -3,6 +3,7 @@ import {
   doc,
   getDoc,
   increment,
+  limit,
   onSnapshot,
   orderBy,
   query,
@@ -63,6 +64,13 @@ let loopTimer = null;
 let booted = false;
 let lastRevealRound = "";
 let dealTimer = null;
+let settleBlockedUntil = 0;
+let settleBackoffMs = 10000;
+
+function isQuotaError(err) {
+  const msg = String(err?.message || "").toLowerCase();
+  return err?.code === "resource-exhausted" || msg.includes("quota exceeded") || msg.includes("resource exhausted");
+}
 
 function hashRoundId(roundId) {
   let h = 2166136261 >>> 0;
@@ -329,7 +337,11 @@ function attachBetList(roundId) {
   if (observedBetRound === roundId) return;
   observedBetRound = roundId;
   if (roundBetsUnsub) roundBetsUnsub();
-  const q = query(collection(db, "baccarat_rounds", String(roundId), "bets"), orderBy("createdAt", "asc"));
+  const q = query(
+    collection(db, "baccarat_rounds", String(roundId), "bets"),
+    orderBy("createdAt", "asc"),
+    limit(120)
+  );
   roundBetsUnsub = onSnapshot(
     q,
     (snap) => renderBettors(snap.docs),
@@ -369,9 +381,19 @@ async function tickLoop() {
       clearInterval(dealTimer);
       dealTimer = null;
     }
-    settleMyBet(c.revealRoundId).catch((err) => {
-      resultEl.textContent = `정산 오류: ${err.message}`;
-    });
+    if (Date.now() >= settleBlockedUntil) {
+      settleMyBet(c.revealRoundId).then(() => {
+        settleBackoffMs = 10000;
+      }).catch((err) => {
+        if (isQuotaError(err)) {
+          settleBlockedUntil = Date.now() + settleBackoffMs;
+          settleBackoffMs = Math.min(settleBackoffMs * 2, 300000);
+          resultEl.textContent = "정산 대기: Firestore 사용량 한도 도달(자동 재시도)";
+          return;
+        }
+        resultEl.textContent = `정산 오류: ${err.message}`;
+      });
+    }
     attachBetList(c.bettingRoundId);
   }
   else {
