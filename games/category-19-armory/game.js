@@ -8,6 +8,8 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
 import { db } from "../../shared/firebase-app.js?v=20260224m";
 import {
+  LEGENDARY_DUPLICATE_BONUS_PER_LEVEL,
+  RARE_DUPLICATE_PAYBACK_RATE,
   WEAPON_CRATE_COST,
   WEAPON_CATALOG,
   formatCashbackPercent,
@@ -15,12 +17,12 @@ import {
   isWeaponOwned,
   normalizeOwnedWeapons,
   rollWeaponFromGacha
-} from "../../shared/weapons.js?v=20260225b";
+} from "../../shared/weapons.js?v=20260225c";
 
 const pointsEl = document.getElementById("points");
-const shardsEl = document.getElementById("weapon-shards");
 const equippedWeaponEl = document.getElementById("equipped-weapon");
 const equippedCashbackEl = document.getElementById("equipped-cashback");
+const neonLevelEl = document.getElementById("neon-level");
 const crateCostEl = document.getElementById("crate-cost");
 const openCrateBtn = document.getElementById("open-crate-btn");
 const crateResultEl = document.getElementById("crate-result");
@@ -34,12 +36,12 @@ let busy = false;
 
 function render() {
   const points = Number(profile?.points || 0);
-  const shards = Number(profile?.weaponShards || 0);
+  const neonLevel = Math.max(0, Math.floor(Number(profile?.neonKatanaLevel || 0)));
   const equipped = getEquippedWeapon(profile || {});
   pointsEl.textContent = String(points);
-  shardsEl.textContent = String(shards);
   equippedWeaponEl.textContent = equipped?.name || "-";
   equippedCashbackEl.textContent = formatCashbackPercent(equipped?.cashbackRate || 0);
+  neonLevelEl.textContent = `Lv.${neonLevel}`;
   crateCostEl.textContent = `${WEAPON_CRATE_COST} pts`;
   openCrateBtn.disabled = busy || points < WEAPON_CRATE_COST;
 
@@ -67,6 +69,11 @@ function render() {
     const cashback = document.createElement("p");
     cashback.textContent = `Roulette/Baccarat cashback: ${formatCashbackPercent(weapon.cashbackRate)}`;
     card.appendChild(cashback);
+    if (weapon.id === "neon_katana") {
+      const bonus = document.createElement("p");
+      bonus.textContent = `Legend Level Bonus: +${formatCashbackPercent(LEGENDARY_DUPLICATE_BONUS_PER_LEVEL)} per level (current Lv.${neonLevel})`;
+      card.appendChild(bonus);
+    }
 
     const ownership = document.createElement("p");
     ownership.textContent = owned ? "Owned" : "Not owned";
@@ -104,22 +111,25 @@ async function openWeaponCrate() {
       const data = snap.data() || {};
       const currentPoints = Number(data.points || 0);
       const owned = normalizeOwnedWeapons(data.ownedWeapons);
-      const currentShards = Number(data.weaponShards || 0);
+      const currentNeonLevel = Math.max(0, Math.floor(Number(data.neonKatanaLevel || 0)));
       if (currentPoints < WEAPON_CRATE_COST) throw new Error("Not enough points");
 
       const rolled = rollWeaponFromGacha();
       if (!rolled) throw new Error("Gacha pool not configured");
       const alreadyOwned = Boolean(owned[rolled.id]);
-      const shardGain = alreadyOwned ? Number(rolled.duplicateShards || 0) : 0;
+      const isLegendaryDuplicate = alreadyOwned && rolled.id === "neon_katana";
+      const isRareDuplicate = alreadyOwned && rolled.rarity === "Rare";
+      const payback = isRareDuplicate ? Math.floor(WEAPON_CRATE_COST * RARE_DUPLICATE_PAYBACK_RATE) : 0;
+      const nextNeonLevel = isLegendaryDuplicate ? currentNeonLevel + 1 : currentNeonLevel;
 
       if (!alreadyOwned) {
         owned[rolled.id] = true;
       }
 
       const updateData = {
-        points: currentPoints - WEAPON_CRATE_COST,
+        points: currentPoints - WEAPON_CRATE_COST + payback,
         ownedWeapons: owned,
-        weaponShards: currentShards + shardGain,
+        neonKatanaLevel: nextNeonLevel,
         updatedAt: serverTimestamp()
       };
       if (!alreadyOwned) {
@@ -132,7 +142,10 @@ async function openWeaponCrate() {
         rarity: rolled.rarity || "Common",
         cashbackRate: Number(rolled.cashbackRate || 0),
         duplicate: alreadyOwned,
-        shardGain
+        isLegendaryDuplicate,
+        isRareDuplicate,
+        payback,
+        nextNeonLevel
       };
       tx.update(userRef, {
         ...updateData
@@ -148,12 +161,19 @@ async function openWeaponCrate() {
         rarity: txResult.rarity,
         cashbackRate: txResult.cashbackRate,
         duplicate: txResult.duplicate,
-        shardGain: txResult.shardGain
+        isLegendaryDuplicate: txResult.isLegendaryDuplicate,
+        isRareDuplicate: txResult.isRareDuplicate,
+        payback: txResult.payback,
+        nextNeonLevel: txResult.nextNeonLevel
       },
       createdAt: serverTimestamp()
     });
-    if (txResult.duplicate) {
-      crateResultEl.textContent = `Duplicate: ${txResult.weaponName} (${txResult.rarity}) -> +${txResult.shardGain} shards`;
+    if (txResult.isLegendaryDuplicate) {
+      crateResultEl.textContent = `Legendary duplicate! ${txResult.weaponName} upgraded to Lv.${txResult.nextNeonLevel}`;
+    } else if (txResult.isRareDuplicate) {
+      crateResultEl.textContent = `Rare duplicate: ${txResult.weaponName} -> ${txResult.payback} pts payback`;
+    } else if (txResult.duplicate) {
+      crateResultEl.textContent = `Duplicate: ${txResult.weaponName} (${txResult.rarity})`;
     } else {
       crateResultEl.textContent = `New Weapon: ${txResult.weaponName} (${txResult.rarity}) acquired`;
     }

@@ -1,5 +1,7 @@
 export const DEFAULT_WEAPON_ID = "starter_dagger";
 export const WEAPON_CRATE_COST = 1800;
+export const RARE_DUPLICATE_PAYBACK_RATE = 0.1;
+export const LEGENDARY_DUPLICATE_BONUS_PER_LEVEL = 0.002;
 
 export const WEAPON_CATALOG = [
   {
@@ -17,8 +19,7 @@ export const WEAPON_CATALOG = [
     description: "Sharper blade with better chip return.",
     cashbackRate: 0.02,
     rarity: "Rare",
-    dropWeight: 70,
-    duplicateShards: 35
+    dropWeight: 70
   },
   {
     id: "neon_katana",
@@ -26,8 +27,7 @@ export const WEAPON_CATALOG = [
     description: "Premium weapon for stronger cashback.",
     cashbackRate: 0.04,
     rarity: "Legendary",
-    dropWeight: 30,
-    duplicateShards: 120
+    dropWeight: 30
   }
 ];
 
@@ -62,10 +62,20 @@ export function isWeaponOwned(profile, weaponId) {
 
 export function getEquippedWeapon(profile) {
   const equippedId = String(profile?.equippedWeaponId || "");
+  const withLegendaryBonus = (weapon) => {
+    if (!weapon) return null;
+    if (weapon.id !== "neon_katana") return weapon;
+    const level = Math.max(0, Math.floor(Number(profile?.neonKatanaLevel || 0)));
+    return {
+      ...weapon,
+      cashbackRate: weapon.cashbackRate + (level * LEGENDARY_DUPLICATE_BONUS_PER_LEVEL),
+      legendaryLevel: level
+    };
+  };
   if (equippedId && isWeaponOwned(profile, equippedId)) {
-    return getWeaponById(equippedId) || getWeaponById(DEFAULT_WEAPON_ID);
+    return withLegendaryBonus(getWeaponById(equippedId)) || withLegendaryBonus(getWeaponById(DEFAULT_WEAPON_ID));
   }
-  return getWeaponById(DEFAULT_WEAPON_ID);
+  return withLegendaryBonus(getWeaponById(DEFAULT_WEAPON_ID));
 }
 
 export function formatCashbackPercent(rate) {

@@ -11,7 +11,7 @@ import {
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
 import { db } from "../../shared/firebase-app.js?v=20260224m";
-import { formatCashbackPercent, getEquippedWeapon } from "../../shared/weapons.js?v=20260225b";
+import { formatCashbackPercent, getEquippedWeapon } from "../../shared/weapons.js?v=20260225c";
 
 const canvas = document.getElementById("wheel");
 const ctx = canvas.getContext("2d");
