@@ -40,6 +40,7 @@ const BLOCKS = {
 const INVENTORY_KEYS = ["dirt", "stone", "coal", "iron", "gold", "diamond"];
 
 let player = { x: Math.floor(COLS / 2), y: SKY_ROWS - 1 };
+let facing = { x: 0, y: 1 };
 let pickaxeLevel = 1;
 let myPoints = 0;
 let user = null;
@@ -98,6 +99,7 @@ function rerollMine() {
   }
   worldSeed = Math.floor(Math.random() * 1000000000);
   player = { x: Math.floor(COLS / 2), y: SKY_ROWS - 1 };
+  facing = { x: 0, y: 1 };
   breakProgress = {};
   buildWorld();
   statusEl.textContent = `New mine generated (seed ${worldSeed}).`;
@@ -348,10 +350,17 @@ function move(dx, dy) {
   const nx = player.x + dx;
   const ny = player.y + dy;
   if (!canMoveTo(nx, ny)) return;
+  facing = { x: dx, y: dy };
   player.x = nx;
   player.y = ny;
   draw();
   renderHud();
+}
+
+function mineForward() {
+  const tx = player.x + facing.x;
+  const ty = player.y + facing.y;
+  mineTile(tx, ty);
 }
 
 function mineTile(tx, ty) {
@@ -442,12 +451,7 @@ function upgradePickaxe() {
 }
 
 function onCanvasClick(e) {
-  const rect = canvas.getBoundingClientRect();
-  const sx = (e.clientX - rect.left) * (canvas.width / rect.width);
-  const sy = (e.clientY - rect.top) * (canvas.height / rect.height);
-  const tx = Math.floor(sx / TILE);
-  const ty = Math.floor(sy / TILE);
-  mineTile(tx, ty);
+  e.preventDefault();
 }
 
 function onKey(e) {
@@ -456,6 +460,10 @@ function onKey(e) {
   else if (k === "arrowright" || k === "d") move(1, 0);
   else if (k === "arrowup" || k === "w") move(0, -1);
   else if (k === "arrowdown" || k === "s") move(0, 1);
+  else if (k === " " || k === "spacebar") {
+    e.preventDefault();
+    mineForward();
+  }
 }
 
 function init() {
