@@ -74,6 +74,42 @@ service cloud.firestore {
                             && request.auth.uid == userId;
       allow delete: if false;
     }
+
+    match /trade_room_messages/{msgId} {
+      allow read: if request.auth != null;
+      allow create: if request.auth != null
+                    && request.resource.data.uid == request.auth.uid
+                    && request.resource.data.text is string
+                    && request.resource.data.text.size() > 0
+                    && request.resource.data.text.size() <= 240;
+      allow update, delete: if false;
+    }
+
+    match /trade_transfers/{transferId} {
+      allow read: if request.auth != null
+                  && (resource.data.fromUid == request.auth.uid
+                      || resource.data.toUid == request.auth.uid);
+      allow create: if request.auth != null
+                    && request.resource.data.fromUid == request.auth.uid
+                    && request.resource.data.toUid is string
+                    && request.resource.data.gross is int
+                    && request.resource.data.fee is int
+                    && request.resource.data.net is int
+                    && request.resource.data.gross >= 20
+                    && request.resource.data.fee >= 0
+                    && request.resource.data.net == request.resource.data.gross - request.resource.data.fee
+                    && request.resource.data.status == "pending";
+      allow update: if request.auth != null
+                    && resource.data.toUid == request.auth.uid
+                    && resource.data.status == "pending"
+                    && request.resource.data.status == "claimed"
+                    && request.resource.data.fromUid == resource.data.fromUid
+                    && request.resource.data.toUid == resource.data.toUid
+                    && request.resource.data.gross == resource.data.gross
+                    && request.resource.data.fee == resource.data.fee
+                    && request.resource.data.net == resource.data.net;
+      allow delete: if false;
+    }
   }
 }
 ```

@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>17번 카테고리 - 포인트 거래소</title>
+  <link rel="stylesheet" href="styles.css?v=20260225a" />
+</head>
+<body>
+  <main class="shell">
+    <h1>17번 카테고리 게임이름 (포인트 거래소)</h1>
+    <p>이 방에서만 <code>/give username amount</code> 명령으로 포인트 송금 가능 (수수료 5%).</p>
+
+    <section class="summary">
+      <p>내 포인트: <strong id="points">0</strong></p>
+      <p>내 닉네임: <strong id="my-name">-</strong></p>
+      <p>상태: <strong id="status">초기화 중...</strong></p>
+    </section>
+
+    <section class="board">
+      <aside class="users">
+        <h2>현재 접속자</h2>
+        <ul id="presence-list"></ul>
+      </aside>
+
+      <section class="chat">
+        <div id="messages" class="messages"></div>
+        <form id="chat-form" class="composer">
+          <input id="chat-input" maxlength="240" placeholder="메시지 또는 /give username amount" required />
+          <button type="submit">전송</button>
+        </form>
+      </section>
+    </section>
+
+    <a href="../../index.html">카테고리로 돌아가기</a>
+  </main>
+
+  <script>window.APP_ROOT = "../../";</script>
+  <script type="module" src="../../shared/auth-guard.js?v=20260224m"></script>
+  <script type="module" src="../../shared/game-access.js?v=20260225c"></script>
+  <script type="module" src="game.js?v=20260225a"></script>
+</body>
+</html>
