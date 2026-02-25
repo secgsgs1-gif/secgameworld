@@ -1,10 +1,13 @@
 import {
+  addDoc,
   collection,
   doc,
   getDocs,
   limit,
+  onSnapshot,
   orderBy,
   query,
+  runTransaction,
   serverTimestamp,
   setDoc,
   updateDoc
@@ -15,6 +18,9 @@ const canvas = document.getElementById("track");
 const ctx = canvas.getContext("2d");
 const pointsEl = document.getElementById("points");
 const sessionEarnedEl = document.getElementById("session-earned");
+const speedLevelEl = document.getElementById("speed-level");
+const nextCostEl = document.getElementById("next-cost");
+const upgradeBtn = document.getElementById("upgrade-btn");
 const lapEl = document.getElementById("lap");
 const speedEl = document.getElementById("speed");
 const syncStatusEl = document.getElementById("sync-status");
@@ -28,6 +34,9 @@ const SYNC_MS_BG = 60000;
 const POLL_MS_ACTIVE = 12000;
 const POLL_MS_BG = 45000;
 const STALE_MS = 95000;
+const SPEED_LEVEL_COSTS = [0, 500, 1200, 2600, 5200, 9800];
+const MAX_SPEED_LEVEL = SPEED_LEVEL_COSTS.length - 1;
+const BASE_SPEED = 16;
 
 let user = null;
 let username = "";
@@ -36,7 +45,8 @@ let sessionStartPoints = null;
 let distance = 0;
 let lap = 0;
 let lane = Math.floor(Math.random() * 3);
-let baseSpeed = 16 + Math.random() * 2.5;
+let baseSpeed = BASE_SPEED;
+let speedLevel = 0;
 let burstUntil = 0;
 let nextBurstAt = performance.now() + 6000 + Math.random() * 6000;
 let lastTick = performance.now();
@@ -50,6 +60,33 @@ let booted = false;
 let earning = false;
 let hiddenStartedAt = 0;
 let rewardQueue = [];
+let profileUnsub = null;
+let upgrading = false;
+
+function effectiveBaseSpeed() {
+  return baseSpeed * (1 + speedLevel * 0.12);
+}
+
+function clampSpeedLevel(v) {
+  const n = Number(v || 0);
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(0, Math.min(MAX_SPEED_LEVEL, Math.floor(n)));
+}
+
+function updateUpgradeUI() {
+  speedLevelEl.textContent = `Lv.${speedLevel}`;
+  if (speedLevel >= MAX_SPEED_LEVEL) {
+    nextCostEl.textContent = "MAX";
+    upgradeBtn.disabled = true;
+    upgradeBtn.textContent = "최대 단계";
+    return;
+  }
+  const next = speedLevel + 1;
+  const cost = SPEED_LEVEL_COSTS[next];
+  nextCostEl.textContent = String(cost);
+  upgradeBtn.disabled = upgrading;
+  upgradeBtn.textContent = `속도 ${next}단계 업그레이드`;
+}
 
 function normalizeUsername(currentUser, rawName) {
   const byProfile = String(rawName || "").trim();
@@ -61,8 +98,9 @@ function normalizeUsername(currentUser, rawName) {
 }
 
 function currentSpeed(now) {
-  if (now < burstUntil) return baseSpeed * 1.28;
-  return baseSpeed;
+  const base = effectiveBaseSpeed();
+  if (now < burstUntil) return base * 1.28;
+  return base;
 }
 
 function maybeTriggerBurst(now) {
@@ -217,6 +255,61 @@ async function grantLapReward() {
   }
 }
 
+async function upgradeSpeedLevel() {
+  if (!user || upgrading) return;
+  if (speedLevel >= MAX_SPEED_LEVEL) {
+    syncStatusEl.textContent = "이미 최대 단계입니다.";
+    return;
+  }
+  const next = speedLevel + 1;
+  const cost = SPEED_LEVEL_COSTS[next];
+  if (myPoints < cost) {
+    syncStatusEl.textContent = `포인트 부족: ${cost} 필요`;
+    return;
+  }
+
+  upgrading = true;
+  updateUpgradeUI();
+  const userRef = doc(db, "users", user.uid);
+  try {
+    await runTransaction(db, async (tx) => {
+      const snap = await tx.get(userRef);
+      if (!snap.exists()) throw new Error("유저 정보를 찾을 수 없습니다.");
+      const data = snap.data();
+      const currentLevel = clampSpeedLevel(data.miningSpeedLevel);
+      const currentPoints = Number(data.points || 0);
+      if (currentLevel >= MAX_SPEED_LEVEL) throw new Error("이미 최대 단계입니다.");
+      const targetLevel = currentLevel + 1;
+      const targetCost = SPEED_LEVEL_COSTS[targetLevel];
+      if (currentPoints < targetCost) throw new Error("포인트가 부족합니다.");
+
+      tx.update(userRef, {
+        points: currentPoints - targetCost,
+        miningSpeedLevel: targetLevel,
+        updatedAt: serverTimestamp()
+      });
+    });
+
+    await addDoc(collection(db, "users", user.uid, "transactions"), {
+      type: "mining_upgrade",
+      amount: -cost,
+      reason: "mining_speed_upgrade",
+      meta: {
+        fromLevel: speedLevel,
+        toLevel: speedLevel + 1,
+        cost
+      },
+      createdAt: serverTimestamp()
+    });
+    syncStatusEl.textContent = `업그레이드 완료: Lv.${speedLevel + 1}`;
+  } catch (err) {
+    syncStatusEl.textContent = `업그레이드 실패: ${err.message}`;
+  } finally {
+    upgrading = false;
+    updateUpgradeUI();
+  }
+}
+
 function enqueueLapRewards(nextLap) {
   if (nextLap <= lap) return;
   for (let l = lap + 1; l <= nextLap; l += 1) {
@@ -266,11 +359,22 @@ function bindWallet() {
 
 function init() {
   username = normalizeUsername(user, "");
+  updateUpgradeUI();
   renderTrack();
   renderRunners();
   if (!bindWallet()) {
     document.addEventListener("app:wallet-ready", bindWallet, { once: true });
   }
+
+  profileUnsub = onSnapshot(doc(db, "users", user.uid), (snap) => {
+    const profile = snap.data() || {};
+    speedLevel = clampSpeedLevel(profile.miningSpeedLevel);
+    updateUpgradeUI();
+  });
+
+  upgradeBtn.addEventListener("click", () => {
+    upgradeSpeedLevel().catch(() => {});
+  });
 
   loopTimer = setInterval(tick, TICK_MS);
   syncMine().catch(() => {});
@@ -302,6 +406,7 @@ function init() {
     if (loopTimer) clearInterval(loopTimer);
     if (syncTimer) clearInterval(syncTimer);
     if (pollTimer) clearInterval(pollTimer);
+    if (profileUnsub) profileUnsub();
     updateDoc(doc(db, "miners", user.uid), {
       online: false,
       updatedAt: serverTimestamp()

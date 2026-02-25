@@ -30,6 +30,43 @@ body {
   background: #1b3324;
 }
 
+.upgrade {
+  margin-top: 10px;
+  border: 1px solid #9fd5ac55;
+  border-radius: 10px;
+  padding: 10px;
+  background: #1a2f21;
+}
+
+.upgrade h2 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+}
+
+.upgrade p {
+  margin: 4px 0;
+}
+
+.upgrade button {
+  margin-top: 6px;
+  padding: 8px 10px;
+  border: 1px solid #9fd5ac66;
+  border-radius: 8px;
+  background: #2b5137;
+  color: #e8f7eb;
+  cursor: pointer;
+}
+
+.upgrade button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.upgrade .costs {
+  font-size: 0.84rem;
+  opacity: 0.9;
+}
+
 canvas {
   width: 100%;
   height: auto;

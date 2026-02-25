@@ -19,6 +19,14 @@
       <p>동기화 상태: <strong id="sync-status">대기</strong></p>
     </section>
 
+    <section class="upgrade">
+      <h2>속도 업그레이드 (계정 귀속)</h2>
+      <p>현재 레벨: <strong id="speed-level">Lv.0</strong></p>
+      <p>다음 단계 비용: <strong id="next-cost">500</strong></p>
+      <button id="upgrade-btn" type="button">속도 1단계 업그레이드</button>
+      <p class="costs">단계별 비용: Lv1 500 / Lv2 1200 / Lv3 2600 / Lv4 5200 / Lv5 9800</p>
+    </section>
+
     <canvas id="track" width="820" height="460" aria-label="Mining Marathon Track"></canvas>
     <p id="event-log" class="event-log">채굴 시작 대기중...</p>
 
@@ -33,6 +41,6 @@
   <script>window.APP_ROOT = "../../";</script>
   <script type="module" src="../../shared/auth-guard.js?v=20260224m"></script>
   <script type="module" src="../../shared/game-access.js?v=20260225c"></script>
-  <script type="module" src="game.js?v=20260225e"></script>
+  <script type="module" src="game.js?v=20260225f"></script>
 </body>
 </html>
