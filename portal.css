@@ -90,6 +90,21 @@ header h1 {
   gap: 14px;
 }
 
+.catalog-section {
+  margin-bottom: 16px;
+}
+
+.catalog-section:last-child {
+  margin-bottom: 0;
+}
+
+.section-title {
+  margin: 0 0 8px;
+  font-size: 1.05rem;
+  letter-spacing: 0.04em;
+  color: #d7ecff;
+}
+
 .card {
   padding: 16px;
   border-radius: 14px;
