@@ -31,6 +31,94 @@ body {
   background: #1c2a47;
 }
 
+.podium {
+  margin-bottom: 10px;
+  border: 1px solid #96b7ff55;
+  border-radius: 12px;
+  padding: 10px;
+  background: linear-gradient(140deg, #1b2a49, #212743);
+}
+
+.podium h2 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+}
+
+.podium-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.podium-card {
+  position: relative;
+  border: 1px solid #96b7ff4d;
+  border-radius: 12px;
+  padding: 10px;
+  background: #223560;
+  overflow: hidden;
+}
+
+.podium-card .rank-badge {
+  display: inline-block;
+  border: 1px solid #ffffff55;
+  border-radius: 999px;
+  padding: 2px 8px;
+  font-size: 0.73rem;
+  margin-bottom: 6px;
+  background: #ffffff22;
+}
+
+.podium-card .name {
+  font-weight: 700;
+  margin: 0 0 4px;
+}
+
+.podium-card .points {
+  margin: 0;
+  font-size: 0.9rem;
+  opacity: 0.96;
+}
+
+.podium-card .extra {
+  margin: 4px 0 0;
+  font-size: 0.8rem;
+  opacity: 0.88;
+}
+
+.podium-card.rank-1 {
+  background: linear-gradient(140deg, #5c3f0f, #b28424 45%, #6f4d14);
+  border-color: #ffd778;
+  box-shadow: 0 0 22px #f1c75e66, inset 0 0 24px #fff4bf2e;
+  animation: champion-glow 2.6s ease-in-out infinite;
+}
+
+.podium-card.rank-1::after {
+  content: "CROWN #1";
+  position: absolute;
+  top: 8px;
+  right: -22px;
+  transform: rotate(28deg);
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  color: #3a2300;
+  background: #ffe390;
+  padding: 3px 26px;
+}
+
+.podium-card.rank-2 {
+  background: linear-gradient(140deg, #3f4e67, #7789aa 45%, #4a5d7f);
+  border-color: #c9d6ef;
+  box-shadow: 0 0 15px #b4c8ee44;
+}
+
+.podium-card.rank-3 {
+  background: linear-gradient(140deg, #513a2f, #8a5f48 45%, #5d4031);
+  border-color: #d6af92;
+  box-shadow: 0 0 14px #c89c7b3f;
+}
+
 .board {
   border: 1px solid #96b7ff55;
   border-radius: 10px;
@@ -60,10 +148,38 @@ tbody tr.me {
   background: #2a4b41;
 }
 
+tbody tr.rank-1 td {
+  background: #ffe6a838;
+  border-bottom-color: #ffd97966;
+  font-weight: 700;
+}
+
+tbody tr.rank-2 td {
+  background: #d9e6ff30;
+  border-bottom-color: #cedcf866;
+}
+
+tbody tr.rank-3 td {
+  background: #f6d7bc2a;
+  border-bottom-color: #e8ba9666;
+}
+
 tbody tr:nth-child(odd):not(.me) {
   background: #1c2a47;
 }
 
 a {
   color: #cde0ff;
+}
+
+@keyframes champion-glow {
+  0% { box-shadow: 0 0 14px #f1c75e45, inset 0 0 16px #fff4bf22; }
+  50% { box-shadow: 0 0 26px #ffd56c8a, inset 0 0 30px #fff4bf45; }
+  100% { box-shadow: 0 0 14px #f1c75e45, inset 0 0 16px #fff4bf22; }
+}
+
+@media (max-width: 840px) {
+  .podium-cards {
+    grid-template-columns: 1fr;
+  }
 }

@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Ranking Board</title>
-  <link rel="stylesheet" href="styles.css?v=20260225a" />
+  <link rel="stylesheet" href="styles.css?v=20260225b" />
 </head>
 <body>
   <main class="shell">
@@ -15,6 +15,11 @@
       <p>내 순위: <strong id="my-rank">-</strong></p>
       <p>내 포인트: <strong id="my-points">0</strong></p>
       <p>업데이트: <strong id="updated-at">대기</strong></p>
+    </section>
+
+    <section class="podium" aria-label="Top 3">
+      <h2>Top 3 Champions</h2>
+      <div id="podium-cards" class="podium-cards"></div>
     </section>
 
     <section class="board">
@@ -37,6 +42,6 @@
   <script>window.APP_ROOT = "../../";</script>
   <script type="module" src="../../shared/auth-guard.js?v=20260224m"></script>
   <script type="module" src="../../shared/game-access.js?v=20260225c"></script>
-  <script type="module" src="game.js?v=20260225b"></script>
+  <script type="module" src="game.js?v=20260225c"></script>
 </body>
 </html>

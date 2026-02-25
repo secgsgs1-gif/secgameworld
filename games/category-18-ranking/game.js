@@ -11,6 +11,7 @@ const myRankEl = document.getElementById("my-rank");
 const myPointsEl = document.getElementById("my-points");
 const updatedAtEl = document.getElementById("updated-at");
 const rankBodyEl = document.getElementById("rank-body");
+const podiumCardsEl = document.getElementById("podium-cards");
 
 let user = null;
 let timer = null;
@@ -48,6 +49,45 @@ function msUntilNextHour(now = Date.now()) {
   return Math.max(1000, d.getTime() - now);
 }
 
+function buildCell(text) {
+  const td = document.createElement("td");
+  td.textContent = text;
+  return td;
+}
+
+function renderTopPodium(rows) {
+  podiumCardsEl.innerHTML = "";
+  const labels = ["1st Place", "2nd Place", "3rd Place"];
+  for (let i = 0; i < 3; i += 1) {
+    const player = rows[i];
+    const card = document.createElement("article");
+    card.className = `podium-card rank-${i + 1}`;
+    if (!player) {
+      card.innerHTML = `<span class="rank-badge">${labels[i]}</span><p class="name">-</p><p class="points">No player</p>`;
+      podiumCardsEl.appendChild(card);
+      continue;
+    }
+    const uname = normalizeUsername(user, player.username, player.uid);
+    const label = document.createElement("span");
+    label.className = "rank-badge";
+    label.textContent = labels[i];
+    const name = document.createElement("p");
+    name.className = "name";
+    name.textContent = uname;
+    const points = document.createElement("p");
+    points.className = "points";
+    points.textContent = `${player.points.toLocaleString()} pts`;
+    const extra = document.createElement("p");
+    extra.className = "extra";
+    extra.textContent = `Mining Lv.${player.miningSpeedLevel}`;
+    card.appendChild(label);
+    card.appendChild(name);
+    card.appendChild(points);
+    card.appendChild(extra);
+    podiumCardsEl.appendChild(card);
+  }
+}
+
 async function refreshRank() {
   const q = query(collection(db, "users"), orderBy("points", "desc"), limit(100));
   const snap = await getDocs(q);
@@ -58,22 +98,22 @@ async function refreshRank() {
     miningSpeedLevel: Number(d.data()?.miningSpeedLevel || 0)
   })).sort((a, b) => (b.points - a.points) || a.uid.localeCompare(b.uid));
 
+  renderTopPodium(rows);
   rankBodyEl.innerHTML = "";
   let myRank = "-";
   let myPoints = 0;
   rows.forEach((r, idx) => {
     const tr = document.createElement("tr");
+    if (idx < 3) tr.classList.add(`rank-${idx + 1}`);
     if (r.uid === user.uid) {
-      tr.className = "me";
+      tr.classList.add("me");
       myRank = String(idx + 1);
       myPoints = r.points;
     }
-    tr.innerHTML = `
-      <td>${idx + 1}</td>
-      <td>${normalizeUsername(user, r.username, r.uid)}</td>
-      <td>${r.points.toLocaleString()}</td>
-      <td>Lv.${r.miningSpeedLevel}</td>
-    `;
+    tr.appendChild(buildCell(String(idx + 1)));
+    tr.appendChild(buildCell(normalizeUsername(user, r.username, r.uid)));
+    tr.appendChild(buildCell(r.points.toLocaleString()));
+    tr.appendChild(buildCell(`Lv.${r.miningSpeedLevel}`));
     rankBodyEl.appendChild(tr);
   });
 
