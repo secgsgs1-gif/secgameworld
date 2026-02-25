@@ -1,0 +1,120 @@
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(135deg, #15142b, #2a1e16);
+  color: #f6f0df;
+  font-family: "Segoe UI", sans-serif;
+}
+
+.shell {
+  width: min(96vw, 920px);
+  padding: 16px;
+  border-radius: 14px;
+  border: 1px solid #d8c18f4d;
+  background: #171625db;
+}
+
+.round-bar {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+}
+
+.round-bar p {
+  margin: 4px 0;
+}
+
+.table,
+.bet-panel,
+.bettors,
+.recent {
+  margin-top: 10px;
+  border: 1px solid #d8c18f45;
+  border-radius: 10px;
+  padding: 10px;
+  background: #221d2ca8;
+}
+
+.table-result {
+  margin: 6px 0 0;
+  font-size: 1.1rem;
+  font-weight: 700;
+}
+
+.odds {
+  margin: 6px 0 0;
+  opacity: 0.9;
+  font-size: 0.9rem;
+}
+
+.bets-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 8px;
+}
+
+label {
+  display: grid;
+  gap: 4px;
+}
+
+input,
+button {
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid #d8c18f66;
+  background: #2f2740;
+  color: #f6f0df;
+}
+
+.bettor-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 8px;
+}
+
+.bettor-grid h3 {
+  margin: 0 0 6px;
+  font-size: 0.95rem;
+}
+
+.bettor-grid ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+  max-height: 124px;
+  overflow: auto;
+}
+
+.bettor-grid li {
+  border: 1px solid #d8c18f40;
+  border-radius: 7px;
+  padding: 4px 6px;
+  background: #352c4a;
+  font-size: 0.82rem;
+}
+
+.recent-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 6px;
+}
+
+.recent-list li {
+  border: 1px solid #d8c18f40;
+  border-radius: 8px;
+  padding: 6px;
+  background: #302741;
+  font-size: 0.82rem;
+}
+
+a {
+  color: #ffe3ad;
+}

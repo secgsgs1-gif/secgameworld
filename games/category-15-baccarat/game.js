@@ -1,0 +1,319 @@
+import {
+  collection,
+  doc,
+  getDoc,
+  increment,
+  onSnapshot,
+  orderBy,
+  query,
+  runTransaction,
+  serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
+import { db } from "../../shared/firebase-app.js?v=20260224m";
+
+const countdownEl = document.getElementById("countdown");
+const roundStatusEl = document.getElementById("round-status");
+const pointsEl = document.getElementById("points");
+const placeBetBtn = document.getElementById("place-bet");
+const resultEl = document.getElementById("result");
+const tableResultEl = document.getElementById("table-result");
+const recentResultsEl = document.getElementById("recent-results");
+
+const betInputs = {
+  player: document.getElementById("bet-player"),
+  banker: document.getElementById("bet-banker"),
+  tie: document.getElementById("bet-tie")
+};
+
+const bettorsEls = {
+  player: document.getElementById("bettors-player"),
+  banker: document.getElementById("bettors-banker"),
+  tie: document.getElementById("bettors-tie")
+};
+
+const ROUND_INTERVAL_MS = 120000; // 2 min
+const REVEAL_DURATION_MS = 9000; // 9 sec
+const DAY_MS = 86400000;
+const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
+const ROUNDS_PER_DAY = DAY_MS / ROUND_INTERVAL_MS;
+const PAYOUT = { player: 2, banker: 2, tie: 9 };
+
+let user = null;
+let username = "";
+let points = 0;
+let lastSettledRound = "";
+let observedBetRound = "";
+let roundBetsUnsub = null;
+let loopTimer = null;
+let booted = false;
+
+function hashRoundId(roundId) {
+  let h = 2166136261 >>> 0;
+  const s = String(roundId);
+  for (let i = 0; i < s.length; i += 1) {
+    h ^= s.charCodeAt(i);
+    h = Math.imul(h, 16777619);
+  }
+  return h >>> 0;
+}
+
+function outcomeForRound(roundId) {
+  const roll = hashRoundId(roundId) % 100;
+  if (roll < 45) return "player";
+  if (roll < 90) return "banker";
+  return "tie";
+}
+
+function outcomeLabel(key) {
+  if (key === "player") return "Player";
+  if (key === "banker") return "Banker";
+  return "Tie";
+}
+
+function currentClock(now = Date.now()) {
+  const kstNow = now + KST_OFFSET_MS;
+  const dayStartKst = Math.floor(kstNow / DAY_MS) * DAY_MS;
+  const dayStartUtc = dayStartKst - KST_OFFSET_MS;
+  const dayKey = new Date(dayStartUtc).toISOString().slice(0, 10);
+
+  const elapsedInDay = kstNow - dayStartKst;
+  const tickInDay = Math.floor(elapsedInDay / ROUND_INTERVAL_MS);
+  const roundStartAt = dayStartUtc + tickInDay * ROUND_INTERVAL_MS;
+  const nextRoundAt = roundStartAt + ROUND_INTERVAL_MS;
+  const inReveal = now >= roundStartAt && now < roundStartAt + REVEAL_DURATION_MS;
+
+  const revealRoundNo = tickInDay + 1;
+  const bettingRoundNoRaw = revealRoundNo + 1;
+  const bettingCrossDay = bettingRoundNoRaw > ROUNDS_PER_DAY;
+  const bettingRoundNo = bettingCrossDay ? 1 : bettingRoundNoRaw;
+  const bettingDayKey = bettingCrossDay
+    ? new Date(dayStartUtc + DAY_MS).toISOString().slice(0, 10)
+    : dayKey;
+  const revealRoundId = `${dayKey}-R${revealRoundNo}`;
+  const bettingRoundId = `${bettingDayKey}-R${bettingRoundNo}`;
+
+  return {
+    now,
+    dayKey,
+    inReveal,
+    nextRoundAt,
+    revealRoundNo,
+    bettingRoundNo,
+    revealRoundId,
+    bettingRoundId
+  };
+}
+
+function parseBets() {
+  const amounts = {};
+  let total = 0;
+  ["player", "banker", "tie"].forEach((key) => {
+    const v = Math.max(0, Math.floor(Number(betInputs[key].value) || 0));
+    if (v > 0) {
+      amounts[key] = v;
+      total += v;
+    }
+  });
+  return { amounts, total };
+}
+
+async function placeBet() {
+  const c = currentClock();
+  if (c.inReveal) {
+    resultEl.textContent = "결과 공개 중에는 배팅할 수 없습니다.";
+    return;
+  }
+
+  const { amounts, total } = parseBets();
+  if (total <= 0) {
+    resultEl.textContent = "배팅 금액을 입력하세요.";
+    return;
+  }
+  if (total > points) {
+    resultEl.textContent = "포인트 부족";
+    return;
+  }
+
+  const roundId = String(c.bettingRoundId);
+  const betRef = doc(db, "baccarat_rounds", roundId, "bets", user.uid);
+  const existing = await getDoc(betRef);
+  if (existing.exists()) {
+    resultEl.textContent = "이번 라운드 이미 배팅 완료";
+    return;
+  }
+
+  const spend = await window.AccountWallet.spend(total, "baccarat_bet", {
+    game: "category-15-baccarat",
+    roundId
+  });
+  if (!spend.ok) {
+    resultEl.textContent = "포인트 차감 실패";
+    return;
+  }
+
+  await runTransaction(db, async (tx) => {
+    tx.set(betRef, {
+      uid: user.uid,
+      username,
+      amounts,
+      total,
+      settled: false,
+      createdAt: serverTimestamp()
+    });
+  });
+
+  resultEl.textContent = `배팅 완료: 총 ${total}`;
+}
+
+async function settleMyBet(roundId) {
+  if (!roundId || lastSettledRound === roundId) return;
+
+  const resultKey = outcomeForRound(roundId);
+  const payoutMultiplier = PAYOUT[resultKey] || 0;
+  const betRef = doc(db, "baccarat_rounds", String(roundId), "bets", user.uid);
+  const userRef = doc(db, "users", user.uid);
+
+  await runTransaction(db, async (tx) => {
+    const betSnap = await tx.get(betRef);
+    if (!betSnap.exists()) return;
+
+    const bet = betSnap.data();
+    if (bet.settled) return;
+
+    const hitAmount = Number(bet.amounts?.[resultKey] || 0);
+    const payout = hitAmount > 0 ? hitAmount * payoutMultiplier : 0;
+
+    tx.update(betRef, {
+      settled: true,
+      settledAt: serverTimestamp(),
+      resultKey,
+      payout
+    });
+
+    if (payout > 0) {
+      tx.update(userRef, {
+        points: increment(payout),
+        updatedAt: serverTimestamp()
+      });
+    }
+  });
+
+  lastSettledRound = roundId;
+  tableResultEl.textContent = `${outcomeLabel(resultKey)} 승`;
+  const mine = await getDoc(betRef);
+  if (mine.exists()) {
+    const d = mine.data();
+    if (d.payout > 0) {
+      resultEl.textContent = `당첨! ${outcomeLabel(d.resultKey)} x${PAYOUT[d.resultKey]} 지급 +${d.payout}`;
+    }
+    else {
+      resultEl.textContent = `미당첨. 결과: ${outcomeLabel(resultKey)}`;
+    }
+  }
+}
+
+function renderBettors(docs) {
+  const map = { player: [], banker: [], tie: [] };
+  docs.forEach((snap) => {
+    const b = snap.data();
+    ["player", "banker", "tie"].forEach((key) => {
+      const amt = Number(b.amounts?.[key] || 0);
+      if (amt > 0) map[key].push(`${b.username} (${amt})`);
+    });
+  });
+
+  ["player", "banker", "tie"].forEach((key) => {
+    bettorsEls[key].innerHTML = "";
+    map[key].forEach((name) => {
+      const li = document.createElement("li");
+      li.textContent = name;
+      bettorsEls[key].appendChild(li);
+    });
+  });
+}
+
+function attachBetList(roundId) {
+  if (observedBetRound === roundId) return;
+  observedBetRound = roundId;
+  if (roundBetsUnsub) roundBetsUnsub();
+  const q = query(collection(db, "baccarat_rounds", String(roundId), "bets"), orderBy("createdAt", "asc"));
+  roundBetsUnsub = onSnapshot(
+    q,
+    (snap) => renderBettors(snap.docs),
+    (err) => {
+      resultEl.textContent = `권한 오류: ${err.message}`;
+    }
+  );
+}
+
+function renderRecentResults(dayKey, revealRoundNo) {
+  recentResultsEl.innerHTML = "";
+  for (let i = 0; i < 12; i += 1) {
+    const r = revealRoundNo - i;
+    if (r <= 0) break;
+    const roundId = `${dayKey}-R${r}`;
+    const key = outcomeForRound(roundId);
+    const li = document.createElement("li");
+    li.textContent = `R${r}: ${outcomeLabel(key)}`;
+    recentResultsEl.appendChild(li);
+  }
+}
+
+async function tickLoop() {
+  const c = currentClock();
+  const sec = Math.max(0, Math.floor((c.nextRoundAt - c.now) / 1000));
+  const mm = String(Math.floor(sec / 60)).padStart(2, "0");
+  const ss = String(sec % 60).padStart(2, "0");
+  countdownEl.textContent = `${mm}:${ss}`;
+
+  roundStatusEl.textContent = c.inReveal
+    ? `결과 공개중 (Round ${c.revealRoundNo})`
+    : `배팅중 (Round ${c.bettingRoundNo})`;
+
+  if (!c.inReveal) {
+    settleMyBet(c.revealRoundId).catch((err) => {
+      resultEl.textContent = `정산 오류: ${err.message}`;
+    });
+    attachBetList(c.bettingRoundId);
+  }
+  else {
+    tableResultEl.textContent = `${outcomeLabel(outcomeForRound(c.revealRoundId))} 승`;
+  }
+
+  renderRecentResults(c.dayKey, c.revealRoundNo);
+}
+
+function init() {
+  onSnapshot(doc(db, "users", user.uid), (snap) => {
+    const p = snap.data() || {};
+    username = p.username || (user.email || "user").split("@")[0];
+    points = p.points || 0;
+    pointsEl.textContent = String(points);
+  });
+
+  placeBetBtn.addEventListener("click", () => {
+    placeBet().catch((err) => {
+      resultEl.textContent = `배팅 오류: ${err.message}`;
+    });
+  });
+
+  tickLoop().catch(() => {});
+  loopTimer = setInterval(() => {
+    tickLoop().catch(() => {});
+  }, 1000);
+
+  window.addEventListener("beforeunload", () => {
+    if (loopTimer) clearInterval(loopTimer);
+    if (roundBetsUnsub) roundBetsUnsub();
+  });
+}
+
+function boot(nextUser) {
+  if (booted) return;
+  booted = true;
+  user = nextUser;
+  init();
+}
+
+document.addEventListener("app:user-ready", (e) => boot(e.detail.user));
+if (window.__AUTH_USER__) boot(window.__AUTH_USER__);

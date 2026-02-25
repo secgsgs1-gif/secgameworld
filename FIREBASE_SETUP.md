@@ -55,6 +55,18 @@ service cloud.firestore {
         allow delete: if false;
       }
     }
+
+    match /baccarat_rounds/{roundId} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null;
+      allow delete: if false;
+
+      match /bets/{userId} {
+        allow read: if request.auth != null;
+        allow create, update: if request.auth != null && request.auth.uid == userId;
+        allow delete: if false;
+      }
+    }
   }
 }
 ```

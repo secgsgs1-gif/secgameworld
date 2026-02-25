@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>15번 카테고리 - 바카라 라이브</title>
+  <link rel="stylesheet" href="styles.css?v=20260225a" />
+</head>
+<body>
+  <main class="shell">
+    <h1>15번 카테고리 게임이름 (바카라 라이브)</h1>
+    <p>2분 주기 자동 결과 공개. Player / Banker / Tie 복수 배팅 가능.</p>
+
+    <section class="round-bar">
+      <p>다음 결과 공개: <strong id="countdown">--:--</strong></p>
+      <p>상태: <strong id="round-status">대기</strong></p>
+      <p>포인트: <strong id="points">0</strong></p>
+    </section>
+
+    <section class="table">
+      <h2>현재 회차 결과</h2>
+      <p id="table-result" class="table-result">결과 대기중</p>
+      <p class="odds">배당(원금 포함): Player x2 / Banker x2 / Tie x9</p>
+    </section>
+
+    <section class="bet-panel">
+      <h2>배팅</h2>
+      <div class="bets-grid">
+        <label>Player <input id="bet-player" type="number" min="0" step="1" value="0" /></label>
+        <label>Banker <input id="bet-banker" type="number" min="0" step="1" value="0" /></label>
+        <label>Tie <input id="bet-tie" type="number" min="0" step="1" value="0" /></label>
+      </div>
+      <button id="place-bet" type="button">배팅 확정</button>
+      <p id="result">배팅 후 결과 공개를 기다리세요.</p>
+    </section>
+
+    <section class="bettors">
+      <h2>현재 배팅자</h2>
+      <div class="bettor-grid">
+        <div><h3>Player</h3><ul id="bettors-player"></ul></div>
+        <div><h3>Banker</h3><ul id="bettors-banker"></ul></div>
+        <div><h3>Tie</h3><ul id="bettors-tie"></ul></div>
+      </div>
+    </section>
+
+    <section class="recent">
+      <h2>이전 회차 결과 (최근 12회)</h2>
+      <ul id="recent-results" class="recent-list"></ul>
+    </section>
+
+    <a href="../../index.html">카테고리로 돌아가기</a>
+  </main>
+
+  <script>window.APP_ROOT = "../../";</script>
+  <script type="module" src="../../shared/auth-guard.js?v=20260224m"></script>
+  <script type="module" src="../../shared/game-access.js?v=20260225a"></script>
+  <script type="module" src="game.js?v=20260225a"></script>
+</body>
+</html>
