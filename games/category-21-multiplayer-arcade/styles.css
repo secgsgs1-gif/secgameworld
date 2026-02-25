@@ -1,0 +1,165 @@
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  background: radial-gradient(circle at 18% 14%, #2d4f88 0%, transparent 34%),
+              radial-gradient(circle at 88% 82%, #285f49 0%, transparent 34%),
+              linear-gradient(150deg, #101b2e, #1e2e2f);
+  color: #eaf4ff;
+  font-family: "Segoe UI", sans-serif;
+}
+
+.shell {
+  width: min(98vw, 1280px);
+  padding: 16px;
+  border-radius: 14px;
+  border: 1px solid #97c2ff55;
+  background: #0e192ad6;
+}
+
+.create-panel {
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) 150px auto 1fr;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.create-panel input,
+.create-panel select,
+.create-panel button,
+.room-actions button {
+  border: 1px solid #97c2ff66;
+  border-radius: 8px;
+  background: #1b324f;
+  color: #eaf4ff;
+  padding: 8px 10px;
+}
+
+.status {
+  margin: 0;
+  min-height: 1.2em;
+  color: #b9deff;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 330px minmax(0, 1fr);
+  gap: 10px;
+}
+
+.rooms,
+.room-view {
+  border: 1px solid #97c2ff4d;
+  border-radius: 10px;
+  background: #16263e;
+  padding: 10px;
+}
+
+.rooms h2,
+.room-view h2 {
+  margin: 0 0 8px;
+  font-size: 1.03rem;
+}
+
+#room-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+  max-height: 640px;
+  overflow: auto;
+}
+
+#room-list li {
+  border: 1px solid #97c2ff42;
+  border-radius: 8px;
+  padding: 7px;
+  background: #203655;
+  display: grid;
+  gap: 5px;
+}
+
+.room-title {
+  font-weight: 700;
+  font-size: 0.92rem;
+}
+
+.room-meta {
+  font-size: 0.78rem;
+  opacity: 0.9;
+}
+
+.room-buttons {
+  display: flex;
+  gap: 6px;
+}
+
+.room-buttons button {
+  border: 1px solid #97c2ff66;
+  border-radius: 7px;
+  background: #274971;
+  color: #eaf4ff;
+  padding: 5px 8px;
+  font-size: 0.78rem;
+}
+
+.room-head p {
+  margin: 0;
+  font-size: 0.9rem;
+  color: #c8e6ff;
+}
+
+.room-actions {
+  margin-top: 8px;
+  display: flex;
+  gap: 7px;
+  flex-wrap: wrap;
+}
+
+.game-panel {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: minmax(0, 620px) minmax(210px, 1fr);
+  gap: 10px;
+}
+
+canvas {
+  width: 100%;
+  max-width: 620px;
+  aspect-ratio: 1/1;
+  height: auto;
+  border-radius: 10px;
+  border: 1px solid #97c2ff66;
+  background: #d6ba7b;
+}
+
+.game-info {
+  border: 1px solid #97c2ff4d;
+  border-radius: 10px;
+  background: #1f3451;
+  padding: 10px;
+}
+
+.game-info p {
+  margin: 0 0 8px;
+  font-size: 0.9rem;
+}
+
+a {
+  color: #d7ecff;
+}
+
+@media (max-width: 980px) {
+  .create-panel {
+    grid-template-columns: 1fr;
+  }
+  .layout {
+    grid-template-columns: 1fr;
+  }
+  .game-panel {
+    grid-template-columns: 1fr;
+  }
+}

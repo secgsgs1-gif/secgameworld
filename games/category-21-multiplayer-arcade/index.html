@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Multiplayer Arcade</title>
+  <link rel="stylesheet" href="styles.css?v=20260225a" />
+</head>
+<body>
+  <main class="shell">
+    <h1>Multiplayer Arcade</h1>
+    <p>Create or join rooms. Start with Gomoku 1v1, spectators supported.</p>
+
+    <section class="create-panel">
+      <input id="room-title" maxlength="40" placeholder="Room title" />
+      <select id="game-type">
+        <option value="gomoku" selected>Gomoku</option>
+      </select>
+      <button id="create-room-btn" type="button">Create Room</button>
+      <p id="status" class="status"></p>
+    </section>
+
+    <section class="layout">
+      <aside class="rooms">
+        <h2>Room List</h2>
+        <ul id="room-list"></ul>
+      </aside>
+
+      <section class="room-view">
+        <header class="room-head">
+          <h2 id="room-name">Select a room</h2>
+          <p id="room-meta">-</p>
+        </header>
+
+        <section class="room-actions">
+          <button id="join-btn" type="button">Join as Player</button>
+          <button id="watch-btn" type="button">Watch</button>
+          <button id="start-btn" type="button">Start</button>
+          <button id="surrender-btn" type="button">Surrender</button>
+          <button id="leave-btn" type="button">Leave Room</button>
+        </section>
+
+        <section class="game-panel">
+          <canvas id="gomoku-board" width="600" height="600" aria-label="Gomoku Board"></canvas>
+          <div class="game-info">
+            <p>Mode: <strong id="my-mode">-</strong></p>
+            <p>Black: <strong id="black-player">-</strong></p>
+            <p>White: <strong id="white-player">-</strong></p>
+            <p>Turn: <strong id="turn-label">-</strong></p>
+            <p>Result: <strong id="result-label">-</strong></p>
+          </div>
+        </section>
+      </section>
+    </section>
+
+    <a href="../../index.html">Back to Home</a>
+  </main>
+
+  <script>window.APP_ROOT = "../../";</script>
+  <script type="module" src="../../shared/auth-guard.js?v=20260224m"></script>
+  <script type="module" src="../../shared/game-access.js?v=20260225c"></script>
+  <script type="module" src="game.js?v=20260225a"></script>
+</body>
+</html>
