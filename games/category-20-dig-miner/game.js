@@ -1,10 +1,20 @@
+import {
+  doc,
+  runTransaction,
+  serverTimestamp
+} from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
+import { db } from "../../shared/firebase-app.js?v=20260224m";
+
 const canvas = document.getElementById("mine");
 const ctx = canvas.getContext("2d");
 const pointsEl = document.getElementById("points");
 const depthEl = document.getElementById("depth");
 const pickaxeEl = document.getElementById("pickaxe");
+const ticketsEl = document.getElementById("tickets");
+const nextTicketEl = document.getElementById("next-ticket");
 const statusEl = document.getElementById("status");
 const inventoryListEl = document.getElementById("inventory-list");
+const startBtn = document.getElementById("start-btn");
 const sellBtn = document.getElementById("sell-btn");
 const upgradeBtn = document.getElementById("upgrade-btn");
 const rerollBtn = document.getElementById("reroll-btn");
@@ -15,6 +25,8 @@ const ROWS = 26;
 const SKY_ROWS = 3;
 const BASE_UPGRADE_COST = 300;
 const UPGRADE_GROWTH = 1.9;
+const TICKET_MAX = 3;
+const TICKET_INTERVAL_MS = 30 * 60 * 1000;
 
 const BLOCKS = {
   dirt: { hp: 1, color: "#7a573d", value: 1, speck: "#63452f" },
@@ -34,6 +46,10 @@ let user = null;
 let world = [];
 let breakProgress = {};
 let worldSeed = Math.floor(Math.random() * 1000000000);
+let manualTickets = 0;
+let nextTicketAtMs = 0;
+let ticketBusy = false;
+let miningEnabled = false;
 let inventory = {
   dirt: 0,
   stone: 0,
@@ -76,12 +92,68 @@ function buildWorld() {
 }
 
 function rerollMine() {
+  if (!miningEnabled) {
+    statusEl.textContent = "No ticket session. Press Start Mining.";
+    return;
+  }
   worldSeed = Math.floor(Math.random() * 1000000000);
   player = { x: Math.floor(COLS / 2), y: SKY_ROWS - 1 };
   breakProgress = {};
   buildWorld();
   statusEl.textContent = `New mine generated (seed ${worldSeed}).`;
   draw();
+  renderHud();
+}
+
+async function syncTickets(consumeOne = false) {
+  if (!user) return false;
+  const userRef = doc(db, "users", user.uid);
+  ticketBusy = true;
+  renderTicketUi();
+  try {
+    let canConsume = false;
+    await runTransaction(db, async (tx) => {
+      const snap = await tx.get(userRef);
+      if (!snap.exists()) throw new Error("User profile missing");
+      const data = snap.data() || {};
+      const st = normalizeTicketState(data, Date.now());
+      let tickets = st.tickets;
+      if (consumeOne) {
+        if (tickets <= 0) {
+          canConsume = false;
+        } else {
+          tickets -= 1;
+          canConsume = true;
+        }
+      }
+
+      manualTickets = tickets;
+      nextTicketAtMs = tickets < TICKET_MAX ? (st.lastGrantMs + TICKET_INTERVAL_MS) : 0;
+      tx.update(userRef, {
+        manualMineTickets: tickets,
+        manualMineTicketLastGrantAt: new Date(st.lastGrantMs),
+        manualMineTicketResetDate: st.resetDate,
+        updatedAt: serverTimestamp()
+      });
+    });
+    return consumeOne ? canConsume : true;
+  } finally {
+    ticketBusy = false;
+    renderTicketUi();
+  }
+}
+
+async function startMiningSession() {
+  if (miningEnabled || ticketBusy) return;
+  const ok = await syncTickets(true);
+  if (!ok) {
+    miningEnabled = false;
+    statusEl.textContent = "No tickets left. Wait for recharge or midnight reset.";
+    renderHud();
+    return;
+  }
+  miningEnabled = true;
+  statusEl.textContent = "Mining session started. Dig away!";
   renderHud();
 }
 
@@ -106,6 +178,71 @@ function breakPower() {
 function noiseVal(x, y, salt = 0) {
   const n = rngSeed(x + (salt * 19), y + (salt * 73));
   return n % 1000;
+}
+
+function two(n) {
+  return String(n).padStart(2, "0");
+}
+
+function todayKey(now = new Date()) {
+  return `${now.getFullYear()}-${two(now.getMonth() + 1)}-${two(now.getDate())}`;
+}
+
+function parseMs(tsLike) {
+  if (!tsLike) return 0;
+  if (typeof tsLike.toMillis === "function") return Number(tsLike.toMillis() || 0);
+  if (typeof tsLike.seconds === "number") return Number(tsLike.seconds * 1000);
+  const v = Number(tsLike);
+  return Number.isFinite(v) ? v : 0;
+}
+
+function normalizeTicketState(data, nowMs = Date.now()) {
+  const now = new Date(nowMs);
+  const today = todayKey(now);
+  let tickets = Math.max(0, Math.min(TICKET_MAX, Math.floor(Number(data?.manualMineTickets ?? TICKET_MAX))));
+  let lastGrantMs = parseMs(data?.manualMineTicketLastGrantAt);
+  let resetDate = String(data?.manualMineTicketResetDate || "");
+
+  if (resetDate !== today) {
+    tickets = TICKET_MAX;
+    lastGrantMs = nowMs;
+    resetDate = today;
+  }
+
+  if (!lastGrantMs) lastGrantMs = nowMs;
+  if (tickets < TICKET_MAX) {
+    const elapsed = Math.max(0, nowMs - lastGrantMs);
+    const gained = Math.floor(elapsed / TICKET_INTERVAL_MS);
+    if (gained > 0) {
+      tickets = Math.min(TICKET_MAX, tickets + gained);
+      lastGrantMs += gained * TICKET_INTERVAL_MS;
+    }
+  } else {
+    lastGrantMs = nowMs;
+  }
+
+  const nextAt = tickets < TICKET_MAX ? (lastGrantMs + TICKET_INTERVAL_MS) : 0;
+  return { tickets, lastGrantMs, resetDate, nextAt };
+}
+
+function fmtRemain(ms) {
+  const total = Math.max(0, Math.floor(ms / 1000));
+  const mm = Math.floor(total / 60);
+  const ss = total % 60;
+  return `${two(mm)}:${two(ss)}`;
+}
+
+function renderTicketUi() {
+  ticketsEl.textContent = `${manualTickets}/${TICKET_MAX}`;
+  if (manualTickets >= TICKET_MAX || !nextTicketAtMs) {
+    nextTicketEl.textContent = "FULL";
+  } else {
+    nextTicketEl.textContent = fmtRemain(nextTicketAtMs - Date.now());
+  }
+
+  startBtn.disabled = ticketBusy || manualTickets <= 0 || miningEnabled;
+  if (miningEnabled) startBtn.textContent = "Mining Session Active";
+  else startBtn.textContent = "Start Mining (Use 1 Ticket)";
 }
 
 function drawSkyTile(px, py, x, y) {
@@ -183,6 +320,7 @@ function renderHud() {
   pickaxeEl.textContent = `Lv.${pickaxeLevel}`;
   upgradeBtn.textContent = `Upgrade Pickaxe (${upgradeCost().toLocaleString()})`;
   pointsEl.textContent = String(Math.floor(myPoints).toLocaleString());
+  renderTicketUi();
   renderInventory();
 }
 
@@ -203,6 +341,10 @@ function canMoveTo(x, y) {
 }
 
 function move(dx, dy) {
+  if (!miningEnabled) {
+    statusEl.textContent = "No ticket session. Press Start Mining.";
+    return;
+  }
   const nx = player.x + dx;
   const ny = player.y + dy;
   if (!canMoveTo(nx, ny)) return;
@@ -213,6 +355,10 @@ function move(dx, dy) {
 }
 
 function mineTile(tx, ty) {
+  if (!miningEnabled) {
+    statusEl.textContent = "No ticket session. Press Start Mining.";
+    return;
+  }
   const block = tileAt(tx, ty);
   if (!block || block === "wall") return;
   const dx = Math.abs(tx - player.x);
@@ -316,6 +462,11 @@ function init() {
   buildWorld();
   canvas.addEventListener("click", onCanvasClick);
   window.addEventListener("keydown", onKey);
+  startBtn.addEventListener("click", () => {
+    startMiningSession().catch((err) => {
+      statusEl.textContent = `Ticket error: ${err.message}`;
+    });
+  });
   sellBtn.addEventListener("click", sellInventory);
   upgradeBtn.addEventListener("click", upgradePickaxe);
   rerollBtn.addEventListener("click", rerollMine);
@@ -338,7 +489,22 @@ function init() {
   }
 
   draw();
-  renderHud();
+  syncTickets(false).then(() => {
+    if (manualTickets <= 0) statusEl.textContent = "No tickets left. Wait for recharge or midnight reset.";
+    else statusEl.textContent = "Press Start Mining to use 1 ticket.";
+    renderHud();
+  }).catch((err) => {
+    statusEl.textContent = `Ticket sync failed: ${err.message}`;
+    renderHud();
+  });
+
+  setInterval(() => {
+    if (!ticketBusy && !miningEnabled && manualTickets < TICKET_MAX && Date.now() >= nextTicketAtMs) {
+      syncTickets(false).catch(() => {});
+      return;
+    }
+    renderTicketUi();
+  }, 1000);
 }
 
 function boot(nextUser) {

@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Dig Miner</title>
-  <link rel="stylesheet" href="styles.css?v=20260225c" />
+  <link rel="stylesheet" href="styles.css?v=20260225d" />
 </head>
 <body>
   <main class="shell">
@@ -15,9 +15,12 @@
       <p>Points: <strong id="points">0</strong></p>
       <p>Depth: <strong id="depth">0</strong></p>
       <p>Pickaxe: <strong id="pickaxe">Lv.1</strong></p>
+      <p>Tickets: <strong id="tickets">0/3</strong></p>
+      <p>Next Ticket: <strong id="next-ticket">-</strong></p>
     </section>
 
     <section class="actions">
+      <button id="start-btn" type="button">Start Mining (Use 1 Ticket)</button>
       <button id="sell-btn" type="button">Sell Inventory</button>
       <button id="upgrade-btn" type="button">Upgrade Pickaxe (300)</button>
       <button id="reroll-btn" type="button">New Mine</button>
@@ -37,6 +40,6 @@
   <script>window.APP_ROOT = "../../";</script>
   <script type="module" src="../../shared/auth-guard.js?v=20260224m"></script>
   <script type="module" src="../../shared/game-access.js?v=20260225c"></script>
-  <script type="module" src="game.js?v=20260225c"></script>
+  <script type="module" src="game.js?v=20260225d"></script>
 </body>
 </html>
