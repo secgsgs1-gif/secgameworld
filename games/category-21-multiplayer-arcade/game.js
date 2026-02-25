@@ -2,6 +2,7 @@ import {
   addDoc,
   collection,
   deleteDoc,
+  deleteField,
   doc,
   getDoc,
   limit,
@@ -37,6 +38,8 @@ const ctx = canvas.getContext("2d");
 const myModeEl = document.getElementById("my-mode");
 const blackPlayerEl = document.getElementById("black-player");
 const whitePlayerEl = document.getElementById("white-player");
+const spectatorCountEl = document.getElementById("spectator-count");
+const spectatorListEl = document.getElementById("spectator-list");
 const turnLabelEl = document.getElementById("turn-label");
 const resultLabelEl = document.getElementById("result-label");
 
@@ -48,6 +51,10 @@ let currentRoomId = "";
 let currentRoom = null;
 let roomsCache = [];
 let booted = false;
+let presenceUnsub = null;
+let presenceRows = [];
+let enteredRoomId = "";
+let enteredMode = "";
 
 function normalizeUsername(currentUser, rawName, uid) {
   const byProfile = String(rawName || "").trim();
@@ -113,6 +120,56 @@ function myRole(room) {
 
 function isHost(room) {
   return Boolean(room && user && room.hostUid === user.uid);
+}
+
+function canWatchRoom(room) {
+  if (!room) return false;
+  const role = myRole(room);
+  if (role === "black" || role === "white") return true;
+  return enteredRoomId === room.id && enteredMode === "spectator";
+}
+
+function updateSpectatorUi(roomId) {
+  spectatorListEl.innerHTML = "";
+  if (!roomId) {
+    spectatorCountEl.textContent = "0";
+    return;
+  }
+  const rows = presenceRows
+    .filter((p) => p.online && p.roomId === roomId && p.roomRole === "spectator")
+    .sort((a, b) => String(a.username || "").localeCompare(String(b.username || "")));
+  spectatorCountEl.textContent = String(rows.length);
+  if (!rows.length) {
+    const li = document.createElement("li");
+    li.textContent = "No spectators";
+    spectatorListEl.appendChild(li);
+    return;
+  }
+  rows.forEach((p) => {
+    const li = document.createElement("li");
+    li.textContent = normalizeUsername(user, p.username, p.uid);
+    spectatorListEl.appendChild(li);
+  });
+}
+
+async function setMyRoomPresence(roomId, roomRole) {
+  await updateDoc(doc(db, "presence", user.uid), {
+    roomId,
+    roomRole,
+    updatedAt: serverTimestamp()
+  });
+  enteredRoomId = roomId;
+  enteredMode = roomRole;
+}
+
+async function clearMyRoomPresence() {
+  await updateDoc(doc(db, "presence", user.uid), {
+    roomId: deleteField(),
+    roomRole: deleteField(),
+    updatedAt: serverTimestamp()
+  }).catch(() => {});
+  enteredRoomId = "";
+  enteredMode = "";
 }
 
 function drawBoard(room) {
@@ -220,7 +277,9 @@ function renderRoomList() {
       if (hasSlot) joinAsPlayer(room.id).catch((err) => {
         statusEl.textContent = `Join failed: ${err.message}`;
       });
-      else openRoom(room.id);
+      else watchRoom(room.id).catch((err) => {
+        statusEl.textContent = `Watch failed: ${err.message}`;
+      });
     });
     buttons.appendChild(joinOrWatch);
 
@@ -239,6 +298,8 @@ function applyRoomUi(room) {
     myModeEl.textContent = "-";
     blackPlayerEl.textContent = "-";
     whitePlayerEl.textContent = "-";
+    spectatorCountEl.textContent = "0";
+    spectatorListEl.innerHTML = "";
     turnLabelEl.textContent = "-";
     resultLabelEl.textContent = "-";
     [joinBtn, watchBtn, startBtn, surrenderBtn, leaveBtn].forEach((b) => {
@@ -249,29 +310,36 @@ function applyRoomUi(room) {
   }
 
   const role = myRole(room);
+  const canWatch = canWatchRoom(room);
   roomNameEl.textContent = room.title || "(Untitled)";
   roomMetaEl.textContent = `${roomStatusLabel(room)} · ${room.gameType || "gomoku"} · Host: ${normalizeUsername(user, room.hostName, room.hostUid)}`;
   myModeEl.textContent = role;
   blackPlayerEl.textContent = room.blackUid ? normalizeUsername(user, room.blackName, room.blackUid) : "(empty)";
   whitePlayerEl.textContent = room.whiteUid ? normalizeUsername(user, room.whiteName, room.whiteUid) : "(empty)";
-  turnLabelEl.textContent = room.turn ? room.turn.toUpperCase() : "-";
+  turnLabelEl.textContent = canWatch ? (room.turn ? room.turn.toUpperCase() : "-") : "-";
   if (room.status === "finished") {
-    if (room.winner === "black") resultLabelEl.textContent = "Black wins";
-    else if (room.winner === "white") resultLabelEl.textContent = "White wins";
+    const winnerName = room.winner === "black"
+      ? normalizeUsername(user, room.blackName, room.blackUid)
+      : room.winner === "white"
+        ? normalizeUsername(user, room.whiteName, room.whiteUid)
+        : "";
+    if (room.winner === "black" || room.winner === "white") resultLabelEl.textContent = `${winnerName} win`;
     else resultLabelEl.textContent = "Draw";
   } else {
     resultLabelEl.textContent = "-";
   }
+  updateSpectatorUi(room.id);
 
   const waitingHasSlot = room.status === "waiting" && (!room.blackUid || !room.whiteUid);
   const alreadyPlayer = role === "black" || role === "white";
   joinBtn.disabled = !(room.status === "waiting" && (waitingHasSlot || alreadyPlayer));
-  watchBtn.disabled = false;
+  watchBtn.disabled = role === "black" || role === "white" || (enteredRoomId === room.id && enteredMode === "spectator");
   startBtn.disabled = !(isHost(room) && room.status === "waiting" && room.blackUid && room.whiteUid);
   surrenderBtn.disabled = !(room.status === "playing" && (role === "black" || role === "white"));
   leaveBtn.disabled = false;
 
-  drawBoard(room);
+  if (canWatch) drawBoard(room);
+  else drawBoard(null);
 }
 
 async function createRoom() {
@@ -297,31 +365,46 @@ async function createRoom() {
   });
   statusEl.textContent = "Room created.";
   roomTitleEl.value = "";
-  openRoom(created.id);
+  await setMyRoomPresence(created.id, "player");
+  await openRoom(created.id);
 }
 
-function watchRoom(roomId) {
-  openRoom(roomId);
+async function watchRoom(roomId) {
+  const snap = await getDoc(doc(db, "mp_rooms", roomId));
+  if (!snap.exists()) throw new Error("Room not found");
+  await setMyRoomPresence(roomId, "spectator");
+  await openRoom(roomId);
+  statusEl.textContent = "Entered as spectator.";
 }
 
 async function joinAsPlayer(roomId) {
   const ref = doc(db, "mp_rooms", roomId);
+  let joined = false;
   await runTransaction(db, async (tx) => {
     const snap = await tx.get(ref);
     if (!snap.exists()) throw new Error("Room not found");
     const room = snap.data();
     if (room.status !== "waiting") return;
-    if (room.blackUid === user.uid || room.whiteUid === user.uid) return;
+    if (room.blackUid === user.uid || room.whiteUid === user.uid) {
+      joined = true;
+      return;
+    }
     if (!room.blackUid) {
       tx.update(ref, { blackUid: user.uid, blackName: username, updatedAt: serverTimestamp() });
+      joined = true;
       return;
     }
     if (!room.whiteUid) {
       tx.update(ref, { whiteUid: user.uid, whiteName: username, updatedAt: serverTimestamp() });
+      joined = true;
       return;
     }
   });
-  openRoom(roomId);
+  if (joined) {
+    await setMyRoomPresence(roomId, "player");
+    statusEl.textContent = "Joined as player.";
+  }
+  await openRoom(roomId);
 }
 
 async function openRoom(roomId) {
@@ -330,6 +413,7 @@ async function openRoom(roomId) {
   roomUnsub = onSnapshot(doc(db, "mp_rooms", roomId), (snap) => {
     if (!snap.exists()) {
       applyRoomUi(null);
+      if (enteredRoomId === roomId) clearMyRoomPresence();
       statusEl.textContent = "Room deleted.";
       return;
     }
@@ -372,15 +456,11 @@ async function leaveRoom() {
   }
   const room = snap.data();
   const role = myRole(room);
-  if (room.status === "playing" && (role === "black" || role === "white")) {
-    statusEl.textContent = "Use surrender during an active game.";
-    return;
-  }
-
-  if (room.status === "waiting" && room.hostUid === user.uid) {
+  if (room.hostUid === user.uid) {
     await deleteDoc(ref);
+    await clearMyRoomPresence();
     applyRoomUi(null);
-    statusEl.textContent = "Room canceled.";
+    statusEl.textContent = "Room deleted by host.";
     return;
   }
 
@@ -390,6 +470,7 @@ async function leaveRoom() {
     await updateDoc(ref, { whiteUid: "", whiteName: "", updatedAt: serverTimestamp() });
   }
 
+  await clearMyRoomPresence();
   applyRoomUi(null);
   statusEl.textContent = "Left room.";
 }
@@ -456,6 +537,10 @@ async function placeStone(x, y) {
 
 function onBoardClick(e) {
   if (!currentRoom || currentRoom.gameType !== "gomoku") return;
+  if (!canWatchRoom(currentRoom)) {
+    statusEl.textContent = "Press Watch to enter spectator mode first.";
+    return;
+  }
   const rect = canvas.getBoundingClientRect();
   const px = (e.clientX - rect.left) * (canvas.width / rect.width);
   const py = (e.clientY - rect.top) * (canvas.height / rect.height);
@@ -482,6 +567,11 @@ function bindLobbyStream() {
 
 function init() {
   bindLobbyStream();
+  const pq = query(collection(db, "presence"), orderBy("username", "asc"), limit(200));
+  presenceUnsub = onSnapshot(pq, (snap) => {
+    presenceRows = snap.docs.map((d) => ({ uid: d.id, ...d.data() }));
+    if (currentRoom) updateSpectatorUi(currentRoom.id);
+  }, () => {});
   drawBoard(null);
 
   createRoomBtn.addEventListener("click", () => {
@@ -496,7 +586,10 @@ function init() {
     });
   });
   watchBtn.addEventListener("click", () => {
-    if (currentRoomId) watchRoom(currentRoomId);
+    if (!currentRoomId) return;
+    watchRoom(currentRoomId).catch((err) => {
+      statusEl.textContent = `Watch failed: ${err.message}`;
+    });
   });
   startBtn.addEventListener("click", () => {
     startMatch().catch((err) => {
@@ -518,6 +611,8 @@ function init() {
   window.addEventListener("beforeunload", () => {
     if (roomListUnsub) roomListUnsub();
     if (roomUnsub) roomUnsub();
+    if (presenceUnsub) presenceUnsub();
+    clearMyRoomPresence().catch(() => {});
   });
 }
 

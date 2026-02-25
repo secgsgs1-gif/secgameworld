@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Multiplayer Arcade</title>
-  <link rel="stylesheet" href="styles.css?v=20260225a" />
+  <link rel="stylesheet" href="styles.css?v=20260225b" />
 </head>
 <body>
   <main class="shell">
@@ -46,6 +46,8 @@
             <p>Mode: <strong id="my-mode">-</strong></p>
             <p>Black: <strong id="black-player">-</strong></p>
             <p>White: <strong id="white-player">-</strong></p>
+            <p>Spectators: <strong id="spectator-count">0</strong></p>
+            <ul id="spectator-list"></ul>
             <p>Turn: <strong id="turn-label">-</strong></p>
             <p>Result: <strong id="result-label">-</strong></p>
           </div>
@@ -59,6 +61,6 @@
   <script>window.APP_ROOT = "../../";</script>
   <script type="module" src="../../shared/auth-guard.js?v=20260224m"></script>
   <script type="module" src="../../shared/game-access.js?v=20260225c"></script>
-  <script type="module" src="game.js?v=20260225a"></script>
+  <script type="module" src="game.js?v=20260225c"></script>
 </body>
 </html>

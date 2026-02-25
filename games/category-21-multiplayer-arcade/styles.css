@@ -148,6 +148,24 @@ canvas {
   font-size: 0.9rem;
 }
 
+#spectator-list {
+  list-style: none;
+  margin: 0 0 10px;
+  padding: 0;
+  display: grid;
+  gap: 4px;
+  max-height: 140px;
+  overflow: auto;
+}
+
+#spectator-list li {
+  border: 1px solid #97c2ff42;
+  border-radius: 7px;
+  padding: 4px 6px;
+  background: #29476d;
+  font-size: 0.8rem;
+}
+
 a {
   color: #d7ecff;
 }
