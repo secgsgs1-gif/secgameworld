@@ -20,7 +20,7 @@ const syncStatusEl = document.getElementById("sync-status");
 const eventLogEl = document.getElementById("event-log");
 const runnersEl = document.getElementById("runners");
 
-const TRACK_LAP_UNITS = 1000;
+const TRACK_LAP_UNITS = 1200;
 const TICK_MS = 100;
 const SYNC_MS_ACTIVE = 20000;
 const SYNC_MS_BG = 60000;
@@ -34,7 +34,7 @@ let myPoints = 0;
 let distance = 0;
 let lap = 0;
 let lane = Math.floor(Math.random() * 3);
-let baseSpeed = 70 + Math.random() * 30;
+let baseSpeed = 16 + Math.random() * 2.5;
 let burstUntil = 0;
 let nextBurstAt = performance.now() + 6000 + Math.random() * 6000;
 let lastTick = performance.now();
@@ -57,18 +57,21 @@ function normalizeUsername(currentUser, rawName) {
 }
 
 function currentSpeed(now) {
-  if (now < burstUntil) return baseSpeed * 1.55;
+  if (now < burstUntil) return baseSpeed * 1.28;
   return baseSpeed;
 }
 
 function maybeTriggerBurst(now) {
   if (now < nextBurstAt) return;
-  burstUntil = now + 2400 + Math.random() * 2600;
-  nextBurstAt = now + 8000 + Math.random() * 9000;
+  burstUntil = now + 1800 + Math.random() * 2200;
+  nextBurstAt = now + 10000 + Math.random() * 14000;
 }
 
 function rewardForLap() {
-  return 20 + Math.floor(Math.random() * 121);
+  if (Math.random() < 0.001) {
+    return { points: 5000, jackpot: true };
+  }
+  return { points: 4 + Math.floor(Math.random() * 3), jackpot: false };
 }
 
 function renderTrack() {
@@ -188,11 +191,16 @@ async function grantLapReward() {
   earning = true;
   try {
     const reward = rewardForLap();
-    await window.AccountWallet.earn(reward, "mining_lap_reward", {
+    await window.AccountWallet.earn(reward.points, "mining_lap_reward", {
       game: "category-16-mining-marathon",
-      lap
+      lap,
+      jackpot: reward.jackpot
     });
-    eventLogEl.textContent = `${lap}바퀴 달성! +${reward} 포인트 지급`;
+    if (reward.jackpot) {
+      eventLogEl.textContent = `대박! ${lap}바퀴 보상으로 +5000 포인트 지급`;
+    } else {
+      eventLogEl.textContent = `${lap}바퀴 달성! +${reward.points} 포인트 지급`;
+    }
   } catch (err) {
     eventLogEl.textContent = `보상 오류: ${err.message}`;
   } finally {
