@@ -1,0 +1,39 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Armory</title>
+  <link rel="stylesheet" href="styles.css?v=20260225a" />
+</head>
+<body>
+  <main class="shell">
+    <h1>Armory</h1>
+    <p>Manage your weapon loadout. Armor slot will open in a future update.</p>
+
+    <section class="summary">
+      <p>Points: <strong id="points">0</strong></p>
+      <p>Equipped Weapon: <strong id="equipped-weapon">-</strong></p>
+      <p>Cashback: <strong id="equipped-cashback">0%</strong></p>
+    </section>
+
+    <section class="weapon-panel">
+      <h2>Weapons</h2>
+      <div id="weapon-list" class="weapon-list"></div>
+    </section>
+
+    <section class="armor-panel">
+      <h2>Armor Slot</h2>
+      <p>Coming soon. Weapon system is active now, armor will be added in a later update.</p>
+    </section>
+
+    <p id="status" class="status"></p>
+    <a href="../../index.html">Back to Home</a>
+  </main>
+
+  <script>window.APP_ROOT = "../../";</script>
+  <script type="module" src="../../shared/auth-guard.js?v=20260224m"></script>
+  <script type="module" src="../../shared/game-access.js?v=20260225c"></script>
+  <script type="module" src="game.js?v=20260225a"></script>
+</body>
+</html>

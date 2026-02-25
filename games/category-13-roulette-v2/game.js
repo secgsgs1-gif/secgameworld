@@ -11,12 +11,14 @@ import {
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
 import { db } from "../../shared/firebase-app.js?v=20260224m";
+import { formatCashbackPercent, getEquippedWeapon } from "../../shared/weapons.js?v=20260225a";
 
 const canvas = document.getElementById("wheel");
 const ctx = canvas.getContext("2d");
 const countdownEl = document.getElementById("countdown");
 const roundStatusEl = document.getElementById("round-status");
 const pointsEl = document.getElementById("points");
+const weaponBonusEl = document.getElementById("weapon-bonus");
 const placeBetBtn = document.getElementById("place-bet");
 const resultEl = document.getElementById("result");
 const recentResultsEl = document.getElementById("recent-results");
@@ -286,24 +288,34 @@ async function settleMyBet(roundId) {
   await runTransaction(db, async (tx) => {
     const betSnap = await tx.get(betRef);
     if (!betSnap.exists()) return;
+    const userSnap = await tx.get(userRef);
+    if (!userSnap.exists()) return;
 
     const bet = betSnap.data();
     if (bet.settled) return;
+    const equippedWeapon = getEquippedWeapon(userSnap.data() || {});
+    const cashbackRate = Number(equippedWeapon?.cashbackRate || 0);
 
     const hitAmount = Number(bet.amounts?.[String(resultMultiplier)] || 0);
     const payoutMultiplier = resultMultiplier + 1;
     const payout = hitAmount > 0 ? hitAmount * payoutMultiplier : 0;
+    const totalBet = Math.max(0, Number(bet.total || 0));
+    const cashback = cashbackRate > 0 ? Math.floor(totalBet * cashbackRate) : 0;
+    const totalCredit = payout + cashback;
 
     tx.update(betRef, {
       settled: true,
       settledAt: serverTimestamp(),
       resultMultiplier,
-      payout
+      payout,
+      cashback,
+      cashbackRate,
+      cashbackWeaponId: equippedWeapon?.id || null
     });
 
-    if (payout > 0) {
+    if (totalCredit > 0) {
       tx.update(userRef, {
-        points: increment(payout),
+        points: increment(totalCredit),
         updatedAt: serverTimestamp()
       });
     }
@@ -313,11 +325,21 @@ async function settleMyBet(roundId) {
   const mine = await getDoc(betRef);
   if (mine.exists()) {
     const d = mine.data();
+    const cashback = Number(d.cashback || 0);
     if (d.payout > 0) {
       const shownMultiplier = `x${d.resultMultiplier}(원금포함 ${Number(d.resultMultiplier) + 1}배 지급)`;
-      resultEl.textContent = `당첨! ${shownMultiplier}, 총 지급 +${d.payout}`;
+      if (cashback > 0) {
+        resultEl.textContent = `당첨! ${shownMultiplier}, 배당 +${d.payout}, 캐시백 +${cashback}`;
+      } else {
+        resultEl.textContent = `당첨! ${shownMultiplier}, 총 지급 +${d.payout}`;
+      }
     }
-    else resultEl.textContent = `미당첨. 결과 x${d.resultMultiplier}`;
+    else if (cashback > 0) {
+      resultEl.textContent = `미당첨. 결과 x${d.resultMultiplier}, 무기 캐시백 +${cashback}`;
+    }
+    else {
+      resultEl.textContent = `미당첨. 결과 x${d.resultMultiplier}`;
+    }
   }
 }
 
@@ -425,6 +447,8 @@ function init() {
     username = p.username || (user.email || "user").split("@")[0];
     points = p.points || 0;
     pointsEl.textContent = String(points);
+    const equipped = getEquippedWeapon(p);
+    weaponBonusEl.textContent = `${equipped.name} (${formatCashbackPercent(equipped.cashbackRate)})`;
   });
 
   placeBetBtn.addEventListener("click", () => {

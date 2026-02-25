@@ -1,0 +1,97 @@
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(145deg, #151b30, #2d1f18);
+  color: #f6f1e9;
+  font-family: "Segoe UI", sans-serif;
+}
+
+.shell {
+  width: min(96vw, 960px);
+  padding: 16px;
+  border-radius: 14px;
+  border: 1px solid #d6be9755;
+  background: #19182ad8;
+}
+
+.summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+  gap: 8px;
+}
+
+.summary p {
+  margin: 0;
+  border: 1px solid #d6be9740;
+  border-radius: 8px;
+  padding: 8px;
+  background: #2b263d;
+}
+
+.weapon-panel,
+.armor-panel {
+  margin-top: 10px;
+  border: 1px solid #d6be9745;
+  border-radius: 10px;
+  padding: 10px;
+  background: #2b2234;
+}
+
+.weapon-panel h2,
+.armor-panel h2 {
+  margin: 0 0 8px;
+  font-size: 1.04rem;
+}
+
+.weapon-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 8px;
+}
+
+.weapon-card {
+  border: 1px solid #d6be973d;
+  border-radius: 10px;
+  padding: 10px;
+  background: #362a40;
+  display: grid;
+  gap: 6px;
+}
+
+.weapon-card h3 {
+  margin: 0;
+  font-size: 0.96rem;
+}
+
+.weapon-card p {
+  margin: 0;
+  font-size: 0.86rem;
+  opacity: 0.94;
+}
+
+.weapon-card button {
+  margin-top: 4px;
+  border: 1px solid #d6be9766;
+  border-radius: 8px;
+  background: #4a385e;
+  color: #f6f1e9;
+  padding: 8px;
+  cursor: pointer;
+}
+
+.weapon-card button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.status {
+  min-height: 1.3em;
+  color: #ffd8ab;
+  margin: 10px 0;
+}
+
+a {
+  color: #ffe4b8;
+}
