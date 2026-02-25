@@ -172,7 +172,7 @@ function renderRunners() {
   }
   others.forEach((o) => {
     const li = document.createElement("li");
-    li.textContent = `${o.username} · ${o.lap}바퀴 · 속도T${o.speedTier}`;
+    li.textContent = `${o.username} · ${o.lap}바퀴 · 업글 Lv.${Number(o.miningSpeedLevel || 0)}`;
     runnersEl.appendChild(li);
   });
 }
@@ -187,6 +187,7 @@ async function syncMine() {
       lap,
       progress: (distance % TRACK_LAP_UNITS) / TRACK_LAP_UNITS,
       lane,
+      miningSpeedLevel: speedLevel,
       speedTier: speed >= 22 ? 3 : speed >= 18 ? 2 : 1,
       online: true,
       updatedAt: serverTimestamp()
