@@ -1,0 +1,57 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Land Grab Clash</title>
+  <link rel="stylesheet" href="styles.css?v=20260225a" />
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Competitive Burn Arena</p>
+        <h1>Land Grab Clash</h1>
+      </div>
+      <div class="stats">
+        <p>Points: <strong id="points">0</strong></p>
+        <p>Today (KST): <strong id="day-key">-</strong></p>
+      </div>
+    </header>
+
+    <section class="board-wrap">
+      <div id="board" class="board" aria-label="land tiles"></div>
+      <aside class="side">
+        <h2>Selected Tile</h2>
+        <p>Tile: <strong id="sel-index">-</strong></p>
+        <p>Owner: <strong id="sel-owner">-</strong></p>
+        <p>Current Price: <strong id="sel-price">-</strong></p>
+        <p>Capture Cost (x1.5): <strong id="sel-cost">-</strong></p>
+        <button id="buy-btn" type="button">Capture This Land</button>
+        <p id="status" class="status">Choose a tile and capture.</p>
+
+        <h3>Live Ranking</h3>
+        <ol id="rank-list" class="rank-list"></ol>
+      </aside>
+    </section>
+
+    <section class="rules">
+      <h2>Rules</h2>
+      <ul>
+        <li>Total 10 lands.</li>
+        <li>First buy starts at 100 points.</li>
+        <li>Taking another player's land costs 1.5x of current land price.</li>
+        <li>Previous owner gets no refund (full burn).</li>
+        <li>More lands owned today means higher daily ranking.</li>
+      </ul>
+    </section>
+
+    <a class="back" href="../../index.html">Back to Home</a>
+  </main>
+
+  <script>window.APP_ROOT = "../../";</script>
+  <script type="module" src="../../shared/auth-guard.js?v=20260224m"></script>
+  <script type="module" src="../../shared/game-access.js?v=20260225c"></script>
+  <script type="module" src="game.js?v=20260225a"></script>
+</body>
+</html>
