@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>16번 카테고리 - 포인트 채굴 마라톤</title>
+  <link rel="stylesheet" href="styles.css?v=20260225a" />
+</head>
+<body>
+  <main class="shell">
+    <h1>16번 카테고리 게임이름 (포인트 채굴 마라톤)</h1>
+    <p>페이지를 켜두면 캐릭터가 자동 달리기. 1바퀴마다 랜덤 포인트 획득.</p>
+
+    <section class="summary">
+      <p>내 포인트: <strong id="points">0</strong></p>
+      <p>누적 바퀴: <strong id="lap">0</strong></p>
+      <p>현재 속도: <strong id="speed">0</strong></p>
+      <p>동기화 상태: <strong id="sync-status">대기</strong></p>
+    </section>
+
+    <canvas id="track" width="820" height="460" aria-label="Mining Marathon Track"></canvas>
+    <p id="event-log" class="event-log">채굴 시작 대기중...</p>
+
+    <section class="live">
+      <h2>실시간 주자 (최대 20명)</h2>
+      <ul id="runners"></ul>
+    </section>
+
+    <a href="../../index.html">카테고리로 돌아가기</a>
+  </main>
+
+  <script>window.APP_ROOT = "../../";</script>
+  <script type="module" src="../../shared/auth-guard.js?v=20260224m"></script>
+  <script type="module" src="../../shared/game-access.js?v=20260225c"></script>
+  <script type="module" src="game.js?v=20260225a"></script>
+</body>
+</html>

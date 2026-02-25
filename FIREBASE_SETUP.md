@@ -67,6 +67,13 @@ service cloud.firestore {
         allow delete: if false;
       }
     }
+
+    match /miners/{userId} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null
+                            && request.auth.uid == userId;
+      allow delete: if false;
+    }
   }
 }
 ```

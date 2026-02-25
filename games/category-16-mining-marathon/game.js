@@ -1,0 +1,273 @@
+import {
+  collection,
+  doc,
+  getDocs,
+  limit,
+  orderBy,
+  query,
+  serverTimestamp,
+  setDoc,
+  updateDoc
+} from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
+import { db } from "../../shared/firebase-app.js?v=20260224m";
+
+const canvas = document.getElementById("track");
+const ctx = canvas.getContext("2d");
+const pointsEl = document.getElementById("points");
+const lapEl = document.getElementById("lap");
+const speedEl = document.getElementById("speed");
+const syncStatusEl = document.getElementById("sync-status");
+const eventLogEl = document.getElementById("event-log");
+const runnersEl = document.getElementById("runners");
+
+const TRACK_LAP_UNITS = 1000;
+const TICK_MS = 100;
+const SYNC_MS_ACTIVE = 20000;
+const SYNC_MS_BG = 60000;
+const POLL_MS_ACTIVE = 12000;
+const POLL_MS_BG = 45000;
+const STALE_MS = 95000;
+
+let user = null;
+let username = "";
+let myPoints = 0;
+let distance = 0;
+let lap = 0;
+let lane = Math.floor(Math.random() * 3);
+let baseSpeed = 70 + Math.random() * 30;
+let burstUntil = 0;
+let nextBurstAt = performance.now() + 6000 + Math.random() * 6000;
+let lastTick = performance.now();
+
+let others = [];
+let hidden = false;
+let loopTimer = null;
+let syncTimer = null;
+let pollTimer = null;
+let booted = false;
+let earning = false;
+
+function normalizeUsername(currentUser, rawName) {
+  const byProfile = String(rawName || "").trim();
+  if (byProfile) return byProfile;
+  const byEmail = String(currentUser?.email || "").split("@")[0].trim();
+  if (byEmail) return byEmail;
+  const byUid = String(currentUser?.uid || "").slice(0, 6);
+  return byUid ? `user_${byUid}` : "user";
+}
+
+function currentSpeed(now) {
+  if (now < burstUntil) return baseSpeed * 1.55;
+  return baseSpeed;
+}
+
+function maybeTriggerBurst(now) {
+  if (now < nextBurstAt) return;
+  burstUntil = now + 2400 + Math.random() * 2600;
+  nextBurstAt = now + 8000 + Math.random() * 9000;
+}
+
+function rewardForLap() {
+  return 20 + Math.floor(Math.random() * 121);
+}
+
+function renderTrack() {
+  const w = canvas.width;
+  const h = canvas.height;
+  const cx = w / 2;
+  const cy = h / 2;
+  const rx = 310;
+  const ry = 150;
+
+  ctx.clearRect(0, 0, w, h);
+  ctx.strokeStyle = "#8ad8a4";
+  ctx.lineWidth = 18;
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+  ctx.stroke();
+
+  ctx.strokeStyle = "#4f9268";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2);
+  ctx.stroke();
+
+  const drawRunner = (name, progress, laneIdx, color, mine) => {
+    const laneOffset = laneIdx * 16;
+    const rrx = rx - laneOffset;
+    const rry = ry - laneOffset * 0.6;
+    const theta = (progress * Math.PI * 2) - Math.PI / 2;
+    const x = cx + Math.cos(theta) * rrx;
+    const y = cy + Math.sin(theta) * rry;
+    ctx.fillStyle = color;
+    ctx.beginPath();
+    ctx.arc(x, y, mine ? 10 : 7, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.fillStyle = "#e9ffe8";
+    ctx.font = mine ? "bold 13px sans-serif" : "11px sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(name, x, y - 14);
+  };
+
+  others.forEach((o) => {
+    drawRunner(o.username, Number(o.progress || 0), Number(o.lane || 0), "#98d6ff", false);
+  });
+
+  drawRunner(username || "ME", (distance % TRACK_LAP_UNITS) / TRACK_LAP_UNITS, lane, "#ffd987", true);
+}
+
+function renderRunners() {
+  runnersEl.innerHTML = "";
+  if (!others.length) {
+    const li = document.createElement("li");
+    li.textContent = "현재 표시할 다른 주자가 없습니다.";
+    runnersEl.appendChild(li);
+    return;
+  }
+  others.forEach((o) => {
+    const li = document.createElement("li");
+    li.textContent = `${o.username} · ${o.lap}바퀴 · 속도T${o.speedTier}`;
+    runnersEl.appendChild(li);
+  });
+}
+
+async function syncMine() {
+  if (!user) return;
+  const speed = currentSpeed(performance.now());
+  try {
+    await setDoc(doc(db, "miners", user.uid), {
+      uid: user.uid,
+      username,
+      lap,
+      progress: (distance % TRACK_LAP_UNITS) / TRACK_LAP_UNITS,
+      lane,
+      speedTier: speed >= 105 ? 3 : speed >= 85 ? 2 : 1,
+      online: true,
+      updatedAt: serverTimestamp()
+    }, { merge: true });
+    syncStatusEl.textContent = hidden ? "백그라운드 동기화" : "실시간 동기화";
+  } catch (err) {
+    syncStatusEl.textContent = `동기화 오류: ${err.message}`;
+  }
+}
+
+async function pollOthers() {
+  if (!user) return;
+  try {
+    const q = query(collection(db, "miners"), orderBy("updatedAt", "desc"), limit(20));
+    const snap = await getDocs(q);
+    const now = Date.now();
+    others = snap.docs
+      .map((d) => d.data())
+      .filter((r) => r.uid && r.uid !== user.uid)
+      .filter((r) => {
+        const ms = r.updatedAt?.toDate ? r.updatedAt.toDate().getTime() : 0;
+        return r.online && (now - ms < STALE_MS);
+      });
+    renderRunners();
+  } catch (err) {
+    syncStatusEl.textContent = `주자 조회 오류: ${err.message}`;
+  }
+}
+
+function rescheduleNetworkLoops() {
+  if (syncTimer) clearInterval(syncTimer);
+  if (pollTimer) clearInterval(pollTimer);
+  const syncMs = hidden ? SYNC_MS_BG : SYNC_MS_ACTIVE;
+  const pollMs = hidden ? POLL_MS_BG : POLL_MS_ACTIVE;
+  syncTimer = setInterval(() => {
+    syncMine().catch(() => {});
+  }, syncMs);
+  pollTimer = setInterval(() => {
+    pollOthers().catch(() => {});
+  }, pollMs);
+}
+
+async function grantLapReward() {
+  if (earning || !window.AccountWallet) return;
+  earning = true;
+  try {
+    const reward = rewardForLap();
+    await window.AccountWallet.earn(reward, "mining_lap_reward", {
+      game: "category-16-mining-marathon",
+      lap
+    });
+    eventLogEl.textContent = `${lap}바퀴 달성! +${reward} 포인트 지급`;
+  } catch (err) {
+    eventLogEl.textContent = `보상 오류: ${err.message}`;
+  } finally {
+    earning = false;
+  }
+}
+
+function tick() {
+  const now = performance.now();
+  const dt = Math.min(0.25, (now - lastTick) / 1000);
+  lastTick = now;
+
+  maybeTriggerBurst(now);
+  const speed = currentSpeed(now);
+  distance += speed * dt;
+  const nextLap = Math.floor(distance / TRACK_LAP_UNITS);
+  if (nextLap > lap) {
+    lap = nextLap;
+    grantLapReward().catch(() => {});
+  }
+
+  lapEl.textContent = String(lap);
+  speedEl.textContent = `${Math.round(speed)} m/s`;
+  renderTrack();
+}
+
+function bindWallet() {
+  if (!window.AccountWallet) return false;
+  pointsEl.textContent = String(window.AccountWallet.getPoints() || 0);
+  window.AccountWallet.onChange((p) => {
+    myPoints = p || 0;
+    pointsEl.textContent = String(myPoints);
+  });
+  return true;
+}
+
+function init() {
+  username = normalizeUsername(user, "");
+  renderTrack();
+  renderRunners();
+  if (!bindWallet()) {
+    document.addEventListener("app:wallet-ready", bindWallet, { once: true });
+  }
+
+  loopTimer = setInterval(tick, TICK_MS);
+  syncMine().catch(() => {});
+  pollOthers().catch(() => {});
+  rescheduleNetworkLoops();
+
+  document.addEventListener("visibilitychange", () => {
+    hidden = document.visibilityState !== "visible";
+    rescheduleNetworkLoops();
+    if (!hidden) {
+      syncMine().catch(() => {});
+      pollOthers().catch(() => {});
+    }
+  });
+
+  window.addEventListener("beforeunload", () => {
+    if (loopTimer) clearInterval(loopTimer);
+    if (syncTimer) clearInterval(syncTimer);
+    if (pollTimer) clearInterval(pollTimer);
+    updateDoc(doc(db, "miners", user.uid), {
+      online: false,
+      updatedAt: serverTimestamp()
+    }).catch(() => {});
+  });
+}
+
+function boot(nextUser) {
+  if (booted) return;
+  booted = true;
+  user = nextUser;
+  init();
+}
+
+document.addEventListener("app:user-ready", (e) => boot(e.detail.user));
+if (window.__AUTH_USER__) boot(window.__AUTH_USER__);
