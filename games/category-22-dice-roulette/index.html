@@ -1,0 +1,90 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dice Roulette</title>
+  <link rel="stylesheet" href="styles.css?v=20260225a" />
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Casino Table</p>
+        <h1>Dice Roulette</h1>
+      </div>
+      <div class="stats">
+        <p>Points: <strong id="points">0</strong></p>
+        <p>Last Number: <strong id="last-number">-</strong></p>
+      </div>
+    </header>
+
+    <section class="layout">
+      <article class="wheel-card">
+        <div class="wheel-head">
+          <h2>Wheel</h2>
+          <button id="toggle-wheel" type="button">Hide Wheel</button>
+        </div>
+        <div id="wheel-wrap" class="wheel-wrap">
+          <canvas id="wheel" width="460" height="460" aria-label="roulette wheel"></canvas>
+          <div class="pointer"></div>
+        </div>
+        <div class="dice-row">
+          <div class="die" id="die-1">1</div>
+          <div class="die" id="die-2">1</div>
+        </div>
+        <p id="result" class="result">Place your bet and spin.</p>
+      </article>
+
+      <article class="bet-card">
+        <h2>Bet Panel</h2>
+        <label>
+          Bet Type
+          <select id="bet-type">
+            <option value="red">Red (x2)</option>
+            <option value="black">Black (x2)</option>
+            <option value="odd">Odd 1-36 (x2)</option>
+            <option value="even">Even 1-36 (x2)</option>
+            <option value="low">Low 1-18 (x2)</option>
+            <option value="high">High 19-36 (x2)</option>
+            <option value="dozen1">1st Dozen 1-12 (x3)</option>
+            <option value="dozen2">2nd Dozen 13-24 (x3)</option>
+            <option value="dozen3">3rd Dozen 25-36 (x3)</option>
+            <option value="number">Single Number 0-36 (x36)</option>
+          </select>
+        </label>
+
+        <label id="number-row" hidden>
+          Number
+          <input id="bet-number" type="number" min="0" max="36" step="1" value="0" />
+        </label>
+
+        <label>
+          Amount
+          <input id="bet-amount" type="number" min="10" step="10" value="100" />
+        </label>
+
+        <div class="quick-row">
+          <button type="button" data-amt="100">+100</button>
+          <button type="button" data-amt="500">+500</button>
+          <button type="button" data-amt="1000">+1000</button>
+          <button type="button" data-amt="5000">+5000</button>
+        </div>
+
+        <button id="spin" class="spin-btn" type="button">Spin</button>
+        <p id="status" class="status">Ready</p>
+
+        <h3>Recent Results</h3>
+        <div id="history" class="history"></div>
+      </article>
+    </section>
+
+    <a class="back" href="../../index.html">Back to Home</a>
+  </main>
+
+  <script>window.APP_ROOT = "../../";</script>
+  <script type="module" src="../../shared/auth-guard.js?v=20260224m"></script>
+  <script type="module" src="../../shared/game-access.js?v=20260225c"></script>
+  <script type="module" src="game.js?v=20260225a"></script>
+</body>
+</html>
