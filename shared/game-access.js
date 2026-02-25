@@ -3,6 +3,7 @@ import {
   addDoc,
   collection,
   doc,
+  getDocs,
   limit,
   onSnapshot,
   orderBy,
@@ -91,16 +92,15 @@ function setupGameChat(user) {
   let rankMap = new Map();
   let latestMessageDocs = [];
   let latestPresenceDocs = [];
+  let rankPoll = null;
+  let hb = null;
+  let streamUnsubs = [];
+  let streamsActive = false;
 
-  onSnapshot(doc(db, "users", user.uid), (snap) => {
-    const p = snap.data() || {};
-    username = normalizeUsername(user, p.username);
-  });
-
-  const rankQ = query(collection(db, "users"), orderBy("points", "desc"), limit(500));
-  onSnapshot(
-    rankQ,
-    (snap) => {
+  const rankQ = query(collection(db, "users"), orderBy("points", "desc"), limit(100));
+  async function refreshRank() {
+    try {
+      const snap = await getDocs(rankQ);
       const rows = snap.docs.map((d) => ({ id: d.id, points: Number(d.data()?.points || 0) }))
         .sort((a, b) => (b.points - a.points) || a.id.localeCompare(b.id));
       rankMap = new Map();
@@ -150,70 +150,10 @@ function setupGameChat(user) {
           presenceEl.appendChild(li);
         }
       }
-    },
-    (err) => {
+    } catch (err) {
       statusEl.textContent = `랭킹 오류: ${err.message}`;
     }
-  );
-
-  const msgQ = query(collection(db, "live_chat_messages"), orderBy("createdAt", "desc"), limit(80));
-  onSnapshot(
-    msgQ,
-    (snap) => {
-      latestMessageDocs = [...snap.docs].reverse();
-      messagesEl.innerHTML = "";
-      latestMessageDocs.forEach((docSnap) => {
-        const data = docSnap.data();
-        const mine = data.uid === user.uid;
-        const rank = rankMap.get(data.uid);
-        const shownName = normalizeUsername(user, data.username);
-        const row = document.createElement("article");
-        row.style.cssText = `border:1px solid #7eb5ff33;border-radius:8px;padding:5px 7px;background:${mine ? "#215447" : "#1a3b62"}`;
-        row.innerHTML = `<span style="display:block;font-size:11px;opacity:.82">${rankLabel(rank)} ${esc(shownName)} · ${timeLabel(data.createdAt)}</span>${esc(data.text || "")}`;
-        messagesEl.appendChild(row);
-      });
-      messagesEl.scrollTop = messagesEl.scrollHeight;
-    },
-    (err) => {
-      statusEl.textContent = `메시지 오류: ${err.message}`;
-    }
-  );
-
-  const presenceQ = query(collection(db, "presence"), orderBy("username", "asc"));
-  onSnapshot(
-    presenceQ,
-    (snap) => {
-      latestPresenceDocs = snap.docs;
-      const now = Date.now();
-      const rows = snap.docs.map((s) => s.data()).filter((p) => p?.uid).sort((a, b) => {
-        const aName = normalizeUsername(user, a.username).toLowerCase();
-        const bName = normalizeUsername(user, b.username).toLowerCase();
-        return aName > bName ? 1 : -1;
-      });
-      presenceEl.innerHTML = "";
-      let onlineCount = 0;
-      rows.forEach((p) => {
-        const lastSeen = p.lastSeen?.toDate ? p.lastSeen.toDate().getTime() : 0;
-        const online = p.online && now - lastSeen < 70000;
-        if (!online) return;
-        onlineCount += 1;
-        const li = document.createElement("li");
-        li.style.cssText = "border:1px solid #7eb5ff33;border-radius:7px;padding:4px 6px;background:#133154";
-        const rank = rankMap.get(p.uid);
-        li.textContent = `${rankLabel(rank)} ${normalizeUsername(user, p.username)} ●`.trim();
-        presenceEl.appendChild(li);
-      });
-      if (onlineCount === 0) {
-        const li = document.createElement("li");
-        li.style.cssText = "border:1px solid #7eb5ff33;border-radius:7px;padding:4px 6px;background:#133154";
-        li.textContent = "접속자 없음";
-        presenceEl.appendChild(li);
-      }
-    },
-    (err) => {
-      statusEl.textContent = `접속자 오류: ${err.message}`;
-    }
-  );
+  }
 
   async function touchPresence(online) {
     const safeUsername = normalizeUsername(user, username);
@@ -225,8 +165,113 @@ function setupGameChat(user) {
     }, { merge: true });
   }
 
-  touchPresence(true).catch(() => {});
-  const hb = setInterval(() => touchPresence(true).catch(() => {}), 30000);
+  function stopStreams() {
+    streamUnsubs.forEach((fn) => fn());
+    streamUnsubs = [];
+    streamsActive = false;
+    if (rankPoll) {
+      clearInterval(rankPoll);
+      rankPoll = null;
+    }
+    if (hb) {
+      clearInterval(hb);
+      hb = null;
+    }
+  }
+
+  function startStreams() {
+    if (streamsActive) return;
+    streamsActive = true;
+    streamUnsubs.push(onSnapshot(doc(db, "users", user.uid), (snap) => {
+      const p = snap.data() || {};
+      username = normalizeUsername(user, p.username);
+    }));
+
+    refreshRank().catch(() => {});
+    rankPoll = setInterval(() => {
+      if (document.visibilityState === "visible") refreshRank().catch(() => {});
+    }, 120000);
+
+    const msgQ = query(collection(db, "live_chat_messages"), orderBy("createdAt", "desc"), limit(60));
+    streamUnsubs.push(onSnapshot(
+      msgQ,
+      (snap) => {
+        latestMessageDocs = [...snap.docs].reverse();
+        messagesEl.innerHTML = "";
+        latestMessageDocs.forEach((docSnap) => {
+          const data = docSnap.data();
+          const mine = data.uid === user.uid;
+          const rank = rankMap.get(data.uid);
+          const shownName = normalizeUsername(user, data.username);
+          const row = document.createElement("article");
+          row.style.cssText = `border:1px solid #7eb5ff33;border-radius:8px;padding:5px 7px;background:${mine ? "#215447" : "#1a3b62"}`;
+          row.innerHTML = `<span style="display:block;font-size:11px;opacity:.82">${rankLabel(rank)} ${esc(shownName)} · ${timeLabel(data.createdAt)}</span>${esc(data.text || "")}`;
+          messagesEl.appendChild(row);
+        });
+        messagesEl.scrollTop = messagesEl.scrollHeight;
+      },
+      (err) => {
+        statusEl.textContent = `메시지 오류: ${err.message}`;
+      }
+    ));
+
+    const presenceQ = query(collection(db, "presence"), orderBy("username", "asc"), limit(40));
+    streamUnsubs.push(onSnapshot(
+      presenceQ,
+      (snap) => {
+        latestPresenceDocs = snap.docs;
+        const now = Date.now();
+        const rows = snap.docs.map((s) => s.data()).filter((p) => p?.uid).sort((a, b) => {
+          const aName = normalizeUsername(user, a.username).toLowerCase();
+          const bName = normalizeUsername(user, b.username).toLowerCase();
+          return aName > bName ? 1 : -1;
+        });
+        presenceEl.innerHTML = "";
+        let onlineCount = 0;
+        rows.forEach((p) => {
+          const lastSeen = p.lastSeen?.toDate ? p.lastSeen.toDate().getTime() : 0;
+          const online = p.online && now - lastSeen < 70000;
+          if (!online) return;
+          onlineCount += 1;
+          const li = document.createElement("li");
+          li.style.cssText = "border:1px solid #7eb5ff33;border-radius:7px;padding:4px 6px;background:#133154";
+          const rank = rankMap.get(p.uid);
+          li.textContent = `${rankLabel(rank)} ${normalizeUsername(user, p.username)} ●`.trim();
+          presenceEl.appendChild(li);
+        });
+        if (onlineCount === 0) {
+          const li = document.createElement("li");
+          li.style.cssText = "border:1px solid #7eb5ff33;border-radius:7px;padding:4px 6px;background:#133154";
+          li.textContent = "접속자 없음";
+          presenceEl.appendChild(li);
+        }
+      },
+      (err) => {
+        statusEl.textContent = `접속자 오류: ${err.message}`;
+      }
+    ));
+
+    touchPresence(true).catch(() => {});
+    hb = setInterval(() => touchPresence(true).catch(() => {}), 45000);
+    statusEl.textContent = "실시간 연결됨";
+  }
+
+  function onVisibility() {
+    if (document.visibilityState === "visible") {
+      startStreams();
+      touchPresence(true).catch(() => {});
+      return;
+    }
+    stopStreams();
+    updateDoc(doc(db, "presence", user.uid), {
+      online: false,
+      lastSeen: serverTimestamp()
+    }).catch(() => {});
+    statusEl.textContent = "백그라운드 대기";
+  }
+
+  document.addEventListener("visibilitychange", onVisibility);
+  startStreams();
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
@@ -248,7 +293,9 @@ function setupGameChat(user) {
   });
 
   window.addEventListener("beforeunload", () => {
-    clearInterval(hb);
+    if (rankPoll) clearInterval(rankPoll);
+    if (hb) clearInterval(hb);
+    streamUnsubs.forEach((fn) => fn());
     updateDoc(doc(db, "presence", user.uid), {
       online: false,
       lastSeen: serverTimestamp()

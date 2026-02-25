@@ -66,6 +66,7 @@ let lastRevealRound = "";
 let dealTimer = null;
 let settleBlockedUntil = 0;
 let settleBackoffMs = 10000;
+let betsPaused = false;
 
 function isQuotaError(err) {
   const msg = String(err?.message || "").toLowerCase();
@@ -334,13 +335,14 @@ function renderBettors(docs) {
 }
 
 function attachBetList(roundId) {
+  if (betsPaused) return;
   if (observedBetRound === roundId) return;
   observedBetRound = roundId;
   if (roundBetsUnsub) roundBetsUnsub();
   const q = query(
     collection(db, "baccarat_rounds", String(roundId), "bets"),
     orderBy("createdAt", "asc"),
-    limit(120)
+    limit(30)
   );
   roundBetsUnsub = onSnapshot(
     q,
@@ -424,6 +426,20 @@ function init() {
   loopTimer = setInterval(() => {
     tickLoop().catch(() => {});
   }, 1000);
+
+  document.addEventListener("visibilitychange", () => {
+    betsPaused = document.visibilityState !== "visible";
+    if (betsPaused) {
+      if (roundBetsUnsub) {
+        roundBetsUnsub();
+        roundBetsUnsub = null;
+      }
+      observedBetRound = "";
+      return;
+    }
+    const c = currentClock();
+    if (!c.inReveal) attachBetList(c.bettingRoundId);
+  });
 
   window.addEventListener("beforeunload", () => {
     if (loopTimer) clearInterval(loopTimer);

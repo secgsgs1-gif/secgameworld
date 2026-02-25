@@ -2,6 +2,7 @@ import {
   addDoc,
   collection,
   doc,
+  getDocs,
   limit,
   onSnapshot,
   orderBy,
@@ -25,6 +26,9 @@ let heartbeat = null;
 let latestMessageDocs = [];
 let latestPresenceDocs = [];
 let initStarted = false;
+let rankPoll = null;
+let streamUnsubs = [];
+let streamsActive = false;
 
 function normalizeUsername(currentUser, rawName) {
   const byProfile = String(rawName || "").trim();
@@ -116,54 +120,90 @@ async function init() {
   statusEl.textContent = "초기화 중...";
   username = normalizeUsername(user, "");
 
-  onSnapshot(doc(db, "users", user.uid), (snap) => {
-    const p = snap.data() || {};
-    username = normalizeUsername(user, p.username);
-  });
-
-  const rankQ = query(collection(db, "users"), orderBy("points", "desc"), limit(500));
-  onSnapshot(
-    rankQ,
-    (snap) => {
+  const rankQ = query(collection(db, "users"), orderBy("points", "desc"), limit(100));
+  async function refreshRank() {
+    try {
+      const snap = await getDocs(rankQ);
       const rows = snap.docs.map((d) => ({ id: d.id, points: Number(d.data()?.points || 0) }))
         .sort((a, b) => (b.points - a.points) || a.id.localeCompare(b.id));
       rankMap = new Map();
       rows.forEach((r, i) => rankMap.set(r.id, i + 1));
       renderMessages(latestMessageDocs);
       renderPresence(latestPresenceDocs);
-    },
-    (err) => {
+    } catch (err) {
       statusEl.textContent = `랭킹 오류: ${err.message}`;
     }
-  );
+  }
 
-  const msgQ = query(collection(db, "live_chat_messages"), orderBy("createdAt", "desc"), limit(120));
-  onSnapshot(
-    msgQ,
-    (snap) => {
-      latestMessageDocs = [...snap.docs].reverse();
-      renderMessages(latestMessageDocs);
-    },
-    (err) => {
-      statusEl.textContent = `메시지 오류: ${err.message}`;
+  function stopStreams() {
+    streamUnsubs.forEach((fn) => fn());
+    streamUnsubs = [];
+    streamsActive = false;
+    if (rankPoll) {
+      clearInterval(rankPoll);
+      rankPoll = null;
     }
-  );
-
-  const presenceQ = query(collection(db, "presence"), orderBy("username", "asc"));
-  onSnapshot(
-    presenceQ,
-    (snap) => {
-      latestPresenceDocs = snap.docs;
-      renderPresence(latestPresenceDocs);
-    },
-    (err) => {
-      statusEl.textContent = `접속자 오류: ${err.message}`;
+    if (heartbeat) {
+      clearInterval(heartbeat);
+      heartbeat = null;
     }
-  );
+  }
 
-  await updatePresence(true);
-  heartbeat = setInterval(() => updatePresence(true).catch(() => {}), 30000);
-  statusEl.textContent = "실시간 채팅 연결됨";
+  function startStreams() {
+    if (streamsActive) return;
+    streamsActive = true;
+    streamUnsubs.push(onSnapshot(doc(db, "users", user.uid), (snap) => {
+      const p = snap.data() || {};
+      username = normalizeUsername(user, p.username);
+    }));
+
+    refreshRank().catch(() => {});
+    rankPoll = setInterval(() => {
+      if (document.visibilityState === "visible") refreshRank().catch(() => {});
+    }, 120000);
+
+    const msgQ = query(collection(db, "live_chat_messages"), orderBy("createdAt", "desc"), limit(80));
+    streamUnsubs.push(onSnapshot(
+      msgQ,
+      (snap) => {
+        latestMessageDocs = [...snap.docs].reverse();
+        renderMessages(latestMessageDocs);
+      },
+      (err) => {
+        statusEl.textContent = `메시지 오류: ${err.message}`;
+      }
+    ));
+
+    const presenceQ = query(collection(db, "presence"), orderBy("username", "asc"), limit(40));
+    streamUnsubs.push(onSnapshot(
+      presenceQ,
+      (snap) => {
+        latestPresenceDocs = snap.docs;
+        renderPresence(latestPresenceDocs);
+      },
+      (err) => {
+        statusEl.textContent = `접속자 오류: ${err.message}`;
+      }
+    ));
+
+    updatePresence(true).catch(() => {});
+    heartbeat = setInterval(() => updatePresence(true).catch(() => {}), 45000);
+    statusEl.textContent = "실시간 채팅 연결됨";
+  }
+
+  function onVisibility() {
+    if (document.visibilityState === "visible") {
+      startStreams();
+      updatePresence(true).catch(() => {});
+      return;
+    }
+    stopStreams();
+    updateDoc(doc(db, "presence", user.uid), { online: false, lastSeen: serverTimestamp() }).catch(() => {});
+    statusEl.textContent = "백그라운드 대기";
+  }
+
+  document.addEventListener("visibilitychange", onVisibility);
+  startStreams();
 }
 
 form.addEventListener("submit", async (e) => {
@@ -187,7 +227,8 @@ form.addEventListener("submit", async (e) => {
 });
 
 window.addEventListener("beforeunload", () => {
-  if (heartbeat) clearInterval(heartbeat);
+  if (rankPoll) clearInterval(rankPoll);
+  streamUnsubs.forEach((fn) => fn());
   if (user) {
     updateDoc(doc(db, "presence", user.uid), { online: false, lastSeen: serverTimestamp() }).catch(() => {});
   }
