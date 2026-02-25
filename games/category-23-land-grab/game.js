@@ -11,6 +11,8 @@ import { db } from "../../shared/firebase-app.js?v=20260224m";
 
 const TILE_COUNT = 10;
 const BASE_PRICE = 100;
+const TITLE_TAG = "[LAND KING]";
+const TITLE_DISCOUNT_RATE = 0.05;
 
 const pointsEl = document.getElementById("points");
 const dayKeyEl = document.getElementById("day-key");
@@ -34,6 +36,12 @@ let busy = false;
 function todayKeyKst() {
   const now = new Date(Date.now() + (9 * 60 * 60 * 1000));
   return now.toISOString().slice(0, 10);
+}
+
+function previousDayKeyKst() {
+  const now = Date.now() + (9 * 60 * 60 * 1000);
+  const prev = new Date(now - 86400000);
+  return prev.toISOString().slice(0, 10);
 }
 
 function normalizeUsername(currentUser, rawName) {
@@ -66,6 +74,67 @@ async function ensureTodayDoc() {
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
     });
+  });
+}
+
+function pickDailyWinner(tiles) {
+  const map = new Map();
+  (Array.isArray(tiles) ? tiles : []).forEach((t) => {
+    if (!t?.ownerUid) return;
+    const row = map.get(t.ownerUid) || { uid: t.ownerUid, name: t.ownerName || "Unknown", count: 0 };
+    row.count += 1;
+    map.set(t.ownerUid, row);
+  });
+  const rows = [...map.values()].sort((a, b) => (b.count - a.count) || a.uid.localeCompare(b.uid));
+  return rows[0] || null;
+}
+
+async function settlePreviousDayTitle() {
+  const prevKey = previousDayKeyKst();
+  const prevRef = doc(db, "land_grab_days", prevKey);
+  const stateRef = doc(db, "land_grab_meta", "title_state");
+
+  await runTransaction(db, async (tx) => {
+    const stateSnap = await tx.get(stateRef);
+    const state = stateSnap.exists() ? stateSnap.data() : {};
+    if (state.lastSettledDay === prevKey) return;
+
+    const prevSnap = await tx.get(prevRef);
+    const winner = prevSnap.exists() ? pickDailyWinner(prevSnap.data()?.tiles) : null;
+    const prevHolderUid = String(state.currentHolderUid || "");
+
+    if (prevHolderUid && prevHolderUid !== (winner?.uid || "")) {
+      const oldUserRef = doc(db, "users", prevHolderUid);
+      const oldUserSnap = await tx.get(oldUserRef);
+      if (oldUserSnap.exists()) {
+        tx.update(oldUserRef, {
+          landTitleTag: "",
+          landDiscountRate: 0,
+          updatedAt: serverTimestamp()
+        });
+      }
+    }
+
+    if (winner?.uid) {
+      const winnerRef = doc(db, "users", winner.uid);
+      const winnerSnap = await tx.get(winnerRef);
+      if (winnerSnap.exists()) {
+        tx.update(winnerRef, {
+          landTitleTag: TITLE_TAG,
+          landDiscountRate: TITLE_DISCOUNT_RATE,
+          updatedAt: serverTimestamp()
+        });
+      }
+    }
+
+    tx.set(stateRef, {
+      lastSettledDay: prevKey,
+      currentHolderUid: winner?.uid || "",
+      currentHolderName: winner?.name || "",
+      titleTag: winner?.uid ? TITLE_TAG : "",
+      discountRate: winner?.uid ? TITLE_DISCOUNT_RATE : 0,
+      updatedAt: serverTimestamp()
+    }, { merge: true });
   });
 }
 
@@ -211,7 +280,9 @@ async function buySelectedTile() {
 function startStreams() {
   onSnapshot(doc(db, "users", user.uid), (snap) => {
     const p = snap.data() || {};
-    username = normalizeUsername(user, p.username);
+    const base = normalizeUsername(user, p.username);
+    const tag = String(p.landTitleTag || "").trim();
+    username = tag ? `${tag} ${base}` : base;
     pointsEl.textContent = String(Math.max(0, Number(p.points || 0)));
   });
 
@@ -228,6 +299,7 @@ function startStreams() {
 }
 
 async function init() {
+  await settlePreviousDayTitle().catch(() => {});
   const key = todayKeyKst();
   dayKeyEl.textContent = key;
   dayRef = doc(db, "land_grab_days", key);

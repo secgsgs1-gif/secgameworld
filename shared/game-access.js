@@ -25,6 +25,15 @@ function normalizeUsername(currentUser, rawName) {
   return byUid ? `user_${byUid}` : "user";
 }
 
+function withTitle(name, titleTag) {
+  const base = String(name || "").trim();
+  const tag = String(titleTag || "").trim();
+  if (!base) return base;
+  if (!tag) return base;
+  if (base.startsWith(`${tag} `)) return base;
+  return `${tag} ${base}`;
+}
+
 function injectHud() {
   const hud = document.createElement("div");
   hud.id = "wallet-hud";
@@ -102,6 +111,7 @@ function setupGameChat(user) {
   let streamUnsubs = [];
   let streamsActive = false;
   let collapsed = false;
+  let myTitleTag = "";
 
   function applyCollapsed(next) {
     collapsed = next;
@@ -183,7 +193,7 @@ function setupGameChat(user) {
   }
 
   async function touchPresence(online) {
-    const safeUsername = normalizeUsername(user, username);
+    const safeUsername = withTitle(normalizeUsername(user, username), myTitleTag);
     await setDoc(doc(db, "presence", user.uid), {
       uid: user.uid,
       username: safeUsername,
@@ -212,6 +222,7 @@ function setupGameChat(user) {
     streamUnsubs.push(onSnapshot(doc(db, "users", user.uid), (snap) => {
       const p = snap.data() || {};
       username = normalizeUsername(user, p.username);
+      myTitleTag = String(p.landTitleTag || "");
     }));
 
     refreshRank().catch(() => {});
@@ -312,7 +323,7 @@ function setupGameChat(user) {
     e.preventDefault();
     const text = input.value.trim();
     if (!text) return;
-    const safeUsername = normalizeUsername(user, username);
+    const safeUsername = withTitle(normalizeUsername(user, username), myTitleTag);
     input.value = "";
     try {
       await addDoc(collection(db, "live_chat_messages"), {
@@ -344,10 +355,15 @@ async function run(user) {
   injectHud();
   const pointsEl = document.getElementById("wallet-points");
   let currentPoints = 0;
+  let currentTitleTag = "";
+  let currentDiscountRate = 0;
   const listeners = new Set();
 
   watchUserProfile(user.uid, (profile) => {
     currentPoints = profile?.points || 0;
+    currentTitleTag = String(profile?.landTitleTag || "");
+    const dr = Number(profile?.landDiscountRate || 0);
+    currentDiscountRate = Number.isFinite(dr) && dr > 0 ? dr : 0;
     pointsEl.textContent = String(currentPoints);
     listeners.forEach((fn) => fn(currentPoints));
   });
@@ -362,7 +378,26 @@ async function run(user) {
       return () => listeners.delete(fn);
     },
     async spend(amount, reason = "game_spend", meta = {}) {
-      return spendPoints(user.uid, amount, reason, meta);
+      const baseAmount = Math.max(0, Math.floor(Number(amount) || 0));
+      if (baseAmount <= 0) return { ok: true, points: currentPoints, chargedAmount: 0, baseAmount: 0, discountApplied: 0 };
+      const discountEligible = Boolean(meta?.discountEligible);
+      const cappedRate = Math.min(0.5, Math.max(0, Number(currentDiscountRate || 0)));
+      const chargedAmount = discountEligible ? Math.max(0, Math.floor(baseAmount * (1 - cappedRate))) : baseAmount;
+      const payload = {
+        ...meta,
+        baseAmount,
+        chargedAmount,
+        discountEligible,
+        discountRate: discountEligible ? cappedRate : 0,
+        discountTag: discountEligible ? currentTitleTag : ""
+      };
+      const res = await spendPoints(user.uid, chargedAmount, reason, payload);
+      return {
+        ...res,
+        chargedAmount,
+        baseAmount,
+        discountApplied: Math.max(0, baseAmount - chargedAmount)
+      };
     },
     async earn(amount, reason = "game_reward", meta = {}) {
       await addPoints(user.uid, amount, reason, meta);

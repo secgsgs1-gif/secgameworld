@@ -73,6 +73,15 @@ function normalizeUsername(currentUser, rawName) {
   return byUid ? `user_${byUid}` : "user";
 }
 
+function withTitle(name, titleTag) {
+  const base = String(name || "").trim();
+  const tag = String(titleTag || "").trim();
+  if (!base) return base;
+  if (!tag) return base;
+  if (base.startsWith(`${tag} `)) return base;
+  return `${tag} ${base}`;
+}
+
 function pocketColor(n) {
   if (n === 0) return "green";
   return RED_SET.has(n) ? "red" : "black";
@@ -323,11 +332,6 @@ async function placeBet() {
     updateStatus("Number bet must be 0~36.");
     return;
   }
-  if (points < bet.amount) {
-    updateStatus("Not enough points.");
-    return;
-  }
-
   const roundId = String(c.bettingRoundId);
   const betRef = doc(db, "dice_roulette_rounds", roundId, "bets", user.uid);
   const existing = await getDoc(betRef);
@@ -340,7 +344,8 @@ async function placeBet() {
     game: "category-22-dice-roulette",
     roundId,
     type: bet.type,
-    number: bet.type === "number" ? bet.number : null
+    number: bet.type === "number" ? bet.number : null,
+    discountEligible: true
   });
   if (!spent?.ok) {
     updateStatus("Point spend failed.");
@@ -359,7 +364,10 @@ async function placeBet() {
     });
   });
 
-  updateStatus(`Bet placed: ${betTypeLabel(bet.type, bet.number)} (${bet.amount})`);
+  const charged = Number(spent.chargedAmount || bet.amount);
+  updateStatus(charged < bet.amount
+    ? `Bet placed: ${betTypeLabel(bet.type, bet.number)} (${bet.amount}) / charged ${charged}`
+    : `Bet placed: ${betTypeLabel(bet.type, bet.number)} (${bet.amount})`);
 }
 
 async function settleMyBet(roundId) {
@@ -549,7 +557,7 @@ function init() {
 
   onSnapshot(doc(db, "users", user.uid), (snap) => {
     const p = snap.data() || {};
-    username = normalizeUsername(user, p.username);
+    username = withTitle(normalizeUsername(user, p.username), p.landTitleTag);
     syncPoints(p.points || 0);
   });
 

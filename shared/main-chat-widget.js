@@ -29,6 +29,7 @@ let initStarted = false;
 let rankPoll = null;
 let streamUnsubs = [];
 let streamsActive = false;
+let myTitleTag = "";
 
 function normalizeUsername(currentUser, rawName) {
   const byProfile = String(rawName || "").trim();
@@ -37,6 +38,15 @@ function normalizeUsername(currentUser, rawName) {
   if (byEmail) return byEmail;
   const byUid = String(currentUser?.uid || "").slice(0, 6);
   return byUid ? `user_${byUid}` : "user";
+}
+
+function withTitle(name, titleTag) {
+  const base = String(name || "").trim();
+  const tag = String(titleTag || "").trim();
+  if (!base) return base;
+  if (!tag) return base;
+  if (base.startsWith(`${tag} `)) return base;
+  return `${tag} ${base}`;
 }
 
 function rankLabel(rank) {
@@ -106,7 +116,7 @@ function renderMessages(docs) {
 
 async function touchPresence(online) {
   if (!user) return;
-  const safeUsername = normalizeUsername(user, username);
+  const safeUsername = withTitle(normalizeUsername(user, username), myTitleTag);
   await setDoc(doc(db, "presence", user.uid), {
     uid: user.uid,
     username: safeUsername,
@@ -155,6 +165,7 @@ async function init() {
     streamUnsubs.push(onSnapshot(doc(db, "users", user.uid), (snap) => {
       const p = snap.data() || {};
       username = normalizeUsername(user, p.username);
+      myTitleTag = String(p.landTitleTag || "");
     }));
 
     refreshRank().catch(() => {});
@@ -210,7 +221,7 @@ form?.addEventListener("submit", async (e) => {
   e.preventDefault();
   const text = input.value.trim();
   if (!user || !text) return;
-  const safeUsername = normalizeUsername(user, username);
+  const safeUsername = withTitle(normalizeUsername(user, username), myTitleTag);
   input.value = "";
   try {
     await addDoc(collection(db, "live_chat_messages"), {

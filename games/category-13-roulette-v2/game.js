@@ -64,6 +64,15 @@ let betsPaused = false;
 let recentRenderedRound = "";
 const roundResultCache = new Map();
 
+function withTitle(name, titleTag) {
+  const base = String(name || "").trim();
+  const tag = String(titleTag || "").trim();
+  if (!base) return base;
+  if (!tag) return base;
+  if (base.startsWith(`${tag} `)) return base;
+  return `${tag} ${base}`;
+}
+
 function isQuotaError(err) {
   const msg = String(err?.message || "").toLowerCase();
   return err?.code === "resource-exhausted" || msg.includes("quota exceeded") || msg.includes("resource exhausted");
@@ -268,11 +277,6 @@ async function placeBet() {
     resultEl.textContent = "배팅 금액을 입력하세요.";
     return;
   }
-  if (total > points) {
-    resultEl.textContent = "포인트 부족";
-    return;
-  }
-
   const roundId = String(c.bettingRoundId);
   const betRef = doc(db, "roulette_v2_rounds", roundId, "bets", user.uid);
 
@@ -284,7 +288,8 @@ async function placeBet() {
 
   const spend = await window.AccountWallet.spend(total, "roulette_v2_bet", {
     game: "category-13-roulette-v2",
-    roundId
+    roundId,
+    discountEligible: true
   });
   if (!spend.ok) {
     resultEl.textContent = "포인트 차감 실패";
@@ -302,7 +307,10 @@ async function placeBet() {
     });
   });
 
-  resultEl.textContent = `배팅 완료: 총 ${total}`;
+  const charged = Number(spend.chargedAmount || total);
+  resultEl.textContent = charged < total
+    ? `배팅 완료: 선택 ${total}, 칭호 할인 적용 결제 ${charged}`
+    : `배팅 완료: 총 ${total}`;
 }
 
 async function settleMyBet(roundId) {
@@ -475,7 +483,8 @@ function init() {
 
   onSnapshot(doc(db, "users", user.uid), (snap) => {
     const p = snap.data() || {};
-    username = p.username || (user.email || "user").split("@")[0];
+    const base = p.username || (user.email || "user").split("@")[0];
+    username = withTitle(base, p.landTitleTag);
     points = p.points || 0;
     pointsEl.textContent = String(points);
     const equipped = getEquippedWeapon(p);
