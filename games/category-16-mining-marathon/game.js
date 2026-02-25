@@ -2,6 +2,7 @@ import {
   addDoc,
   collection,
   doc,
+  getDoc,
   getDocs,
   limit,
   onSnapshot,
@@ -345,9 +346,12 @@ function tick() {
 function bindWallet() {
   if (!window.AccountWallet) return false;
   const first = Number(window.AccountWallet.getPoints() || 0);
-  if (sessionStartPoints === null) sessionStartPoints = first;
   pointsEl.textContent = String(first);
-  sessionEarnedEl.textContent = String(Math.max(0, first - sessionStartPoints));
+  if (sessionStartPoints === null) {
+    sessionEarnedEl.textContent = "0";
+  } else {
+    sessionEarnedEl.textContent = String(Math.max(0, first - sessionStartPoints));
+  }
   window.AccountWallet.onChange((p) => {
     myPoints = p || 0;
     pointsEl.textContent = String(myPoints);
@@ -362,6 +366,16 @@ function init() {
   updateUpgradeUI();
   renderTrack();
   renderRunners();
+  sessionEarnedEl.textContent = "0";
+
+  getDoc(doc(db, "users", user.uid)).then((snap) => {
+    if (!snap.exists()) return;
+    const points = Number(snap.data()?.points || 0);
+    sessionStartPoints = points;
+    pointsEl.textContent = String(points);
+    sessionEarnedEl.textContent = String(Math.max(0, (myPoints || points) - sessionStartPoints));
+  }).catch(() => {});
+
   if (!bindWallet()) {
     document.addEventListener("app:wallet-ready", bindWallet, { once: true });
   }
