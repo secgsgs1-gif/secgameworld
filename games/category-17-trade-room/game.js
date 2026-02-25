@@ -214,6 +214,7 @@ async function handleGiveCommand(targetName, grossAmount) {
       fromUsername: username,
       toUid: recipient.uid,
       toUsername: recipient.username,
+      amount: gross,
       gross,
       fee,
       net,
