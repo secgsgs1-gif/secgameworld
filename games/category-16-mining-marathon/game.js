@@ -14,6 +14,7 @@ import { db } from "../../shared/firebase-app.js?v=20260224m";
 const canvas = document.getElementById("track");
 const ctx = canvas.getContext("2d");
 const pointsEl = document.getElementById("points");
+const sessionEarnedEl = document.getElementById("session-earned");
 const lapEl = document.getElementById("lap");
 const speedEl = document.getElementById("speed");
 const syncStatusEl = document.getElementById("sync-status");
@@ -31,6 +32,7 @@ const STALE_MS = 95000;
 let user = null;
 let username = "";
 let myPoints = 0;
+let sessionStartPoints = null;
 let distance = 0;
 let lap = 0;
 let lane = Math.floor(Math.random() * 3);
@@ -249,10 +251,15 @@ function tick() {
 
 function bindWallet() {
   if (!window.AccountWallet) return false;
-  pointsEl.textContent = String(window.AccountWallet.getPoints() || 0);
+  const first = Number(window.AccountWallet.getPoints() || 0);
+  if (sessionStartPoints === null) sessionStartPoints = first;
+  pointsEl.textContent = String(first);
+  sessionEarnedEl.textContent = String(Math.max(0, first - sessionStartPoints));
   window.AccountWallet.onChange((p) => {
     myPoints = p || 0;
     pointsEl.textContent = String(myPoints);
+    if (sessionStartPoints === null) sessionStartPoints = myPoints;
+    sessionEarnedEl.textContent = String(Math.max(0, myPoints - sessionStartPoints));
   });
   return true;
 }
