@@ -1,0 +1,41 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Dig Miner</title>
+  <link rel="stylesheet" href="styles.css?v=20260225a" />
+</head>
+<body>
+  <main class="shell">
+    <h1>Dig Miner</h1>
+    <p>Mine blocks, collect ores, and sell loot for points.</p>
+
+    <section class="top-bar">
+      <p>Points: <strong id="points">0</strong></p>
+      <p>Depth: <strong id="depth">0</strong></p>
+      <p>Pickaxe: <strong id="pickaxe">Lv.1</strong></p>
+    </section>
+
+    <section class="actions">
+      <button id="sell-btn" type="button">Sell Inventory</button>
+      <button id="upgrade-btn" type="button">Upgrade Pickaxe (300)</button>
+      <p id="status">Click adjacent blocks to mine. Move with WASD / Arrow keys.</p>
+    </section>
+
+    <canvas id="mine" width="864" height="624" aria-label="Dig Miner"></canvas>
+
+    <section class="inventory">
+      <h2>Inventory</h2>
+      <ul id="inventory-list"></ul>
+    </section>
+
+    <a href="../../index.html">Back to Home</a>
+  </main>
+
+  <script>window.APP_ROOT = "../../";</script>
+  <script type="module" src="../../shared/auth-guard.js?v=20260224m"></script>
+  <script type="module" src="../../shared/game-access.js?v=20260225c"></script>
+  <script type="module" src="game.js?v=20260225a"></script>
+</body>
+</html>

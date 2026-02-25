@@ -1,0 +1,103 @@
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  background: linear-gradient(150deg, #13293b, #1d3721);
+  color: #e8f5ff;
+  font-family: "Segoe UI", sans-serif;
+}
+
+.shell {
+  width: min(96vw, 980px);
+  padding: 16px;
+  border-radius: 14px;
+  border: 1px solid #9fd5ff55;
+  background: #112435d9;
+}
+
+.top-bar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 8px;
+}
+
+.top-bar p {
+  margin: 0;
+  border: 1px solid #9fd5ff44;
+  border-radius: 8px;
+  padding: 8px;
+  background: #1b374f;
+}
+
+.actions {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: auto auto 1fr;
+  gap: 8px;
+  align-items: center;
+}
+
+.actions button {
+  border: 1px solid #9fd5ff66;
+  border-radius: 8px;
+  background: #234e6f;
+  color: #e8f5ff;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+
+#status {
+  margin: 0;
+  color: #c8eaff;
+  min-height: 1.2em;
+}
+
+canvas {
+  margin-top: 10px;
+  width: 100%;
+  height: auto;
+  border-radius: 10px;
+  border: 1px solid #9fd5ff55;
+  background: #0e1f2e;
+}
+
+.inventory {
+  margin-top: 10px;
+  border: 1px solid #9fd5ff4a;
+  border-radius: 10px;
+  padding: 10px;
+  background: #173247;
+}
+
+.inventory h2 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+}
+
+.inventory ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 6px;
+}
+
+.inventory li {
+  border: 1px solid #9fd5ff40;
+  border-radius: 8px;
+  padding: 6px;
+  background: #21445d;
+  font-size: 0.86rem;
+}
+
+a {
+  color: #d0ebff;
+}
+
+@media (max-width: 760px) {
+  .actions {
+    grid-template-columns: 1fr;
+  }
+}
