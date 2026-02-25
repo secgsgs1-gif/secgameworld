@@ -64,6 +64,7 @@ let enteredRoomId = "";
 let enteredMode = "";
 let uiTimer = null;
 let timeoutBusy = false;
+let resetBusy = false;
 
 function tsToMs(ts) {
   if (!ts) return 0;
@@ -346,6 +347,22 @@ function drawBoard(room) {
     ctx.lineWidth = 2;
     ctx.strokeRect(cx - 7, cy - 7, 14, 14);
   }
+
+  if (room.status === "finished") {
+    let winnerText = "DRAW";
+    if (room.winner === "black") winnerText = `${normalizeUsername(user, room.blackName, room.blackUid)} WIN`;
+    if (room.winner === "white") winnerText = `${normalizeUsername(user, room.whiteName, room.whiteUid)} WIN`;
+
+    ctx.fillStyle = "rgba(8, 12, 18, 0.45)";
+    ctx.fillRect(0, 0, size, size);
+    ctx.fillStyle = "#ffe7a1";
+    ctx.textAlign = "center";
+    ctx.font = "700 54px Segoe UI, sans-serif";
+    ctx.fillText(winnerText, size / 2, size / 2 - 6);
+    ctx.font = "600 20px Segoe UI, sans-serif";
+    ctx.fillStyle = "#f8f3dc";
+    ctx.fillText("Reset in 5s", size / 2, size / 2 + 30);
+  }
 }
 
 function renderRoomList() {
@@ -445,7 +462,7 @@ function applyRoomUi(room) {
       : room.winner === "white"
         ? normalizeUsername(user, room.whiteName, room.whiteUid)
         : "";
-    if (room.winner === "black" || room.winner === "white") resultLabelEl.textContent = `${winnerName} win`;
+    if (room.winner === "black" || room.winner === "white") resultLabelEl.textContent = `${winnerName} WIN`;
     else resultLabelEl.textContent = "Draw";
   } else {
     resultLabelEl.textContent = "-";
@@ -728,6 +745,7 @@ async function surrender() {
       status: "finished",
       winner,
       turn: "",
+      finishedAt: serverTimestamp(),
       updatedAt: serverTimestamp()
     });
   });
@@ -766,6 +784,7 @@ async function handleTurnTimeout() {
         winner,
         turn: "",
         timeoutLose: room.turn,
+        finishedAt: serverTimestamp(),
         updatedAt: serverTimestamp()
       });
     });
@@ -775,6 +794,53 @@ async function handleTurnTimeout() {
     }
   } finally {
     timeoutBusy = false;
+  }
+}
+
+async function maybeAutoResetFinishedRoom() {
+  if (resetBusy) return;
+  if (!currentRoomId || !currentRoom) return;
+  if (currentRoom.status !== "finished") return;
+  const finishedMs = tsToMs(currentRoom.finishedAt) || tsToMs(currentRoom.updatedAt);
+  if (!finishedMs) return;
+  if (Date.now() - finishedMs < 5000) return;
+  if (currentRoom.stakeLocked && !currentRoom.stakePayoutDone) return;
+
+  resetBusy = true;
+  try {
+    const ref = doc(db, "mp_rooms", currentRoomId);
+    await runTransaction(db, async (tx) => {
+      const snap = await tx.get(ref);
+      if (!snap.exists()) return;
+      const room = snap.data();
+      if (room.status !== "finished") return;
+      const roomFinishedMs = tsToMs(room.finishedAt) || tsToMs(room.updatedAt);
+      if (!roomFinishedMs || Date.now() - roomFinishedMs < 5000) return;
+      if (room.stakeLocked && !room.stakePayoutDone) return;
+
+      tx.update(ref, {
+        status: "waiting",
+        board: EMPTY_BOARD,
+        turn: "black",
+        winner: "",
+        moveCount: 0,
+        lastMove: null,
+        turnStartedAt: deleteField(),
+        timeoutLose: deleteField(),
+        finishedAt: deleteField(),
+        startedAt: deleteField(),
+        stakeAcceptedBlack: false,
+        stakeAcceptedWhite: false,
+        stakeLocked: false,
+        stakePayoutDone: false,
+        stakeNetPayout: 0,
+        stakeFee: 0,
+        stakeWinnerUid: "",
+        updatedAt: serverTimestamp()
+      });
+    });
+  } finally {
+    resetBusy = false;
   }
 }
 
@@ -814,11 +880,13 @@ async function placeStone(x, y) {
       nextData.status = "finished";
       nextData.winner = role;
       nextData.turn = "";
+      nextData.finishedAt = serverTimestamp();
       gameWinner = role;
     } else if (full) {
       nextData.status = "finished";
       nextData.winner = "draw";
       nextData.turn = "";
+      nextData.finishedAt = serverTimestamp();
       gameWinner = "draw";
     } else {
       nextData.turn = nextTurn;
@@ -918,6 +986,7 @@ function init() {
   uiTimer = window.setInterval(() => {
     refreshTurnTimerUi();
     handleTurnTimeout().catch(() => {});
+    maybeAutoResetFinishedRoom().catch(() => {});
   }, 1000);
 
   document.addEventListener("visibilitychange", () => {
