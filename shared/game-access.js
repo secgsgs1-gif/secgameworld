@@ -13,6 +13,8 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
 import { db } from "./firebase-app.js?v=20260224m";
 
+let appBooted = false;
+
 function normalizeUsername(currentUser, rawName) {
   const byProfile = String(rawName || "").trim();
   if (byProfile) return byProfile;
@@ -154,13 +156,13 @@ function setupGameChat(user) {
     }
   );
 
-  const msgQ = query(collection(db, "live_chat_messages"), orderBy("createdAt", "asc"), limit(80));
+  const msgQ = query(collection(db, "live_chat_messages"), orderBy("createdAt", "desc"), limit(80));
   onSnapshot(
     msgQ,
     (snap) => {
-      latestMessageDocs = snap.docs;
+      latestMessageDocs = [...snap.docs].reverse();
       messagesEl.innerHTML = "";
-      snap.docs.forEach((docSnap) => {
+      latestMessageDocs.forEach((docSnap) => {
         const data = docSnap.data();
         const mine = data.uid === user.uid;
         const rank = rankMap.get(data.uid);
@@ -290,5 +292,13 @@ async function run(user) {
   document.dispatchEvent(new CustomEvent("app:wallet-ready"));
 }
 
-document.addEventListener("app:user-ready", (e) => run(e.detail.user));
-if (window.__AUTH_USER__) run(window.__AUTH_USER__);
+function boot(nextUser) {
+  if (appBooted) return;
+  appBooted = true;
+  run(nextUser).catch(() => {
+    appBooted = false;
+  });
+}
+
+document.addEventListener("app:user-ready", (e) => boot(e.detail.user));
+if (window.__AUTH_USER__) boot(window.__AUTH_USER__);

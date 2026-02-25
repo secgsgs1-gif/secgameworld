@@ -24,6 +24,7 @@ let rankMap = new Map();
 let heartbeat = null;
 let latestMessageDocs = [];
 let latestPresenceDocs = [];
+let initStarted = false;
 
 function normalizeUsername(currentUser, rawName) {
   const byProfile = String(rawName || "").trim();
@@ -136,11 +137,11 @@ async function init() {
     }
   );
 
-  const msgQ = query(collection(db, "live_chat_messages"), orderBy("createdAt", "asc"), limit(120));
+  const msgQ = query(collection(db, "live_chat_messages"), orderBy("createdAt", "desc"), limit(120));
   onSnapshot(
     msgQ,
     (snap) => {
-      latestMessageDocs = snap.docs;
+      latestMessageDocs = [...snap.docs].reverse();
       renderMessages(latestMessageDocs);
     },
     (err) => {
@@ -192,16 +193,18 @@ window.addEventListener("beforeunload", () => {
   }
 });
 
-document.addEventListener("app:user-ready", (e) => {
-  user = e.detail.user;
+function boot(nextUser) {
+  if (initStarted) return;
+  initStarted = true;
+  user = nextUser;
   init().catch((err) => {
+    initStarted = false;
     statusEl.textContent = `오류: ${err.message}`;
   });
-});
+}
+
+document.addEventListener("app:user-ready", (e) => boot(e.detail.user));
 
 if (window.__AUTH_USER__) {
-  user = window.__AUTH_USER__;
-  init().catch((err) => {
-    statusEl.textContent = `오류: ${err.message}`;
-  });
+  boot(window.__AUTH_USER__);
 }
