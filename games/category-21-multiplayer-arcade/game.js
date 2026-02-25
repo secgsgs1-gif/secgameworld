@@ -16,6 +16,7 @@ import {
 import { db } from "../../shared/firebase-app.js?v=20260224m";
 
 const BOARD_SIZE = 15;
+const TURN_LIMIT_SEC = 30;
 const EMPTY_CELL = ".";
 const EMPTY_BOARD = EMPTY_CELL.repeat(BOARD_SIZE * BOARD_SIZE);
 
@@ -46,6 +47,7 @@ const stakeAgreeEl = document.getElementById("stake-agree");
 const spectatorCountEl = document.getElementById("spectator-count");
 const spectatorListEl = document.getElementById("spectator-list");
 const turnLabelEl = document.getElementById("turn-label");
+const turnTimerEl = document.getElementById("turn-timer");
 const resultLabelEl = document.getElementById("result-label");
 
 let user = null;
@@ -60,6 +62,15 @@ let presenceUnsub = null;
 let presenceRows = [];
 let enteredRoomId = "";
 let enteredMode = "";
+let uiTimer = null;
+let timeoutBusy = false;
+
+function tsToMs(ts) {
+  if (!ts) return 0;
+  if (typeof ts.toMillis === "function") return Number(ts.toMillis() || 0);
+  if (typeof ts.seconds === "number") return Number(ts.seconds * 1000);
+  return toInt(ts);
+}
 
 function normalizeUsername(currentUser, rawName, uid) {
   const byProfile = String(rawName || "").trim();
@@ -398,6 +409,7 @@ function applyRoomUi(room) {
     spectatorCountEl.textContent = "0";
     spectatorListEl.innerHTML = "";
     turnLabelEl.textContent = "-";
+    turnTimerEl.textContent = "-";
     resultLabelEl.textContent = "-";
     [setStakeBtn, acceptStakeBtn, joinBtn, watchBtn, startBtn, surrenderBtn, leaveBtn].forEach((b) => {
       b.disabled = true;
@@ -419,6 +431,14 @@ function applyRoomUi(room) {
   stakeLabelEl.textContent = `${stakeAmount} pts`;
   stakeAgreeEl.textContent = `B:${agreedB} / W:${agreedW}`;
   turnLabelEl.textContent = canWatch ? (room.turn ? room.turn.toUpperCase() : "-") : "-";
+  if (canWatch && room.status === "playing") {
+    const startedMs = tsToMs(room.turnStartedAt);
+    const limitSec = Math.max(1, toInt(room.turnLimitSec || TURN_LIMIT_SEC));
+    const remainSec = Math.max(0, limitSec - Math.floor((Date.now() - startedMs) / 1000));
+    turnTimerEl.textContent = `${remainSec}s`;
+  } else {
+    turnTimerEl.textContent = "-";
+  }
   if (room.status === "finished") {
     const winnerName = room.winner === "black"
       ? normalizeUsername(user, room.blackName, room.blackUid)
@@ -450,6 +470,21 @@ function applyRoomUi(room) {
 
   if (canWatch) drawBoard(room);
   else drawBoard(null);
+}
+
+function refreshTurnTimerUi() {
+  if (!currentRoom) {
+    turnTimerEl.textContent = "-";
+    return;
+  }
+  if (!canWatchRoom(currentRoom) || currentRoom.status !== "playing") {
+    turnTimerEl.textContent = "-";
+    return;
+  }
+  const startedMs = tsToMs(currentRoom.turnStartedAt);
+  const limitSec = Math.max(1, toInt(currentRoom.turnLimitSec || TURN_LIMIT_SEC));
+  const remainSec = Math.max(0, limitSec - Math.floor((Date.now() - startedMs) / 1000));
+  turnTimerEl.textContent = `${remainSec}s`;
 }
 
 async function createRoom() {
@@ -579,6 +614,8 @@ async function startMatch() {
       status: "playing",
       board: EMPTY_BOARD,
       turn: "black",
+      turnLimitSec: TURN_LIMIT_SEC,
+      turnStartedAt: serverTimestamp(),
       winner: "",
       moveCount: 0,
       lastMove: null,
@@ -668,6 +705,14 @@ async function leaveRoom() {
   statusEl.textContent = "Left room.";
 }
 
+async function maybeDeleteRoomByHostAbsence() {
+  if (!currentRoomId || !currentRoom) return;
+  if (!isHost(currentRoom)) return;
+  await deleteDoc(doc(db, "mp_rooms", currentRoomId)).catch(() => {});
+  await clearMyRoomPresence();
+  applyRoomUi(null);
+}
+
 async function surrender() {
   if (!currentRoomId || !currentRoom) return;
   const ref = doc(db, "mp_rooms", currentRoomId);
@@ -690,6 +735,47 @@ async function surrender() {
     statusEl.textContent = `Stake settlement pending: ${err.message}`;
   });
   statusEl.textContent = "Surrendered.";
+}
+
+async function handleTurnTimeout() {
+  if (timeoutBusy) return;
+  if (!currentRoomId || !currentRoom) return;
+  if (currentRoom.status !== "playing") return;
+  if (!canWatchRoom(currentRoom)) return;
+
+  const startedMs = tsToMs(currentRoom.turnStartedAt);
+  const limitSec = Math.max(1, toInt(currentRoom.turnLimitSec || TURN_LIMIT_SEC));
+  if (!startedMs) return;
+  if (Date.now() - startedMs < limitSec * 1000) return;
+
+  timeoutBusy = true;
+  try {
+    const ref = doc(db, "mp_rooms", currentRoomId);
+    let winner = "";
+    await runTransaction(db, async (tx) => {
+      const snap = await tx.get(ref);
+      if (!snap.exists()) return;
+      const room = snap.data();
+      if (room.status !== "playing") return;
+      const baseMs = tsToMs(room.turnStartedAt);
+      const baseLimitSec = Math.max(1, toInt(room.turnLimitSec || TURN_LIMIT_SEC));
+      if (!baseMs || Date.now() - baseMs < baseLimitSec * 1000) return;
+      winner = room.turn === "black" ? "white" : "black";
+      tx.update(ref, {
+        status: "finished",
+        winner,
+        turn: "",
+        timeoutLose: room.turn,
+        updatedAt: serverTimestamp()
+      });
+    });
+    if (winner) {
+      settleStakeAfterGame(currentRoomId, winner).catch(() => {});
+      statusEl.textContent = `Time out. ${winner.toUpperCase()} wins.`;
+    }
+  } finally {
+    timeoutBusy = false;
+  }
 }
 
 async function placeStone(x, y) {
@@ -736,6 +822,7 @@ async function placeStone(x, y) {
       gameWinner = "draw";
     } else {
       nextData.turn = nextTurn;
+      nextData.turnStartedAt = serverTimestamp();
     }
     tx.update(ref, nextData);
   });
@@ -828,11 +915,25 @@ function init() {
     });
   });
   canvas.addEventListener("click", onBoardClick);
+  uiTimer = window.setInterval(() => {
+    refreshTurnTimerUi();
+    handleTurnTimeout().catch(() => {});
+  }, 1000);
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") return;
+    maybeDeleteRoomByHostAbsence().catch(() => {});
+  });
+  window.addEventListener("pagehide", () => {
+    maybeDeleteRoomByHostAbsence().catch(() => {});
+  });
 
   window.addEventListener("beforeunload", () => {
+    if (uiTimer) window.clearInterval(uiTimer);
     if (roomListUnsub) roomListUnsub();
     if (roomUnsub) roomUnsub();
     if (presenceUnsub) presenceUnsub();
+    maybeDeleteRoomByHostAbsence().catch(() => {});
     clearMyRoomPresence().catch(() => {});
   });
 }
