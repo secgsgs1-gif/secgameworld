@@ -46,6 +46,8 @@ let syncTimer = null;
 let pollTimer = null;
 let booted = false;
 let earning = false;
+let hiddenStartedAt = 0;
+let rewardQueue = [];
 
 function normalizeUsername(currentUser, rawName) {
   const byProfile = String(rawName || "").trim();
@@ -144,7 +146,7 @@ async function syncMine() {
       lap,
       progress: (distance % TRACK_LAP_UNITS) / TRACK_LAP_UNITS,
       lane,
-      speedTier: speed >= 105 ? 3 : speed >= 85 ? 2 : 1,
+      speedTier: speed >= 22 ? 3 : speed >= 18 ? 2 : 1,
       online: true,
       updatedAt: serverTimestamp()
     }, { merge: true });
@@ -188,42 +190,60 @@ function rescheduleNetworkLoops() {
 
 async function grantLapReward() {
   if (earning || !window.AccountWallet) return;
+  if (!rewardQueue.length) return;
   earning = true;
   try {
+    const targetLap = rewardQueue.shift();
     const reward = rewardForLap();
     await window.AccountWallet.earn(reward.points, "mining_lap_reward", {
       game: "category-16-mining-marathon",
-      lap,
+      lap: targetLap,
       jackpot: reward.jackpot
     });
     if (reward.jackpot) {
-      eventLogEl.textContent = `대박! ${lap}바퀴 보상으로 +10000 포인트 지급`;
+      eventLogEl.textContent = `대박! ${targetLap}바퀴 보상으로 +10000 포인트 지급`;
     } else {
-      eventLogEl.textContent = `${lap}바퀴 달성! +${reward.points} 포인트 지급`;
+      eventLogEl.textContent = `${targetLap}바퀴 달성! +${reward.points} 포인트 지급`;
     }
   } catch (err) {
     eventLogEl.textContent = `보상 오류: ${err.message}`;
   } finally {
     earning = false;
+    if (rewardQueue.length) {
+      grantLapReward().catch(() => {});
+    }
   }
+}
+
+function enqueueLapRewards(nextLap) {
+  if (nextLap <= lap) return;
+  for (let l = lap + 1; l <= nextLap; l += 1) {
+    rewardQueue.push(l);
+  }
+  lap = nextLap;
+  grantLapReward().catch(() => {});
+}
+
+function advanceBySeconds(sec, nowPerf, useBurst) {
+  if (sec <= 0) return;
+  if (useBurst) maybeTriggerBurst(nowPerf);
+  const speed = useBurst ? currentSpeed(nowPerf) : baseSpeed;
+  distance += speed * sec;
+  const nextLap = Math.floor(distance / TRACK_LAP_UNITS);
+  enqueueLapRewards(nextLap);
+  speedEl.textContent = `${Math.round(speed)} m/s`;
 }
 
 function tick() {
   const now = performance.now();
-  const dt = Math.min(0.25, (now - lastTick) / 1000);
+  const dt = Math.min(0.5, (now - lastTick) / 1000);
   lastTick = now;
 
-  maybeTriggerBurst(now);
-  const speed = currentSpeed(now);
-  distance += speed * dt;
-  const nextLap = Math.floor(distance / TRACK_LAP_UNITS);
-  if (nextLap > lap) {
-    lap = nextLap;
-    grantLapReward().catch(() => {});
+  if (!hidden) {
+    advanceBySeconds(dt, now, true);
   }
 
   lapEl.textContent = String(lap);
-  speedEl.textContent = `${Math.round(speed)} m/s`;
   renderTrack();
 }
 
@@ -252,6 +272,18 @@ function init() {
 
   document.addEventListener("visibilitychange", () => {
     hidden = document.visibilityState !== "visible";
+    if (hidden) {
+      hiddenStartedAt = Date.now();
+      syncStatusEl.textContent = "백그라운드 채굴 대기";
+    } else if (hiddenStartedAt > 0) {
+      const elapsedSec = Math.max(0, (Date.now() - hiddenStartedAt) / 1000);
+      hiddenStartedAt = 0;
+      // Browsers throttle timers in background; compensate with elapsed wall time.
+      advanceBySeconds(elapsedSec, performance.now(), false);
+      lapEl.textContent = String(lap);
+      renderTrack();
+      syncStatusEl.textContent = `복귀 보정 완료 (${Math.floor(elapsedSec)}초)`;
+    }
     rescheduleNetworkLoops();
     if (!hidden) {
       syncMine().catch(() => {});
