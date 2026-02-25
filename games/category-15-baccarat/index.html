@@ -17,7 +17,19 @@
       <p>포인트: <strong id="points">0</strong></p>
     </section>
 
-    <section class="table">
+    <div class="visual-toggle-row">
+      <button
+        id="toggle-game-visual"
+        type="button"
+        data-visual-toggle
+        data-visual-target="#game-visual"
+        data-show-label="Show Game Screen"
+        data-hide-label="Hide Game Screen"
+        aria-expanded="true"
+      >Hide Game Screen</button>
+    </div>
+
+    <section id="game-visual" class="table game-visual">
       <h2>현재 회차 결과</h2>
       <p id="table-result" class="table-result">결과 대기중</p>
       <p class="odds">배당(원금 포함): Player x2 / Banker x2 / Tie x9</p>
@@ -76,6 +88,7 @@
   <script>window.APP_ROOT = "../../";</script>
   <script type="module" src="../../shared/auth-guard.js?v=20260224m"></script>
   <script type="module" src="../../shared/game-access.js?v=20260225c"></script>
+  <script type="module" src="../../shared/visual-toggle.js?v=20260225a"></script>
   <script type="module" src="game.js?v=20260225d"></script>
 </body>
 </html>

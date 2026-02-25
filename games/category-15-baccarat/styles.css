@@ -26,6 +26,14 @@ body {
   margin: 4px 0;
 }
 
+.visual-toggle-row {
+  margin-top: 10px;
+}
+
+.game-visual[hidden] {
+  display: none !important;
+}
+
 .table,
 .bet-panel,
 .bettors,

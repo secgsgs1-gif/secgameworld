@@ -17,7 +17,21 @@
       <p>포인트: <strong id="points">0</strong></p>
     </div>
 
-    <canvas id="wheel" width="420" height="420" aria-label="Roulette V2"></canvas>
+    <div class="visual-toggle-row">
+      <button
+        id="toggle-game-visual"
+        type="button"
+        data-visual-toggle
+        data-visual-target="#game-visual"
+        data-show-label="Show Game Screen"
+        data-hide-label="Hide Game Screen"
+        aria-expanded="true"
+      >Hide Game Screen</button>
+    </div>
+
+    <section id="game-visual" class="game-visual">
+      <canvas id="wheel" width="420" height="420" aria-label="Roulette V2"></canvas>
+    </section>
 
     <section class="bet-panel">
       <h2>복수 배팅</h2>
@@ -53,6 +67,7 @@
   <script>window.APP_ROOT = "../../";</script>
   <script type="module" src="../../shared/auth-guard.js?v=20260224m"></script>
   <script type="module" src="../../shared/game-access.js?v=20260225c"></script>
+  <script type="module" src="../../shared/visual-toggle.js?v=20260225a"></script>
   <script type="module" src="game.js?v=20260225u"></script>
 </body>
 </html>

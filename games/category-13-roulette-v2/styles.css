@@ -26,6 +26,14 @@ body {
   margin: 4px 0;
 }
 
+.visual-toggle-row {
+  margin: 8px 0 6px;
+}
+
+.game-visual[hidden] {
+  display: none !important;
+}
+
 canvas {
   width: min(92vw, 420px);
   height: auto;
