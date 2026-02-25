@@ -14,7 +14,9 @@ const rankBodyEl = document.getElementById("rank-body");
 
 let user = null;
 let timer = null;
+let alignTimer = null;
 let booted = false;
+let nextRefreshAt = 0;
 
 function normalizeUsername(currentUser, rawName, uid) {
   const byProfile = String(rawName || "").trim();
@@ -31,6 +33,19 @@ function nowLabel() {
   const mm = String(d.getMinutes()).padStart(2, "0");
   const ss = String(d.getSeconds()).padStart(2, "0");
   return `${hh}:${mm}:${ss}`;
+}
+
+function topOfHourLabel(ts = Date.now()) {
+  const d = new Date(ts);
+  const hh = String(d.getHours()).padStart(2, "0");
+  return `${hh}:00`;
+}
+
+function msUntilNextHour(now = Date.now()) {
+  const d = new Date(now);
+  d.setMinutes(0, 0, 0);
+  d.setHours(d.getHours() + 1);
+  return Math.max(1000, d.getTime() - now);
 }
 
 async function refreshRank() {
@@ -64,26 +79,35 @@ async function refreshRank() {
 
   myRankEl.textContent = myRank;
   myPointsEl.textContent = String(myPoints.toLocaleString());
-  updatedAtEl.textContent = nowLabel();
+  updatedAtEl.textContent = `${nowLabel()} (다음 ${topOfHourLabel(nextRefreshAt)})`;
 }
 
 function init() {
+  const now = Date.now();
+  nextRefreshAt = now + msUntilNextHour(now);
   refreshRank().catch((err) => {
     updatedAtEl.textContent = `오류: ${err.message}`;
   });
-  timer = setInterval(() => {
-    if (document.visibilityState !== "visible") return;
+  alignTimer = setTimeout(() => {
+    nextRefreshAt = Date.now() + 3600000;
     refreshRank().catch(() => {});
-  }, 60000);
+    timer = setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+      nextRefreshAt = Date.now() + 3600000;
+      refreshRank().catch(() => {});
+    }, 3600000);
+  }, msUntilNextHour());
 
   document.addEventListener("visibilitychange", () => {
-    if (document.visibilityState === "visible") {
+    if (document.visibilityState === "visible" && Date.now() >= nextRefreshAt) {
+      nextRefreshAt = Date.now() + msUntilNextHour();
       refreshRank().catch(() => {});
     }
   });
 
   window.addEventListener("beforeunload", () => {
     if (timer) clearInterval(timer);
+    if (alignTimer) clearTimeout(alignTimer);
   });
 }
 
