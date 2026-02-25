@@ -10,6 +10,7 @@ const ctx = canvas.getContext("2d");
 const pointsEl = document.getElementById("points");
 const depthEl = document.getElementById("depth");
 const pickaxeEl = document.getElementById("pickaxe");
+const facingEl = document.getElementById("facing");
 const ticketsEl = document.getElementById("tickets");
 const nextTicketEl = document.getElementById("next-ticket");
 const statusEl = document.getElementById("status");
@@ -282,6 +283,21 @@ function drawPlayerSprite() {
   ctx.fillStyle = "#24344e";
   ctx.fillRect(px + 7, py + 20, 4, 4);
   ctx.fillRect(px + 13, py + 20, 4, 4);
+
+  const cx = px + 12;
+  const cy = py + 12;
+  const tx = cx + (facing.x * 8);
+  const ty = cy + (facing.y * 8);
+  ctx.strokeStyle = "#ffe37a";
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(cx, cy);
+  ctx.lineTo(tx, ty);
+  ctx.stroke();
+  ctx.fillStyle = "#ffe37a";
+  ctx.beginPath();
+  ctx.arc(tx, ty, 2.4, 0, Math.PI * 2);
+  ctx.fill();
 }
 
 function draw() {
@@ -320,6 +336,10 @@ function draw() {
 function renderHud() {
   depthEl.textContent = String(Math.max(0, player.y - SKY_ROWS + 1));
   pickaxeEl.textContent = `Lv.${pickaxeLevel}`;
+  if (facing.x === -1) facingEl.textContent = "LEFT";
+  else if (facing.x === 1) facingEl.textContent = "RIGHT";
+  else if (facing.y === -1) facingEl.textContent = "UP";
+  else facingEl.textContent = "DOWN";
   upgradeBtn.textContent = `Upgrade Pickaxe (${upgradeCost().toLocaleString()})`;
   pointsEl.textContent = String(Math.floor(myPoints).toLocaleString());
   renderTicketUi();
@@ -347,10 +367,14 @@ function move(dx, dy) {
     statusEl.textContent = "No ticket session. Press Start Mining.";
     return;
   }
+  facing = { x: dx, y: dy };
   const nx = player.x + dx;
   const ny = player.y + dy;
-  if (!canMoveTo(nx, ny)) return;
-  facing = { x: dx, y: dy };
+  if (!canMoveTo(nx, ny)) {
+    draw();
+    renderHud();
+    return;
+  }
   player.x = nx;
   player.y = ny;
   draw();
