@@ -37,6 +37,15 @@ body {
   padding: 8px 10px;
 }
 
+.room-actions input {
+  border: 1px solid #97c2ff66;
+  border-radius: 8px;
+  background: #1b324f;
+  color: #eaf4ff;
+  padding: 8px 10px;
+  width: 120px;
+}
+
 .status {
   margin: 0;
   min-height: 1.2em;

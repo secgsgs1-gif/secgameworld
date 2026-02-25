@@ -27,6 +27,9 @@ const roomListEl = document.getElementById("room-list");
 
 const roomNameEl = document.getElementById("room-name");
 const roomMetaEl = document.getElementById("room-meta");
+const stakeInputEl = document.getElementById("stake-input");
+const setStakeBtn = document.getElementById("set-stake-btn");
+const acceptStakeBtn = document.getElementById("accept-stake-btn");
 const joinBtn = document.getElementById("join-btn");
 const watchBtn = document.getElementById("watch-btn");
 const startBtn = document.getElementById("start-btn");
@@ -38,6 +41,8 @@ const ctx = canvas.getContext("2d");
 const myModeEl = document.getElementById("my-mode");
 const blackPlayerEl = document.getElementById("black-player");
 const whitePlayerEl = document.getElementById("white-player");
+const stakeLabelEl = document.getElementById("stake-label");
+const stakeAgreeEl = document.getElementById("stake-agree");
 const spectatorCountEl = document.getElementById("spectator-count");
 const spectatorListEl = document.getElementById("spectator-list");
 const turnLabelEl = document.getElementById("turn-label");
@@ -170,6 +175,76 @@ async function clearMyRoomPresence() {
   }).catch(() => {});
   enteredRoomId = "";
   enteredMode = "";
+}
+
+function toInt(v, fallback = 0) {
+  const n = Math.floor(Number(v || 0));
+  if (!Number.isFinite(n)) return fallback;
+  return n;
+}
+
+async function settleStakeInTx(tx, roomRef, room, winnerRole) {
+  if (room.stakePayoutDone) return;
+  if (!room.stakeLocked) return;
+
+  const stakeAmount = Math.max(0, toInt(room.stakeAmount));
+  if (stakeAmount <= 0) {
+    tx.update(roomRef, {
+      stakePayoutDone: true,
+      stakeNetPayout: 0,
+      stakeFee: 0,
+      updatedAt: serverTimestamp()
+    });
+    return;
+  }
+
+  const blackRef = doc(db, "users", room.blackUid);
+  const whiteRef = doc(db, "users", room.whiteUid);
+  const blackSnap = await tx.get(blackRef);
+  const whiteSnap = await tx.get(whiteRef);
+  if (!blackSnap.exists() || !whiteSnap.exists()) return;
+
+  const blackPoints = toInt(blackSnap.data()?.points);
+  const whitePoints = toInt(whiteSnap.data()?.points);
+  const pot = stakeAmount * 2;
+  const fee = Math.floor(pot * 0.05);
+  const net = pot - fee;
+
+  if (winnerRole === "draw") {
+    tx.update(blackRef, { points: blackPoints + stakeAmount, updatedAt: serverTimestamp() });
+    tx.update(whiteRef, { points: whitePoints + stakeAmount, updatedAt: serverTimestamp() });
+    tx.update(roomRef, {
+      stakePayoutDone: true,
+      stakeNetPayout: 0,
+      stakeFee: 0,
+      stakeWinnerUid: "",
+      updatedAt: serverTimestamp()
+    });
+    return;
+  }
+
+  if (winnerRole === "black") {
+    tx.update(blackRef, { points: blackPoints + net, updatedAt: serverTimestamp() });
+    tx.update(roomRef, {
+      stakePayoutDone: true,
+      stakeNetPayout: net,
+      stakeFee: fee,
+      stakeWinnerUid: room.blackUid,
+      updatedAt: serverTimestamp()
+    });
+    return;
+  }
+
+  if (winnerRole === "white") {
+    tx.update(whiteRef, { points: whitePoints + net, updatedAt: serverTimestamp() });
+    tx.update(roomRef, {
+      stakePayoutDone: true,
+      stakeNetPayout: net,
+      stakeFee: fee,
+      stakeWinnerUid: room.whiteUid,
+      updatedAt: serverTimestamp()
+    });
+  }
 }
 
 function drawBoard(room) {
@@ -311,11 +386,13 @@ function applyRoomUi(room) {
     myModeEl.textContent = "-";
     blackPlayerEl.textContent = "-";
     whitePlayerEl.textContent = "-";
+    stakeLabelEl.textContent = "-";
+    stakeAgreeEl.textContent = "-";
     spectatorCountEl.textContent = "0";
     spectatorListEl.innerHTML = "";
     turnLabelEl.textContent = "-";
     resultLabelEl.textContent = "-";
-    [joinBtn, watchBtn, startBtn, surrenderBtn, leaveBtn].forEach((b) => {
+    [setStakeBtn, acceptStakeBtn, joinBtn, watchBtn, startBtn, surrenderBtn, leaveBtn].forEach((b) => {
       b.disabled = true;
     });
     drawBoard(null);
@@ -329,6 +406,11 @@ function applyRoomUi(room) {
   myModeEl.textContent = role;
   blackPlayerEl.textContent = room.blackUid ? normalizeUsername(user, room.blackName, room.blackUid) : "(empty)";
   whitePlayerEl.textContent = room.whiteUid ? normalizeUsername(user, room.whiteName, room.whiteUid) : "(empty)";
+  const stakeAmount = Math.max(0, toInt(room.stakeAmount));
+  const agreedB = room.stakeAcceptedBlack ? "OK" : "-";
+  const agreedW = room.stakeAcceptedWhite ? "OK" : "-";
+  stakeLabelEl.textContent = `${stakeAmount} pts`;
+  stakeAgreeEl.textContent = `B:${agreedB} / W:${agreedW}`;
   turnLabelEl.textContent = canWatch ? (room.turn ? room.turn.toUpperCase() : "-") : "-";
   if (room.status === "finished") {
     const winnerName = room.winner === "black"
@@ -345,9 +427,17 @@ function applyRoomUi(room) {
 
   const waitingHasSlot = room.status === "waiting" && (!room.blackUid || !room.whiteUid);
   const alreadyPlayer = role === "black" || role === "white";
+  setStakeBtn.disabled = !(isHost(room) && room.status === "waiting");
+  acceptStakeBtn.disabled = !(room.status === "waiting" && alreadyPlayer && stakeAmount > 0);
   joinBtn.disabled = !(room.status === "waiting" && (waitingHasSlot || alreadyPlayer));
   watchBtn.disabled = role === "black" || role === "white" || (enteredRoomId === room.id && enteredMode === "spectator");
-  startBtn.disabled = !(isHost(room) && room.status === "waiting" && room.blackUid && room.whiteUid);
+  startBtn.disabled = !(isHost(room)
+    && room.status === "waiting"
+    && room.blackUid
+    && room.whiteUid
+    && room.stakeAcceptedBlack
+    && room.stakeAcceptedWhite
+    && stakeAmount > 0);
   surrenderBtn.disabled = !(room.status === "playing" && (role === "black" || role === "white"));
   leaveBtn.disabled = false;
 
@@ -373,6 +463,14 @@ async function createRoom() {
     winner: "",
     moveCount: 0,
     lastMove: null,
+    stakeAmount: 100,
+    stakeAcceptedBlack: true,
+    stakeAcceptedWhite: false,
+    stakeLocked: false,
+    stakePayoutDone: false,
+    stakeNetPayout: 0,
+    stakeFee: 0,
+    stakeWinnerUid: "",
     createdAt: serverTimestamp(),
     updatedAt: serverTimestamp()
   });
@@ -403,12 +501,22 @@ async function joinAsPlayer(roomId) {
       return;
     }
     if (!room.blackUid) {
-      tx.update(ref, { blackUid: user.uid, blackName: username, updatedAt: serverTimestamp() });
+      tx.update(ref, {
+        blackUid: user.uid,
+        blackName: username,
+        stakeAcceptedBlack: false,
+        updatedAt: serverTimestamp()
+      });
       joined = true;
       return;
     }
     if (!room.whiteUid) {
-      tx.update(ref, { whiteUid: user.uid, whiteName: username, updatedAt: serverTimestamp() });
+      tx.update(ref, {
+        whiteUid: user.uid,
+        whiteName: username,
+        stakeAcceptedWhite: false,
+        updatedAt: serverTimestamp()
+      });
       joined = true;
       return;
     }
@@ -445,6 +553,21 @@ async function startMatch() {
     const room = snap.data();
     if (room.hostUid !== user.uid) throw new Error("Only host can start");
     if (!room.blackUid || !room.whiteUid) throw new Error("Need 2 players");
+    const stakeAmount = Math.max(0, toInt(room.stakeAmount));
+    if (stakeAmount <= 0) throw new Error("Stake must be greater than 0");
+    if (!room.stakeAcceptedBlack || !room.stakeAcceptedWhite) throw new Error("Both players must accept stake");
+
+    const blackRef = doc(db, "users", room.blackUid);
+    const whiteRef = doc(db, "users", room.whiteUid);
+    const blackSnap = await tx.get(blackRef);
+    const whiteSnap = await tx.get(whiteRef);
+    if (!blackSnap.exists() || !whiteSnap.exists()) throw new Error("Player profile missing");
+    const blackPoints = toInt(blackSnap.data()?.points);
+    const whitePoints = toInt(whiteSnap.data()?.points);
+    if (blackPoints < stakeAmount || whitePoints < stakeAmount) throw new Error("Insufficient points for stake");
+
+    tx.update(blackRef, { points: blackPoints - stakeAmount, updatedAt: serverTimestamp() });
+    tx.update(whiteRef, { points: whitePoints - stakeAmount, updatedAt: serverTimestamp() });
     tx.update(ref, {
       status: "playing",
       board: EMPTY_BOARD,
@@ -452,11 +575,56 @@ async function startMatch() {
       winner: "",
       moveCount: 0,
       lastMove: null,
+      stakeLocked: true,
+      stakePayoutDone: false,
+      stakeNetPayout: 0,
+      stakeFee: 0,
+      stakeWinnerUid: "",
       startedAt: serverTimestamp(),
       updatedAt: serverTimestamp()
     });
   });
   statusEl.textContent = "Match started.";
+}
+
+async function setStake() {
+  if (!currentRoomId || !currentRoom) return;
+  const amount = Math.max(0, toInt(stakeInputEl.value));
+  const ref = doc(db, "mp_rooms", currentRoomId);
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists()) throw new Error("Room not found");
+    const room = snap.data();
+    if (room.hostUid !== user.uid) throw new Error("Only host can set stake");
+    if (room.status !== "waiting") throw new Error("Stake can be changed only in waiting state");
+    tx.update(ref, {
+      stakeAmount: amount,
+      stakeAcceptedBlack: room.blackUid === user.uid,
+      stakeAcceptedWhite: false,
+      updatedAt: serverTimestamp()
+    });
+  });
+  statusEl.textContent = `Stake set to ${amount} points.`;
+}
+
+async function acceptStake() {
+  if (!currentRoomId || !currentRoom) return;
+  const ref = doc(db, "mp_rooms", currentRoomId);
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists()) throw new Error("Room not found");
+    const room = snap.data();
+    if (room.status !== "waiting") throw new Error("Cannot accept after start");
+    const role = room.blackUid === user.uid ? "black" : room.whiteUid === user.uid ? "white" : "spectator";
+    if (role === "spectator") throw new Error("Only players can accept stake");
+    if (toInt(room.stakeAmount) <= 0) throw new Error("Set stake first");
+    if (role === "black") {
+      tx.update(ref, { stakeAcceptedBlack: true, updatedAt: serverTimestamp() });
+    } else {
+      tx.update(ref, { stakeAcceptedWhite: true, updatedAt: serverTimestamp() });
+    }
+  });
+  statusEl.textContent = "Stake accepted.";
 }
 
 async function leaveRoom() {
@@ -477,6 +645,11 @@ async function leaveRoom() {
     return;
   }
 
+  if (room.status === "playing" && (role === "black" || role === "white")) {
+    statusEl.textContent = "Use surrender during an active game.";
+    return;
+  }
+
   if (room.status === "waiting" && role === "black") {
     await updateDoc(ref, { blackUid: "", blackName: "", updatedAt: serverTimestamp() });
   } else if (room.status === "waiting" && role === "white") {
@@ -490,14 +663,21 @@ async function leaveRoom() {
 
 async function surrender() {
   if (!currentRoomId || !currentRoom) return;
-  const role = myRole(currentRoom);
-  if (!(role === "black" || role === "white")) return;
-  const winner = role === "black" ? "white" : "black";
-  await updateDoc(doc(db, "mp_rooms", currentRoomId), {
-    status: "finished",
-    winner,
-    turn: "",
-    updatedAt: serverTimestamp()
+  const ref = doc(db, "mp_rooms", currentRoomId);
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists()) throw new Error("Room not found");
+    const room = snap.data();
+    const role = room.blackUid === user.uid ? "black" : room.whiteUid === user.uid ? "white" : "spectator";
+    if (!(role === "black" || role === "white")) throw new Error("Only players can surrender");
+    const winner = role === "black" ? "white" : "black";
+    tx.update(ref, {
+      status: "finished",
+      winner,
+      turn: "",
+      updatedAt: serverTimestamp()
+    });
+    await settleStakeInTx(tx, ref, room, winner);
   });
   statusEl.textContent = "Surrendered.";
 }
@@ -545,6 +725,11 @@ async function placeStone(x, y) {
       nextData.turn = nextTurn;
     }
     tx.update(ref, nextData);
+    if (won) {
+      await settleStakeInTx(tx, ref, room, role);
+    } else if (full) {
+      await settleStakeInTx(tx, ref, room, "draw");
+    }
   });
 }
 
@@ -590,6 +775,16 @@ function init() {
   createRoomBtn.addEventListener("click", () => {
     createRoom().catch((err) => {
       statusEl.textContent = `Create failed: ${err.message}`;
+    });
+  });
+  setStakeBtn.addEventListener("click", () => {
+    setStake().catch((err) => {
+      statusEl.textContent = `Set stake failed: ${err.message}`;
+    });
+  });
+  acceptStakeBtn.addEventListener("click", () => {
+    acceptStake().catch((err) => {
+      statusEl.textContent = `Accept failed: ${err.message}`;
     });
   });
   joinBtn.addEventListener("click", () => {
