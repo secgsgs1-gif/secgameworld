@@ -1,7 +1,0 @@
-body{margin:0;min-height:100vh;display:grid;place-items:center;background:linear-gradient(140deg,#15233f,#214756);color:#ecf6ff;font-family:"Segoe UI",sans-serif}
-.shell{width:min(95vw,760px);padding:16px;border:1px solid #9fd5ff55;border-radius:12px;background:#0f1c30d0}
-.top{display:flex;gap:10px;align-items:end;flex-wrap:wrap}
-select,button{padding:8px 10px;border-radius:8px;border:1px solid #9fd5ff66;background:#1a3250;color:#ecf6ff}
-canvas{width:100%;height:auto;margin:10px 0;border-radius:10px;border:1px solid #9fd5ff33;background:#081423}
-.log{max-height:110px;overflow:auto;font-size:.9rem;background:#0b1628;border-radius:8px;padding:8px}
-a{color:#a9ddff}

@@ -59,8 +59,6 @@ function rankLabel(rank) {
 }
 
 function injectSideChat() {
-  if (location.pathname.includes("category-14-live-chat")) return null;
-
   const panel = document.createElement("aside");
   panel.id = "game-live-chat";
   panel.style.cssText = "position:fixed;right:10px;top:56px;bottom:10px;width:320px;z-index:9998;border:1px solid #7eb5ff66;border-radius:12px;background:#0c1b2fd9;color:#eaf6ff;padding:8px;display:grid;grid-template-rows:auto 1fr;gap:6px;font:12px/1.4 sans-serif";
