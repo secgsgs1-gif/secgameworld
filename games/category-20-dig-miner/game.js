@@ -7,6 +7,7 @@ const statusEl = document.getElementById("status");
 const inventoryListEl = document.getElementById("inventory-list");
 const sellBtn = document.getElementById("sell-btn");
 const upgradeBtn = document.getElementById("upgrade-btn");
+const rerollBtn = document.getElementById("reroll-btn");
 
 const TILE = 24;
 const COLS = 36;
@@ -32,6 +33,7 @@ let myPoints = 0;
 let user = null;
 let world = [];
 let breakProgress = {};
+let worldSeed = Math.floor(Math.random() * 1000000000);
 let inventory = {
   dirt: 0,
   stone: 0,
@@ -42,7 +44,7 @@ let inventory = {
 };
 
 function rngSeed(x, y) {
-  let n = ((x + 1) * 73856093) ^ ((y + 1) * 19349663);
+  let n = (((x + 1) * 73856093) ^ ((y + 1) * 19349663) ^ worldSeed) >>> 0;
   n = (n ^ (n >>> 13)) * 1274126177;
   return (n ^ (n >>> 16)) >>> 0;
 }
@@ -71,6 +73,16 @@ function buildWorld() {
     world.push(row);
   }
   world[player.y][player.x] = null;
+}
+
+function rerollMine() {
+  worldSeed = Math.floor(Math.random() * 1000000000);
+  player = { x: Math.floor(COLS / 2), y: SKY_ROWS - 1 };
+  breakProgress = {};
+  buildWorld();
+  statusEl.textContent = `New mine generated (seed ${worldSeed}).`;
+  draw();
+  renderHud();
 }
 
 function tileAt(x, y) {
@@ -306,6 +318,7 @@ function init() {
   window.addEventListener("keydown", onKey);
   sellBtn.addEventListener("click", sellInventory);
   upgradeBtn.addEventListener("click", upgradePickaxe);
+  rerollBtn.addEventListener("click", rerollMine);
 
   if (window.AccountWallet) {
     myPoints = Number(window.AccountWallet.getPoints() || 0);
