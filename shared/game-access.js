@@ -63,16 +63,21 @@ function injectSideChat() {
 
   const panel = document.createElement("aside");
   panel.id = "game-live-chat";
-  panel.style.cssText = "position:fixed;right:10px;top:56px;bottom:10px;width:320px;z-index:9998;border:1px solid #7eb5ff66;border-radius:12px;background:#0c1b2fd9;color:#eaf6ff;padding:8px;display:grid;grid-template-rows:auto auto 1fr auto auto;gap:6px;font:12px/1.4 sans-serif";
+  panel.style.cssText = "position:fixed;right:10px;top:56px;bottom:10px;width:320px;z-index:9998;border:1px solid #7eb5ff66;border-radius:12px;background:#0c1b2fd9;color:#eaf6ff;padding:8px;display:grid;grid-template-rows:auto 1fr;gap:6px;font:12px/1.4 sans-serif";
   panel.innerHTML = `
-    <h3 style="margin:0;font-size:14px;">Live Chat</h3>
-    <ul id="game-chat-presence" style="list-style:none;margin:0;padding:0;display:grid;gap:4px;max-height:88px;overflow:auto"></ul>
-    <div id="game-chat-messages" style="border:1px solid #7eb5ff44;border-radius:8px;padding:6px;overflow:auto;display:grid;gap:5px;align-content:start;background:#112641d9"></div>
-    <form id="game-chat-form" style="display:grid;grid-template-columns:1fr auto;gap:6px;">
-      <input id="game-chat-input" maxlength="240" required placeholder="채팅 입력" style="padding:7px;border-radius:8px;border:1px solid #7eb5ff66;background:#143153;color:#eaf6ff;" />
-      <button type="submit" style="padding:7px 10px;border-radius:8px;border:1px solid #7eb5ff66;background:#19406a;color:#eaf6ff;">전송</button>
-    </form>
-    <p id="game-chat-status" style="margin:0;min-height:1.2em;color:#bce4ff"></p>
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;">
+      <h3 style="margin:0;font-size:14px;">Live Chat</h3>
+      <button id="game-chat-toggle" type="button" style="padding:4px 8px;border-radius:8px;border:1px solid #7eb5ff66;background:#19406a;color:#eaf6ff;cursor:pointer;">접기</button>
+    </div>
+    <div id="game-chat-body" style="display:grid;grid-template-rows:auto 1fr auto auto;gap:6px;min-height:0;">
+      <ul id="game-chat-presence" style="list-style:none;margin:0;padding:0;display:grid;gap:4px;max-height:88px;overflow:auto"></ul>
+      <div id="game-chat-messages" style="border:1px solid #7eb5ff44;border-radius:8px;padding:6px;overflow:auto;display:grid;gap:5px;align-content:start;background:#112641d9"></div>
+      <form id="game-chat-form" style="display:grid;grid-template-columns:1fr auto;gap:6px;">
+        <input id="game-chat-input" maxlength="240" required placeholder="채팅 입력" style="padding:7px;border-radius:8px;border:1px solid #7eb5ff66;background:#143153;color:#eaf6ff;" />
+        <button type="submit" style="padding:7px 10px;border-radius:8px;border:1px solid #7eb5ff66;background:#19406a;color:#eaf6ff;">전송</button>
+      </form>
+      <p id="game-chat-status" style="margin:0;min-height:1.2em;color:#bce4ff"></p>
+    </div>
   `;
   document.body.appendChild(panel);
   return panel;
@@ -87,6 +92,8 @@ function setupGameChat(user) {
   const form = document.getElementById("game-chat-form");
   const input = document.getElementById("game-chat-input");
   const statusEl = document.getElementById("game-chat-status");
+  const bodyEl = document.getElementById("game-chat-body");
+  const toggleBtn = document.getElementById("game-chat-toggle");
 
   let username = normalizeUsername(user, "");
   let rankMap = new Map();
@@ -96,6 +103,28 @@ function setupGameChat(user) {
   let hb = null;
   let streamUnsubs = [];
   let streamsActive = false;
+  let collapsed = false;
+
+  function applyCollapsed(next) {
+    collapsed = next;
+    if (collapsed) {
+      bodyEl.style.display = "none";
+      panel.style.top = "auto";
+      panel.style.bottom = "10px";
+      panel.style.width = "126px";
+      panel.style.padding = "6px";
+      toggleBtn.textContent = "열기";
+      stopStreams();
+      return;
+    }
+    bodyEl.style.display = "grid";
+    panel.style.top = "56px";
+    panel.style.bottom = "10px";
+    panel.style.width = "320px";
+    panel.style.padding = "8px";
+    toggleBtn.textContent = "접기";
+    if (document.visibilityState === "visible") startStreams();
+  }
 
   const rankQ = query(collection(db, "users"), orderBy("points", "desc"), limit(100));
   async function refreshRank() {
@@ -258,8 +287,10 @@ function setupGameChat(user) {
 
   function onVisibility() {
     if (document.visibilityState === "visible") {
-      startStreams();
-      touchPresence(true).catch(() => {});
+      if (!collapsed) {
+        startStreams();
+        touchPresence(true).catch(() => {});
+      }
       return;
     }
     stopStreams();
@@ -270,8 +301,14 @@ function setupGameChat(user) {
     statusEl.textContent = "백그라운드 대기";
   }
 
+  toggleBtn.addEventListener("click", () => {
+    applyCollapsed(!collapsed);
+  });
+
+  const mobile = window.matchMedia("(max-width: 900px)").matches;
+  applyCollapsed(mobile);
   document.addEventListener("visibilitychange", onVisibility);
-  startStreams();
+  if (!mobile) startStreams();
 
   form.addEventListener("submit", async (e) => {
     e.preventDefault();
