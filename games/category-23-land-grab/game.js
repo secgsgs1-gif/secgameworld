@@ -59,7 +59,7 @@ function createDefaultTiles() {
     ownerUid: "",
     ownerName: "",
     price: BASE_PRICE,
-    updatedAt: null
+    updatedAtMs: 0
   }));
 }
 
@@ -242,7 +242,7 @@ async function buySelectedTile() {
         ownerUid: user.uid,
         ownerName: username,
         price: cost,
-        updatedAt: serverTimestamp()
+        updatedAtMs: Date.now()
       };
 
       tx.update(userRef, {
