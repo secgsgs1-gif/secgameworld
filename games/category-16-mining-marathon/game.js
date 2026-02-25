@@ -112,10 +112,13 @@ function maybeTriggerBurst(now) {
 
 function rewardForLap() {
   const roll = Math.random();
-  if (roll < 0.001) {
+  if (roll < 0.0001) {
+    return { points: 50000, jackpot: true, tier: "ultra" };
+  }
+  if (roll < 0.0011) {
     return { points: 10000, jackpot: true, tier: "mega" };
   }
-  if (roll < 0.011) {
+  if (roll < 0.0111) {
     return { points: 1000, jackpot: true, tier: "bonus" };
   }
   return { points: 20 + Math.floor(Math.random() * 121), jackpot: false, tier: "normal" };
@@ -246,7 +249,15 @@ async function grantLapReward() {
       lap: targetLap,
       jackpot: reward.jackpot
     });
-    if (reward.tier === "mega") {
+    if (reward.tier === "ultra") {
+      eventLogEl.textContent = `초대박! ${targetLap}바퀴 보상으로 +50000 포인트 지급`;
+      addDoc(collection(db, "live_chat_messages"), {
+        uid: user.uid,
+        username,
+        text: `${username}님이 채굴장 0.01% 확률 보상으로 ${reward.points} 포인트에 당첨됐습니다!`,
+        createdAt: serverTimestamp()
+      }).catch(() => {});
+    } else if (reward.tier === "mega") {
       eventLogEl.textContent = `대박! ${targetLap}바퀴 보상으로 +10000 포인트 지급`;
       addDoc(collection(db, "live_chat_messages"), {
         uid: user.uid,
