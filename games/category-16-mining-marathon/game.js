@@ -248,8 +248,20 @@ async function grantLapReward() {
     });
     if (reward.tier === "mega") {
       eventLogEl.textContent = `대박! ${targetLap}바퀴 보상으로 +10000 포인트 지급`;
+      addDoc(collection(db, "live_chat_messages"), {
+        uid: user.uid,
+        username,
+        text: `${username}님이 채굴장 0.1% 확률 보상으로 ${reward.points} 포인트에 당첨됐습니다!`,
+        createdAt: serverTimestamp()
+      }).catch(() => {});
     } else if (reward.tier === "bonus") {
       eventLogEl.textContent = `보너스! ${targetLap}바퀴 보상으로 +1000 포인트 지급`;
+      addDoc(collection(db, "live_chat_messages"), {
+        uid: user.uid,
+        username,
+        text: `${username}님이 채굴장 1.0% 확률 보상으로 ${reward.points} 포인트에 당첨됐습니다!`,
+        createdAt: serverTimestamp()
+      }).catch(() => {});
     } else {
       eventLogEl.textContent = `${targetLap}바퀴 달성! +${reward.points} 포인트 지급`;
     }
