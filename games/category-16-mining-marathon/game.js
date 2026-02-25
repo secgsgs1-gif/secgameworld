@@ -69,9 +69,9 @@ function maybeTriggerBurst(now) {
 
 function rewardForLap() {
   if (Math.random() < 0.001) {
-    return { points: 5000, jackpot: true };
+    return { points: 10000, jackpot: true };
   }
-  return { points: 4 + Math.floor(Math.random() * 3), jackpot: false };
+  return { points: 20 + Math.floor(Math.random() * 121), jackpot: false };
 }
 
 function renderTrack() {
@@ -197,7 +197,7 @@ async function grantLapReward() {
       jackpot: reward.jackpot
     });
     if (reward.jackpot) {
-      eventLogEl.textContent = `대박! ${lap}바퀴 보상으로 +5000 포인트 지급`;
+      eventLogEl.textContent = `대박! ${lap}바퀴 보상으로 +10000 포인트 지급`;
     } else {
       eventLogEl.textContent = `${lap}바퀴 달성! +${reward.points} 포인트 지급`;
     }
