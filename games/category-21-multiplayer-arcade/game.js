@@ -49,6 +49,20 @@ const spectatorListEl = document.getElementById("spectator-list");
 const turnLabelEl = document.getElementById("turn-label");
 const turnTimerEl = document.getElementById("turn-timer");
 const resultLabelEl = document.getElementById("result-label");
+const mjpPanelEl = document.getElementById("mjp-panel");
+const mjpRoundEl = document.getElementById("mjp-round");
+const mjpStageEl = document.getElementById("mjp-stage");
+const mjpMyPairEl = document.getElementById("mjp-my-pair");
+const mjpOppPairEl = document.getElementById("mjp-opp-pair");
+const mjpPickAEl = document.getElementById("mjp-pick-a");
+const mjpPickBEl = document.getElementById("mjp-pick-b");
+const mjpSubmitPairBtn = document.getElementById("mjp-submit-pair");
+const mjpFinalPickEl = document.getElementById("mjp-final-pick");
+const mjpSubmitFinalBtn = document.getElementById("mjp-submit-final");
+const mjpLastEl = document.getElementById("mjp-last");
+
+const MJP_CHOICES = ["rock", "paper", "scissors"];
+const MJP_LABEL = { rock: "Rock", paper: "Paper", scissors: "Scissors" };
 
 let user = null;
 let username = "";
@@ -193,6 +207,32 @@ function toInt(v, fallback = 0) {
   const n = Math.floor(Number(v || 0));
   if (!Number.isFinite(n)) return fallback;
   return n;
+}
+
+function fmtChoice(v) {
+  return MJP_LABEL[v] || "-";
+}
+
+function fmtChoicePair(arr) {
+  if (!Array.isArray(arr) || !arr.length) return "-";
+  return arr.map((v) => fmtChoice(v)).join(" / ");
+}
+
+function mjpCompare(blackPick, whitePick) {
+  if (!blackPick || !whitePick) return 0;
+  if (blackPick === whitePick) return 0;
+  if (
+    (blackPick === "rock" && whitePick === "scissors")
+    || (blackPick === "scissors" && whitePick === "paper")
+    || (blackPick === "paper" && whitePick === "rock")
+  ) return 1;
+  return -1;
+}
+
+function mjpStageLabel(stage) {
+  if (stage === "pair_pick") return "Pick 2";
+  if (stage === "final_pick") return "Pick 1";
+  return "-";
 }
 
 async function settleStakeAfterGame(roomId, winnerRole) {
@@ -413,9 +453,66 @@ function renderRoomList() {
   });
 }
 
+function applyMukjjiUi(room) {
+  if (!room || room.gameType !== "mukjjippa") {
+    mjpPanelEl.hidden = true;
+    return;
+  }
+  mjpPanelEl.hidden = false;
+  const role = myRole(room);
+  const canWatch = canWatchRoom(room);
+
+  const blackPair = Array.isArray(room.mjpBlackPair) ? room.mjpBlackPair : [];
+  const whitePair = Array.isArray(room.mjpWhitePair) ? room.mjpWhitePair : [];
+  const bothPairReady = blackPair.length === 2 && whitePair.length === 2;
+  const myPair = role === "black" ? blackPair : role === "white" ? whitePair : [];
+  const oppPair = role === "black" ? whitePair : role === "white" ? blackPair : [];
+  const myFinal = role === "black" ? String(room.mjpBlackFinal || "") : role === "white" ? String(room.mjpWhiteFinal || "") : "";
+  const stage = String(room.mjpStage || "pair_pick");
+
+  mjpRoundEl.textContent = String(toInt(room.mjpRound || 1, 1));
+  mjpStageEl.textContent = mjpStageLabel(stage);
+  mjpMyPairEl.textContent = canWatch ? fmtChoicePair(myPair) : "-";
+  mjpOppPairEl.textContent = (canWatch && (bothPairReady || room.status === "finished")) ? fmtChoicePair(oppPair) : "(hidden)";
+
+  const finalOptions = myPair.length === 2 ? [...new Set(myPair)] : [];
+  mjpFinalPickEl.innerHTML = "";
+  if (!finalOptions.length) {
+    const opt = document.createElement("option");
+    opt.value = "";
+    opt.textContent = "-";
+    mjpFinalPickEl.appendChild(opt);
+  } else {
+    finalOptions.forEach((pick) => {
+      const opt = document.createElement("option");
+      opt.value = pick;
+      opt.textContent = fmtChoice(pick);
+      mjpFinalPickEl.appendChild(opt);
+    });
+  }
+
+  const pairLocked = myPair.length === 2;
+  const canPair = canWatch && room.status === "playing" && (role === "black" || role === "white") && stage === "pair_pick" && !pairLocked;
+  const canFinal = canWatch && room.status === "playing" && (role === "black" || role === "white") && stage === "final_pick" && !myFinal && finalOptions.length > 0;
+  mjpPickAEl.disabled = !canPair;
+  mjpPickBEl.disabled = !canPair;
+  mjpSubmitPairBtn.disabled = !canPair;
+  mjpFinalPickEl.disabled = !canFinal;
+  mjpSubmitFinalBtn.disabled = !canFinal;
+
+  const last = room.mjpLastResult || null;
+  if (last && (last.blackPick || last.whitePick)) {
+    const winnerText = last.winner === "draw" ? "DRAW" : `${String(last.winner || "").toUpperCase()} WIN`;
+    mjpLastEl.textContent = `Last: B ${fmtChoice(last.blackPick)} vs W ${fmtChoice(last.whitePick)} → ${winnerText}`;
+  } else {
+    mjpLastEl.textContent = "-";
+  }
+}
+
 function applyRoomUi(room) {
   currentRoom = room;
   if (!room) {
+    canvas.style.display = "block";
     roomNameEl.textContent = "Select a room";
     roomMetaEl.textContent = "-";
     myModeEl.textContent = "-";
@@ -432,11 +529,15 @@ function applyRoomUi(room) {
       b.disabled = true;
     });
     drawBoard(null);
+    applyMukjjiUi(null);
     return;
   }
 
   const role = myRole(room);
   const canWatch = canWatchRoom(room);
+  const isGomoku = room.gameType === "gomoku";
+  const isMukjji = room.gameType === "mukjjippa";
+  canvas.style.display = isGomoku ? "block" : "none";
   roomNameEl.textContent = room.title || "(Untitled)";
   roomMetaEl.textContent = `${roomStatusLabel(room)} · ${room.gameType || "gomoku"} · Host: ${normalizeUsername(user, room.hostName, room.hostUid)}`;
   myModeEl.textContent = role;
@@ -447,8 +548,8 @@ function applyRoomUi(room) {
   const agreedW = room.stakeAcceptedWhite ? "OK" : "-";
   stakeLabelEl.textContent = `${stakeAmount} pts`;
   stakeAgreeEl.textContent = `B:${agreedB} / W:${agreedW}`;
-  turnLabelEl.textContent = canWatch ? (room.turn ? room.turn.toUpperCase() : "-") : "-";
-  if (canWatch && room.status === "playing") {
+  turnLabelEl.textContent = isGomoku ? (canWatch ? (room.turn ? room.turn.toUpperCase() : "-") : "-") : "-";
+  if (isGomoku && canWatch && room.status === "playing") {
     const startedMs = tsToMs(room.turnStartedAt);
     const limitSec = Math.max(1, toInt(room.turnLimitSec || TURN_LIMIT_SEC));
     const remainSec = Math.max(0, limitSec - Math.floor((Date.now() - startedMs) / 1000));
@@ -485,12 +586,18 @@ function applyRoomUi(room) {
   surrenderBtn.disabled = !(room.status === "playing" && (role === "black" || role === "white"));
   leaveBtn.disabled = false;
 
-  if (canWatch) drawBoard(room);
-  else drawBoard(null);
+  if (isGomoku && canWatch) drawBoard(room);
+  else if (isGomoku) drawBoard(null);
+  if (isMukjji) applyMukjjiUi(room);
+  else applyMukjjiUi(null);
 }
 
 function refreshTurnTimerUi() {
   if (!currentRoom) {
+    turnTimerEl.textContent = "-";
+    return;
+  }
+  if (currentRoom.gameType !== "gomoku") {
     turnTimerEl.textContent = "-";
     return;
   }
@@ -627,6 +734,35 @@ async function startMatch() {
 
     tx.update(blackRef, { points: blackPoints - stakeAmount, updatedAt: serverTimestamp() });
     tx.update(whiteRef, { points: whitePoints - stakeAmount, updatedAt: serverTimestamp() });
+    if (room.gameType === "mukjjippa") {
+      tx.update(ref, {
+        status: "playing",
+        board: EMPTY_BOARD,
+        turn: "",
+        turnLimitSec: deleteField(),
+        turnStartedAt: deleteField(),
+        winner: "",
+        moveCount: 0,
+        lastMove: null,
+        mjpRound: 1,
+        mjpStage: "pair_pick",
+        mjpBlackPair: [],
+        mjpWhitePair: [],
+        mjpBlackFinal: "",
+        mjpWhiteFinal: "",
+        mjpLastResult: deleteField(),
+        stakeLocked: true,
+        stakePayoutDone: false,
+        stakeNetPayout: 0,
+        stakeFee: 0,
+        stakeWinnerUid: "",
+        startedAt: serverTimestamp(),
+        finishedAt: deleteField(),
+        updatedAt: serverTimestamp()
+      });
+      return;
+    }
+
     tx.update(ref, {
       status: "playing",
       board: EMPTY_BOARD,
@@ -636,12 +772,20 @@ async function startMatch() {
       winner: "",
       moveCount: 0,
       lastMove: null,
+      mjpRound: deleteField(),
+      mjpStage: deleteField(),
+      mjpBlackPair: deleteField(),
+      mjpWhitePair: deleteField(),
+      mjpBlackFinal: deleteField(),
+      mjpWhiteFinal: deleteField(),
+      mjpLastResult: deleteField(),
       stakeLocked: true,
       stakePayoutDone: false,
       stakeNetPayout: 0,
       stakeFee: 0,
       stakeWinnerUid: "",
       startedAt: serverTimestamp(),
+      finishedAt: deleteField(),
       updatedAt: serverTimestamp()
     });
   });
@@ -758,6 +902,7 @@ async function surrender() {
 async function handleTurnTimeout() {
   if (timeoutBusy) return;
   if (!currentRoomId || !currentRoom) return;
+  if (currentRoom.gameType !== "gomoku") return;
   if (currentRoom.status !== "playing") return;
   if (!canWatchRoom(currentRoom)) return;
 
@@ -829,6 +974,13 @@ async function maybeAutoResetFinishedRoom() {
         timeoutLose: deleteField(),
         finishedAt: deleteField(),
         startedAt: deleteField(),
+        mjpRound: deleteField(),
+        mjpStage: deleteField(),
+        mjpBlackPair: deleteField(),
+        mjpWhitePair: deleteField(),
+        mjpBlackFinal: deleteField(),
+        mjpWhiteFinal: deleteField(),
+        mjpLastResult: deleteField(),
         stakeAcceptedBlack: false,
         stakeAcceptedWhite: false,
         stakeLocked: false,
@@ -894,6 +1046,108 @@ async function placeStone(x, y) {
     }
     tx.update(ref, nextData);
   });
+  if (gameWinner) {
+    settleStakeAfterGame(currentRoomId, gameWinner).catch((err) => {
+      statusEl.textContent = `Stake settlement pending: ${err.message}`;
+    });
+  }
+}
+
+async function submitMukjjiPair() {
+  if (!currentRoomId || !currentRoom) return;
+  if (currentRoom.gameType !== "mukjjippa") return;
+  const pickA = String(mjpPickAEl.value || "");
+  const pickB = String(mjpPickBEl.value || "");
+  if (!MJP_CHOICES.includes(pickA) || !MJP_CHOICES.includes(pickB)) throw new Error("Invalid picks");
+  if (pickA === pickB) throw new Error("Pick A and B must be different");
+
+  const ref = doc(db, "mp_rooms", currentRoomId);
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists()) throw new Error("Room not found");
+    const room = snap.data();
+    if (room.gameType !== "mukjjippa") throw new Error("Not Mukjji-ppa room");
+    if (room.status !== "playing") throw new Error("Game not in progress");
+    if (room.mjpStage !== "pair_pick") throw new Error("Now waiting for final pick stage");
+    const role = room.blackUid === user.uid ? "black" : room.whiteUid === user.uid ? "white" : "spectator";
+    if (role === "spectator") throw new Error("Only players can submit");
+
+    const myPairField = role === "black" ? "mjpBlackPair" : "mjpWhitePair";
+    const oppPair = role === "black" ? (Array.isArray(room.mjpWhitePair) ? room.mjpWhitePair : []) : (Array.isArray(room.mjpBlackPair) ? room.mjpBlackPair : []);
+    const myPair = Array.isArray(room[myPairField]) ? room[myPairField] : [];
+    if (myPair.length === 2) throw new Error("Pair already submitted");
+
+    const next = {
+      [myPairField]: [pickA, pickB],
+      updatedAt: serverTimestamp()
+    };
+    if (oppPair.length === 2) {
+      next.mjpStage = "final_pick";
+      next.mjpBlackFinal = "";
+      next.mjpWhiteFinal = "";
+    }
+    tx.update(ref, next);
+  });
+}
+
+async function submitMukjjiFinal() {
+  if (!currentRoomId || !currentRoom) return;
+  if (currentRoom.gameType !== "mukjjippa") return;
+  const pick = String(mjpFinalPickEl.value || "");
+  if (!MJP_CHOICES.includes(pick)) throw new Error("Invalid final pick");
+
+  const ref = doc(db, "mp_rooms", currentRoomId);
+  let gameWinner = "";
+  await runTransaction(db, async (tx) => {
+    const snap = await tx.get(ref);
+    if (!snap.exists()) throw new Error("Room not found");
+    const room = snap.data();
+    if (room.gameType !== "mukjjippa") throw new Error("Not Mukjji-ppa room");
+    if (room.status !== "playing") throw new Error("Game not in progress");
+    if (room.mjpStage !== "final_pick") throw new Error("Now waiting for pair stage");
+    const role = room.blackUid === user.uid ? "black" : room.whiteUid === user.uid ? "white" : "spectator";
+    if (role === "spectator") throw new Error("Only players can submit");
+
+    const myPair = role === "black" ? (Array.isArray(room.mjpBlackPair) ? room.mjpBlackPair : []) : (Array.isArray(room.mjpWhitePair) ? room.mjpWhitePair : []);
+    if (!myPair.includes(pick)) throw new Error("Final pick must be one of your pair");
+    const myFinalField = role === "black" ? "mjpBlackFinal" : "mjpWhiteFinal";
+    const myExisting = String(room[myFinalField] || "");
+    if (myExisting) throw new Error("Final pick already submitted");
+
+    const nextBlack = role === "black" ? pick : String(room.mjpBlackFinal || "");
+    const nextWhite = role === "white" ? pick : String(room.mjpWhiteFinal || "");
+    const nextData = {
+      [myFinalField]: pick,
+      updatedAt: serverTimestamp()
+    };
+
+    if (nextBlack && nextWhite) {
+      const cmp = mjpCompare(nextBlack, nextWhite);
+      const roundNo = toInt(room.mjpRound || 1, 1);
+      nextData.mjpLastResult = {
+        round: roundNo,
+        blackPick: nextBlack,
+        whitePick: nextWhite,
+        winner: cmp === 0 ? "draw" : (cmp > 0 ? "black" : "white")
+      };
+      if (cmp === 0) {
+        nextData.mjpRound = roundNo + 1;
+        nextData.mjpStage = "pair_pick";
+        nextData.mjpBlackPair = [];
+        nextData.mjpWhitePair = [];
+        nextData.mjpBlackFinal = "";
+        nextData.mjpWhiteFinal = "";
+      } else {
+        gameWinner = cmp > 0 ? "black" : "white";
+        nextData.status = "finished";
+        nextData.winner = gameWinner;
+        nextData.turn = "";
+        nextData.finishedAt = serverTimestamp();
+      }
+    }
+    tx.update(ref, nextData);
+  });
+
   if (gameWinner) {
     settleStakeAfterGame(currentRoomId, gameWinner).catch((err) => {
       statusEl.textContent = `Stake settlement pending: ${err.message}`;
@@ -980,6 +1234,16 @@ function init() {
   surrenderBtn.addEventListener("click", () => {
     surrender().catch((err) => {
       statusEl.textContent = `Surrender failed: ${err.message}`;
+    });
+  });
+  mjpSubmitPairBtn.addEventListener("click", () => {
+    submitMukjjiPair().catch((err) => {
+      statusEl.textContent = `Mukjji pair failed: ${err.message}`;
+    });
+  });
+  mjpSubmitFinalBtn.addEventListener("click", () => {
+    submitMukjjiFinal().catch((err) => {
+      statusEl.textContent = `Mukjji final failed: ${err.message}`;
     });
   });
   canvas.addEventListener("click", onBoardClick);

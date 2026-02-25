@@ -15,6 +15,7 @@
       <input id="room-title" maxlength="40" placeholder="Room title" />
       <select id="game-type">
         <option value="gomoku" selected>Gomoku</option>
+        <option value="mukjjippa">Mukjji-ppa</option>
       </select>
       <button id="create-room-btn" type="button">Create Room</button>
       <p id="status" class="status"></p>
@@ -45,6 +46,35 @@
 
         <section class="game-panel">
           <canvas id="gomoku-board" width="600" height="600" aria-label="Gomoku Board"></canvas>
+          <section id="mjp-panel" class="mjp-panel" hidden>
+            <h3>Mukjji-ppa Arena</h3>
+            <p>Round: <strong id="mjp-round">-</strong></p>
+            <p>Stage: <strong id="mjp-stage">-</strong></p>
+            <p>My Pair: <strong id="mjp-my-pair">-</strong></p>
+            <p>Opponent Pair: <strong id="mjp-opp-pair">-</strong></p>
+            <div class="mjp-controls">
+              <label>Pick A
+                <select id="mjp-pick-a">
+                  <option value="rock">Rock</option>
+                  <option value="paper">Paper</option>
+                  <option value="scissors">Scissors</option>
+                </select>
+              </label>
+              <label>Pick B
+                <select id="mjp-pick-b">
+                  <option value="rock">Rock</option>
+                  <option value="paper">Paper</option>
+                  <option value="scissors">Scissors</option>
+                </select>
+              </label>
+              <button id="mjp-submit-pair" type="button">Submit Pair</button>
+              <label>Final Pick
+                <select id="mjp-final-pick"></select>
+              </label>
+              <button id="mjp-submit-final" type="button">Submit Final</button>
+            </div>
+            <p id="mjp-last" class="mjp-last">-</p>
+          </section>
           <div class="game-info">
             <p>Mode: <strong id="my-mode">-</strong></p>
             <p>Black: <strong id="black-player">-</strong></p>
@@ -67,6 +97,6 @@
   <script>window.APP_ROOT = "../../";</script>
   <script type="module" src="../../shared/auth-guard.js?v=20260224m"></script>
   <script type="module" src="../../shared/game-access.js?v=20260225c"></script>
-  <script type="module" src="game.js?v=20260225h"></script>
+  <script type="module" src="game.js?v=20260225i"></script>
 </body>
 </html>

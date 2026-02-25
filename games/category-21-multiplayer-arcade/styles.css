@@ -145,6 +145,58 @@ canvas {
   background: #d6ba7b;
 }
 
+.mjp-panel {
+  width: 100%;
+  max-width: 620px;
+  border-radius: 10px;
+  border: 1px solid #97c2ff66;
+  background: linear-gradient(165deg, #223856, #1c2f47);
+  padding: 14px;
+}
+
+.mjp-panel h3 {
+  margin: 0 0 10px;
+}
+
+.mjp-panel p {
+  margin: 0 0 8px;
+}
+
+.mjp-controls {
+  margin-top: 8px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.mjp-controls label,
+.mjp-controls button {
+  border: 1px solid #97c2ff66;
+  border-radius: 8px;
+  background: #1b324f;
+  color: #eaf4ff;
+  padding: 8px 10px;
+}
+
+.mjp-controls label {
+  display: grid;
+  gap: 6px;
+}
+
+.mjp-controls select {
+  border: 1px solid #97c2ff66;
+  border-radius: 8px;
+  background: #17314e;
+  color: #eaf4ff;
+  padding: 7px 8px;
+}
+
+.mjp-last {
+  margin-top: 10px;
+  min-height: 1.2em;
+  color: #cde5ff;
+}
+
 .game-info {
   border: 1px solid #97c2ff4d;
   border-radius: 10px;
@@ -187,6 +239,9 @@ a {
     grid-template-columns: 1fr;
   }
   .game-panel {
+    grid-template-columns: 1fr;
+  }
+  .mjp-controls {
     grid-template-columns: 1fr;
   }
 }
