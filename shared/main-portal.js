@@ -1,5 +1,5 @@
 import { logOut } from "./auth.js?v=20260224m";
-import { claimDailyCheckIn, watchUserProfile } from "./points.js?v=20260225b";
+import { claimDailyCheckIn, watchUserProfile } from "./points.js?v=20260226a";
 
 let unsub = null;
 
@@ -24,8 +24,8 @@ function mountUI(user) {
   checkInBtn.onclick = async () => {
     checkInBtn.disabled = true;
     try {
-      const result = await claimDailyCheckIn(user.uid, 500);
-      messageEl.textContent = result.granted ? "출석 완료: +500 포인트" : "오늘은 이미 출석 완료";
+      const result = await claimDailyCheckIn(user.uid, 2000);
+      messageEl.textContent = result.granted ? "출석 완료: +2000 포인트" : "오늘은 이미 출석 완료";
     } catch (e) {
       messageEl.textContent = `출석 오류: ${e.message}`;
     } finally {

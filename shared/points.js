@@ -24,7 +24,7 @@ export function watchUserProfile(uid, callback) {
   });
 }
 
-export async function claimDailyCheckIn(uid, reward = 500) {
+export async function claimDailyCheckIn(uid, reward = 2000) {
   const userRef = doc(db, "users", uid);
   const txRef = collection(db, "users", uid, "transactions");
   const today = todayKey();
