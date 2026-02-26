@@ -216,8 +216,10 @@ async function settleLandGrabTitleBySchedule() {
     const state = stateSnap.exists() ? stateSnap.data() : {};
     const daySnap = await tx.get(dayRef);
     const dayData = daySnap.exists() ? (daySnap.data() || {}) : {};
+    const lastResetAtSlotId = String(dayData.lastResetAtSlotId || "");
     const alreadyResetByDay = String(dayData.lastResetAtSlotId || "") === slot.slotId;
-    if (state.lastSettledSlotId === slot.slotId || alreadyResetByDay) return;
+    const alreadyDidAfternoonReset = slot.slotLabel !== "17:00 KST" && !!lastResetAtSlotId;
+    if (state.lastSettledSlotId === slot.slotId || alreadyResetByDay || alreadyDidAfternoonReset) return;
 
     const winner = daySnap.exists() ? pickLandWinner(dayData.tiles) : null;
     const prevHolderUid = String(state.currentHolderUid || "");
