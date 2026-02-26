@@ -9,7 +9,6 @@ import {
 import { db } from "../../shared/firebase-app.js?v=20260224m";
 
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
-const DAY_MS = 86400000;
 const SETTLE_MINUTES = 17 * 60;
 
 const pointsEl = document.getElementById("points");
@@ -28,6 +27,8 @@ let dayUnsub = null;
 let currentState = null;
 let busy = false;
 let clockTimer = null;
+let currentRoundKey = "";
+let roundSyncBusy = false;
 
 function esc(text) {
   return String(text)
@@ -65,23 +66,30 @@ function withTitle(name, titleTag) {
   return `${tag} ${base}`;
 }
 
-function nowKstContext(nowMs = Date.now()) {
+function nowKstRoundContext(nowMs = Date.now()) {
   const kstDate = new Date(nowMs + KST_OFFSET_MS);
-  const dayKey = kstDate.toISOString().slice(0, 10);
   const minutes = (kstDate.getUTCHours() * 60) + kstDate.getUTCMinutes();
-  const settleAtMs = Date.UTC(
+  const settleDate = new Date(Date.UTC(
     kstDate.getUTCFullYear(),
     kstDate.getUTCMonth(),
     kstDate.getUTCDate(),
+    0,
+    0,
+    0
+  ));
+  if (minutes >= SETTLE_MINUTES) settleDate.setUTCDate(settleDate.getUTCDate() + 1);
+  const roundKey = settleDate.toISOString().slice(0, 10);
+  const settleAtMs = Date.UTC(
+    settleDate.getUTCFullYear(),
+    settleDate.getUTCMonth(),
+    settleDate.getUTCDate(),
     Math.floor(SETTLE_MINUTES / 60),
     SETTLE_MINUTES % 60,
     0,
     0
   ) - KST_OFFSET_MS;
   return {
-    dayKey,
-    minutes,
-    canDonate: minutes < SETTLE_MINUTES,
+    roundKey,
     settleAtMs
   };
 }
@@ -109,7 +117,7 @@ function sortRows(rows) {
   return [...rows].sort((a, b) => (b.amount - a.amount) || a.uid.localeCompare(b.uid));
 }
 
-async function ensureTodayDoc() {
+async function ensureRoundDoc() {
   if (!dayRef) return;
   await runTransaction(db, async (tx) => {
     const snap = await tx.get(dayRef);
@@ -146,33 +154,21 @@ function renderMyDonation(state) {
   const donations = state?.donations && typeof state.donations === "object" ? state.donations : {};
   const mine = donations[user.uid];
   if (!mine) {
-    myDonationEl.textContent = "내 오늘 기부: 없음";
+    myDonationEl.textContent = "내 현재 라운드 기부: 없음";
     return;
   }
-  myDonationEl.textContent = `내 오늘 기부: ${Math.max(0, Number(mine.amount || 0))} pts`;
+  myDonationEl.textContent = `내 현재 라운드 기부: ${Math.max(0, Number(mine.amount || 0))} pts`;
 }
 
 function renderClock() {
-  const c = nowKstContext();
-  const now = Date.now();
-  const remainMs = c.canDonate
-    ? Math.max(0, c.settleAtMs - now)
-    : Math.max(0, (c.settleAtMs + DAY_MS) - now);
-
-  countdownEl.textContent = msToClockLabel(remainMs);
-  donateBtn.disabled = busy || !c.canDonate;
-  if (!c.canDonate && !busy) {
-    statusEl.textContent = "정산 완료 시간대입니다. 다음 날 00:00(KST)부터 다시 기부 가능.";
-  }
+  const c = nowKstRoundContext();
+  countdownEl.textContent = msToClockLabel(Math.max(0, c.settleAtMs - Date.now()));
+  donateBtn.disabled = busy;
 }
 
 async function donateOnce() {
   if (busy || !dayRef || !user) return;
-  const c = nowKstContext();
-  if (!c.canDonate) {
-    statusEl.textContent = "17:00 정산 이후에는 오늘 추가 기부가 불가합니다.";
-    return;
-  }
+  await syncRoundIfNeeded();
 
   const amount = Math.max(0, Math.floor(Number(amountEl.value) || 0));
   if (amount <= 0) {
@@ -225,7 +221,7 @@ async function donateOnce() {
       createdAt: serverTimestamp()
     });
 
-    statusEl.textContent = `${amount} pts 기부 완료. 오늘은 추가 기부 불가.`;
+    statusEl.textContent = `${amount} pts 기부 완료. 이번 라운드에서는 추가 기부 불가.`;
   } catch (err) {
     statusEl.textContent = `기부 실패: ${err.message}`;
   } finally {
@@ -254,12 +250,7 @@ function startStreams() {
 }
 
 async function init() {
-  const ctx = nowKstContext();
-  dayKeyEl.textContent = ctx.dayKey;
-  dayRef = doc(db, "donation_days", ctx.dayKey);
-
-  await ensureTodayDoc();
-  startStreams();
+  await syncRoundIfNeeded();
 
   donateBtn.addEventListener("click", () => {
     donateOnce().catch(() => {});
@@ -268,8 +259,27 @@ async function init() {
   renderClock();
   if (clockTimer) clearInterval(clockTimer);
   clockTimer = setInterval(() => {
+    syncRoundIfNeeded().catch((err) => {
+      statusEl.textContent = `라운드 전환 실패: ${err.message}`;
+    });
     renderClock();
   }, 1000);
+}
+
+async function syncRoundIfNeeded() {
+  if (roundSyncBusy) return;
+  const ctx = nowKstRoundContext();
+  if (ctx.roundKey === currentRoundKey && dayRef) return;
+  roundSyncBusy = true;
+  try {
+    currentRoundKey = ctx.roundKey;
+    dayKeyEl.textContent = currentRoundKey;
+    dayRef = doc(db, "donation_days", currentRoundKey);
+    await ensureRoundDoc();
+    startStreams();
+  } finally {
+    roundSyncBusy = false;
+  }
 }
 
 function boot(nextUser) {

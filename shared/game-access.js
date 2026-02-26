@@ -21,7 +21,6 @@ const DONATION_KING_TAG = "[기부왕]";
 const LAND_TITLE_DISCOUNT_RATE = 0.05;
 const DONATION_CASHBACK_RATE = 0.05;
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
-const DAY_MS = 86400000;
 const LAND_SETTLE_NOON_MINUTES = 15 * 60;
 const LAND_SETTLE_EVENING_MINUTES = 17 * 60;
 const TAG_ALIASES = [
@@ -207,6 +206,13 @@ function donationSettlementContext(nowMs = Date.now()) {
   };
 }
 
+function nextDayKey(dayKey) {
+  const base = new Date(`${dayKey}T00:00:00Z`);
+  if (Number.isNaN(base.getTime())) return dayKey;
+  base.setUTCDate(base.getUTCDate() + 1);
+  return base.toISOString().slice(0, 10);
+}
+
 async function settleLandGrabTitleBySchedule() {
   const slot = landSettlementContext();
   if (!slot) return;
@@ -273,6 +279,8 @@ async function settleDonationTitleBySchedule() {
   const slot = donationSettlementContext();
   if (!slot) return;
   const dayRef = doc(db, "donation_days", slot.dayKey);
+  const nextRoundKey = nextDayKey(slot.dayKey);
+  const nextRoundRef = doc(db, "donation_days", nextRoundKey);
   const stateRef = doc(db, "donation_meta", "title_state");
 
   await runTransaction(db, async (tx) => {
@@ -306,6 +314,16 @@ async function settleDonationTitleBySchedule() {
           updatedAt: serverTimestamp()
         });
       }
+    }
+
+    const nextRoundSnap = await tx.get(nextRoundRef);
+    if (!nextRoundSnap.exists()) {
+      tx.set(nextRoundRef, {
+        dayKey: nextRoundKey,
+        donations: {},
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
     }
 
     tx.set(stateRef, {
