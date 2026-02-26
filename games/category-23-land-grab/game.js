@@ -48,10 +48,27 @@ function todayKeyKst() {
   return now.toISOString().slice(0, 10);
 }
 
-function previousDayKeyKst() {
-  const now = Date.now() + (9 * 60 * 60 * 1000);
-  const prev = new Date(now - 86400000);
-  return prev.toISOString().slice(0, 10);
+function settlementContextKst(nowMs = Date.now()) {
+  const kstMs = nowMs + (9 * 60 * 60 * 1000);
+  const kstDate = new Date(kstMs);
+  const dayKey = kstDate.toISOString().slice(0, 10);
+  const minutes = kstDate.getUTCHours() * 60 + kstDate.getUTCMinutes();
+
+  if (minutes < 12 * 60) return null;
+  if (minutes < 17 * 60) {
+    return {
+      dayKey,
+      slotNo: 1,
+      slotId: `${dayKey}-S1`,
+      slotLabel: "12:00 KST"
+    };
+  }
+  return {
+    dayKey,
+    slotNo: 2,
+    slotId: `${dayKey}-S2`,
+    slotLabel: "17:00 KST"
+  };
 }
 
 function normalizeUsername(currentUser, rawName) {
@@ -99,18 +116,20 @@ function pickDailyWinner(tiles) {
   return rows[0] || null;
 }
 
-async function settlePreviousDayTitle() {
-  const prevKey = previousDayKeyKst();
-  const prevRef = doc(db, "land_grab_days", prevKey);
+async function settleTitleBySchedule() {
+  const slot = settlementContextKst();
+  if (!slot) return;
+
+  const dayRefForSettle = doc(db, "land_grab_days", slot.dayKey);
   const stateRef = doc(db, "land_grab_meta", "title_state");
 
   await runTransaction(db, async (tx) => {
     const stateSnap = await tx.get(stateRef);
     const state = stateSnap.exists() ? stateSnap.data() : {};
-    if (state.lastSettledDay === prevKey) return;
+    if (state.lastSettledSlotId === slot.slotId) return;
 
-    const prevSnap = await tx.get(prevRef);
-    const winner = prevSnap.exists() ? pickDailyWinner(prevSnap.data()?.tiles) : null;
+    const daySnap = await tx.get(dayRefForSettle);
+    const winner = daySnap.exists() ? pickDailyWinner(daySnap.data()?.tiles) : null;
     const prevHolderUid = String(state.currentHolderUid || "");
 
     if (prevHolderUid && prevHolderUid !== (winner?.uid || "")) {
@@ -138,7 +157,10 @@ async function settlePreviousDayTitle() {
     }
 
     tx.set(stateRef, {
-      lastSettledDay: prevKey,
+      lastSettledDay: slot.dayKey,
+      lastSettledSlotNo: slot.slotNo,
+      lastSettledSlotId: slot.slotId,
+      lastSettledSlotLabel: slot.slotLabel,
       currentHolderUid: winner?.uid || "",
       currentHolderName: winner?.name || "",
       titleTag: winner?.uid ? TITLE_TAG : "",
@@ -324,11 +346,11 @@ function startStreams() {
 }
 
 async function init() {
-  await settlePreviousDayTitle().catch(() => {});
   const key = todayKeyKst();
   dayKeyEl.textContent = key;
   dayRef = doc(db, "land_grab_days", key);
   await ensureTodayDoc();
+  await settleTitleBySchedule().catch(() => {});
   startStreams();
 
   buyBtn.addEventListener("click", () => {
