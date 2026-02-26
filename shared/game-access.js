@@ -193,15 +193,15 @@ function landSettlementContext(nowMs = Date.now()) {
   if (c.minutes < LAND_SETTLE_EVENING_MINUTES) {
     return {
       dayKey: c.dayKey,
-      slotNo: 2,
-      slotId: `${c.dayKey}-S2`,
+      slotNo: 1,
+      slotId: `${c.dayKey}-S1`,
       slotLabel: "15:30 KST"
     };
   }
   return {
     dayKey: c.dayKey,
-    slotNo: 3,
-    slotId: `${c.dayKey}-S3`,
+    slotNo: 2,
+    slotId: `${c.dayKey}-S2`,
     slotLabel: "17:00 KST"
   };
 }
