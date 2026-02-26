@@ -74,9 +74,9 @@ function blockForDepth(y, seed) {
   if (y < SKY_ROWS) return null;
   const depth = y - SKY_ROWS;
   const r = seed % 1000;
-  if (depth > 20 && r < 3) return "aether";
-  if (depth > 18 && r < 9) return "mythril";
-  if (depth > 20 && r < 24) return "diamond";
+  if (depth > 20 && r < 6) return "aether";
+  if (depth > 18 && r < 18) return "mythril";
+  if (depth > 20 && r < 48) return "diamond";
   if (depth > 14 && r < 55) return "gold";
   if (depth > 9 && r < 130) return "iron";
   if (depth > 4 && r < 260) return "coal";
