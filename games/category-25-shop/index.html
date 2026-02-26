@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Shop</title>
+  <link rel="stylesheet" href="styles.css?v=20260226a" />
+</head>
+<body>
+  <main class="shell">
+    <h1>Shop</h1>
+    <p>포인트로 아이템을 구매할 수 있습니다.</p>
+
+    <section class="summary">
+      <p>내 포인트: <strong id="points">0</strong></p>
+      <p>현재 닉네임: <strong id="username">-</strong></p>
+    </section>
+
+    <section class="shop-grid">
+      <article class="item-card">
+        <img class="item-image" src="./assets/nickname-change-ticket.svg" alt="닉네임 변경권" />
+        <h2>닉네임 변경권</h2>
+        <p class="item-desc">구매 즉시 닉네임 변경 창이 열립니다.</p>
+        <p class="item-price">가격: <strong>50,000 P</strong></p>
+        <button id="buy-nickname-btn" type="button">구매 후 닉네임 변경</button>
+      </article>
+    </section>
+
+    <p id="status" class="status">구매할 아이템을 선택하세요.</p>
+    <a href="../../index.html">Back to Home</a>
+  </main>
+
+  <div id="nickname-modal" class="modal" hidden>
+    <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="nickname-modal-title">
+      <h3 id="nickname-modal-title">닉네임 변경</h3>
+      <p>새 닉네임을 입력하고 변경완료를 누르세요.</p>
+      <input id="nickname-input" type="text" maxlength="20" placeholder="2~20자, 한글/영문/숫자/_" />
+      <div class="modal-actions">
+        <button id="nickname-confirm-btn" type="button">변경완료</button>
+        <button id="nickname-cancel-btn" type="button">취소</button>
+      </div>
+      <p id="modal-status" class="modal-status"></p>
+    </div>
+  </div>
+
+  <script>window.APP_ROOT = "../../";</script>
+  <script type="module" src="../../shared/auth-guard.js?v=20260224m"></script>
+  <script type="module" src="../../shared/game-access.js?v=20260226x"></script>
+  <script type="module" src="game.js?v=20260226a"></script>
+</body>
+</html>

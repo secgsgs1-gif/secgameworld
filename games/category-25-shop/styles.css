@@ -1,0 +1,133 @@
+:root {
+  --bg: #0a1321;
+  --panel: #132036;
+  --line: #3a6796;
+  --text: #eef7ff;
+  --mint: #6ef0c2;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: radial-gradient(circle at 20% 10%, #1f3f76 0%, transparent 35%), linear-gradient(150deg, #06101d, #12233e);
+  color: var(--text);
+  font-family: "Space Grotesk", sans-serif;
+}
+
+.shell {
+  width: min(980px, 95vw);
+  margin: 20px auto;
+  padding: 18px;
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  background: rgba(8, 18, 32, 0.9);
+}
+
+.summary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+  margin-bottom: 14px;
+}
+
+.summary p {
+  margin: 0;
+  padding: 8px 10px;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: #10223b;
+}
+
+.shop-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+  gap: 12px;
+}
+
+.item-card {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--panel);
+  padding: 12px;
+}
+
+.item-image {
+  width: 100%;
+  max-width: 220px;
+  height: 140px;
+  display: block;
+  margin: 0 auto 10px;
+  border-radius: 10px;
+  border: 1px solid #4a8fcc;
+  background: #0d1a2c;
+}
+
+.item-card h2 {
+  margin: 0 0 8px;
+}
+
+.item-desc,
+.item-price {
+  margin: 0 0 8px;
+}
+
+button {
+  border: 1px solid #5aa8d4;
+  border-radius: 10px;
+  background: #1a3557;
+  color: #eff8ff;
+  padding: 10px 12px;
+  cursor: pointer;
+}
+
+.status {
+  margin-top: 12px;
+  min-height: 1.2em;
+  color: #bfe2ff;
+}
+
+.modal {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  display: grid;
+  place-items: center;
+  padding: 12px;
+  z-index: 10000;
+}
+
+.modal-box {
+  width: min(420px, 94vw);
+  border: 1px solid #5ca3ca;
+  border-radius: 12px;
+  background: #10233c;
+  padding: 14px;
+}
+
+.modal-box h3,
+.modal-box p {
+  margin: 0 0 10px;
+}
+
+#nickname-input {
+  width: 100%;
+  border: 1px solid #5ca3ca;
+  border-radius: 10px;
+  background: #0d1c30;
+  color: #f0f9ff;
+  padding: 10px;
+}
+
+.modal-actions {
+  margin-top: 10px;
+  display: flex;
+  gap: 8px;
+}
+
+.modal-status {
+  margin-top: 10px;
+  min-height: 1.2em;
+  color: #d2ebff;
+}
