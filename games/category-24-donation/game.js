@@ -13,6 +13,8 @@ const DONATION_CASHBACK_RATE = 0.05;
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 const DAY_MS = 86400000;
 const SETTLE_MINUTES = 17 * 60;
+const SETTLE_WINDOW_START_OFFSET_MIN = -2; // 16:58
+const SETTLE_WINDOW_END_OFFSET_MIN = 3; // 17:03
 
 const pointsEl = document.getElementById("points");
 const dayKeyEl = document.getElementById("day-key");
@@ -84,6 +86,13 @@ function nowKstContext(nowMs = Date.now()) {
   };
 }
 
+function shouldAttemptSettlement(nowMs = Date.now()) {
+  const c = nowKstContext(nowMs);
+  const start = SETTLE_MINUTES + SETTLE_WINDOW_START_OFFSET_MIN;
+  const end = SETTLE_MINUTES + SETTLE_WINDOW_END_OFFSET_MIN;
+  return c.minutes >= start && c.minutes <= end;
+}
+
 function msToClockLabel(ms) {
   const safe = Math.max(0, Math.floor(ms / 1000));
   const h = String(Math.floor(safe / 3600)).padStart(2, "0");
@@ -127,6 +136,7 @@ async function ensureTodayDoc() {
 }
 
 async function settleDonationTitle() {
+  if (!shouldAttemptSettlement()) return;
   const c = nowKstContext();
   if (c.canDonate) return;
 

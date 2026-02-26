@@ -42,6 +42,8 @@ const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 const DAY_MS = 86400000;
 const LAND_SETTLE_NOON_MINUTES = 12 * 60;
 const LAND_SETTLE_EVENING_MINUTES = 17 * 60;
+const SETTLE_WINDOW_START_OFFSET_MIN = -2; // 11:58 / 16:58
+const SETTLE_WINDOW_END_OFFSET_MIN = 3; // 12:03 / 17:03
 const LAND_SETTLE_POLL_MS = 30000;
 let landSettlementTimer = null;
 let landSettlementBusy = false;
@@ -128,6 +130,17 @@ function kstNowContext(nowMs = Date.now()) {
   const dayKey = new Date(dayStartUtc).toISOString().slice(0, 10);
   const minutes = Math.floor((kstMs - dayStartKst) / 60000);
   return { dayKey, minutes };
+}
+
+function inWindow(minutes, targetMinutes) {
+  const start = targetMinutes + SETTLE_WINDOW_START_OFFSET_MIN;
+  const end = targetMinutes + SETTLE_WINDOW_END_OFFSET_MIN;
+  return minutes >= start && minutes <= end;
+}
+
+function shouldAttemptLandSettlement(nowMs = Date.now()) {
+  const c = kstNowContext(nowMs);
+  return inWindow(c.minutes, LAND_SETTLE_NOON_MINUTES) || inWindow(c.minutes, LAND_SETTLE_EVENING_MINUTES);
 }
 
 function landSettlementContext(nowMs = Date.now()) {
@@ -232,6 +245,7 @@ async function settleLandGrabTitleBySchedule() {
 }
 
 async function runLandSettlement() {
+  if (!shouldAttemptLandSettlement()) return;
   if (landSettlementBusy) return;
   landSettlementBusy = true;
   try {

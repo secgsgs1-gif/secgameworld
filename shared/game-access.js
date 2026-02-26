@@ -24,6 +24,8 @@ const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 const DAY_MS = 86400000;
 const LAND_SETTLE_NOON_MINUTES = 12 * 60;
 const LAND_SETTLE_EVENING_MINUTES = 17 * 60;
+const SETTLE_WINDOW_START_OFFSET_MIN = -2; // e.g. 11:58 / 16:58
+const SETTLE_WINDOW_END_OFFSET_MIN = 3; // e.g. 12:03 / 17:03
 const GLOBAL_SETTLE_POLL_MS = 30000;
 const TAG_ALIASES = [
   { canonical: DONATION_KING_TAG, aliases: ["[DONATION KING]", "DONATION KING"] },
@@ -146,6 +148,17 @@ function kstNowContext(nowMs = Date.now()) {
   const dayKey = new Date(dayStartUtc).toISOString().slice(0, 10);
   const minutes = Math.floor((kstMs - dayStartKst) / 60000);
   return { dayKey, minutes };
+}
+
+function inWindow(minutes, targetMinutes) {
+  const start = targetMinutes + SETTLE_WINDOW_START_OFFSET_MIN;
+  const end = targetMinutes + SETTLE_WINDOW_END_OFFSET_MIN;
+  return minutes >= start && minutes <= end;
+}
+
+function shouldAttemptAnySettlement(nowMs = Date.now()) {
+  const c = kstNowContext(nowMs);
+  return inWindow(c.minutes, LAND_SETTLE_NOON_MINUTES) || inWindow(c.minutes, LAND_SETTLE_EVENING_MINUTES);
 }
 
 function createDefaultLandTiles() {
@@ -322,6 +335,7 @@ async function settleDonationTitleBySchedule() {
 }
 
 async function runGlobalSettlements() {
+  if (!shouldAttemptAnySettlement()) return;
   if (globalSettlementBusy) return;
   globalSettlementBusy = true;
   try {
