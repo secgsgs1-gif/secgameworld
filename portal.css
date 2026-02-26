@@ -43,6 +43,32 @@ body {
   min-width: 0;
 }
 
+.notice-board {
+  margin: 0 0 14px;
+  padding: 12px 14px;
+  border: 1px solid rgba(255, 210, 110, 0.45);
+  border-radius: 12px;
+  background: linear-gradient(160deg, rgba(72, 47, 14, 0.84), rgba(40, 28, 10, 0.82));
+}
+
+.notice-board h2 {
+  margin: 0 0 8px;
+  font-size: 1rem;
+  color: #ffe19e;
+}
+
+.notice-board ul {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 4px;
+}
+
+.notice-board li {
+  color: #ffeed2;
+  font-size: 0.9rem;
+}
+
 header h1 {
   margin: 4px 0 8px;
   font-size: clamp(1.6rem, 4vw, 2.2rem);
