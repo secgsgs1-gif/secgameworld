@@ -41,7 +41,7 @@ const LAND_TITLE_DISCOUNT_RATE = 0.05;
 const DONATION_CASHBACK_RATE = 0.05;
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 const DAY_MS = 86400000;
-const LAND_SETTLE_NOON_MINUTES = 12 * 60;
+const LAND_SETTLE_NOON_MINUTES = 15 * 60;
 const LAND_SETTLE_EVENING_MINUTES = 17 * 60;
 let settlementOnceStarted = false;
 let settlementOnceBusy = false;
@@ -170,7 +170,7 @@ function landSettlementContext(nowMs = Date.now()) {
       dayKey: c.dayKey,
       slotNo: 1,
       slotId: `${c.dayKey}-S1`,
-      slotLabel: "12:00 KST"
+      slotLabel: "15:00 KST"
     };
   }
   return {
