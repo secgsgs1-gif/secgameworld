@@ -199,10 +199,12 @@ async function settleLandGrabTitleBySchedule() {
   await runTransaction(db, async (tx) => {
     const stateSnap = await tx.get(stateRef);
     const state = stateSnap.exists() ? stateSnap.data() : {};
-    if (state.lastSettledSlotId === slot.slotId) return;
-
     const daySnap = await tx.get(dayRef);
-    const winner = daySnap.exists() ? pickLandWinner(daySnap.data()?.tiles) : null;
+    const dayData = daySnap.exists() ? (daySnap.data() || {}) : {};
+    const alreadyResetByDay = String(dayData.lastResetAtSlotId || "") === slot.slotId;
+    if (state.lastSettledSlotId === slot.slotId || alreadyResetByDay) return;
+
+    const winner = daySnap.exists() ? pickLandWinner(dayData.tiles) : null;
     const prevHolderUid = String(state.currentHolderUid || "");
 
     if (prevHolderUid && prevHolderUid !== (winner?.uid || "")) {
