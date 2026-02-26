@@ -33,6 +33,15 @@ let currentState = null;
 let selectedTile = 0;
 let busy = false;
 
+function esc(text) {
+  return String(text)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/\"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+
 function todayKeyKst() {
   const now = new Date(Date.now() + (9 * 60 * 60 * 1000));
   return now.toISOString().slice(0, 10);
@@ -149,6 +158,16 @@ function ownerLabel(tile) {
   return tile.ownerName || "Unknown";
 }
 
+function isLandKingName(name) {
+  return String(name || "").includes(TITLE_TAG);
+}
+
+function ownerLabelHtml(tile) {
+  const owner = ownerLabel(tile);
+  const cls = isLandKingName(owner) ? "owner owner-land-king" : "owner";
+  return `<div class="${cls}">${esc(owner)}</div>`;
+}
+
 function renderBoard(state) {
   boardEl.innerHTML = "";
   const tiles = Array.isArray(state?.tiles) ? state.tiles : createDefaultTiles();
@@ -161,7 +180,7 @@ function renderBoard(state) {
     btn.className = `tile${mine ? " mine" : ""}${enemy ? " enemy" : ""}${selectedTile === i ? " selected" : ""}`;
     btn.innerHTML = `
       <div class="idx">LAND ${i + 1}</div>
-      <div class="owner">${ownerLabel(tile)}</div>
+      ${ownerLabelHtml(tile)}
       <div class="price">Current: ${Math.max(BASE_PRICE, Number(tile.price || BASE_PRICE))}</div>
       <div class="cost">Capture: ${captureCost(tile)}</div>
       ${mine ? '<span class="my-badge">MY LAND</span>' : ""}
@@ -199,7 +218,8 @@ function renderRanking(state) {
 
   rows.forEach((r, i) => {
     const li = document.createElement("li");
-    li.textContent = `${i + 1}. ${r.name} (${r.count} lands)`;
+    const ownerClass = isLandKingName(r.name) ? "rank-owner land-king-tag" : "rank-owner";
+    li.innerHTML = `${i + 1}. <span class="${ownerClass}">${esc(r.name)}</span> (${r.count} lands)`;
     rankListEl.appendChild(li);
   });
 }
@@ -208,8 +228,10 @@ function renderSelected() {
   const tiles = Array.isArray(currentState?.tiles) ? currentState.tiles : createDefaultTiles();
   const tile = tiles[selectedTile] || tiles[0];
   const cost = captureCost(tile);
+  const owner = ownerLabel(tile);
   selIndexEl.textContent = String((tile?.idx ?? selectedTile) + 1);
-  selOwnerEl.textContent = ownerLabel(tile);
+  selOwnerEl.textContent = owner;
+  selOwnerEl.classList.toggle("land-king-tag", isLandKingName(owner));
   selPriceEl.textContent = String(Math.max(BASE_PRICE, Number(tile?.price || BASE_PRICE)));
   selCostEl.textContent = String(cost);
   buyBtn.disabled = busy;

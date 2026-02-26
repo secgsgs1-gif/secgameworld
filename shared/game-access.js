@@ -15,6 +15,7 @@ import {
 import { db } from "./firebase-app.js?v=20260224m";
 
 let appBooted = false;
+const LAND_KING_TAG = "[LAND KING]";
 
 function normalizeUsername(currentUser, rawName) {
   const byProfile = String(rawName || "").trim();
@@ -67,7 +68,45 @@ function rankLabel(rank) {
   return `#${rank}`;
 }
 
+function splitDecoratedName(rawName) {
+  const value = String(rawName || "").trim();
+  if (!value) return { tag: "", name: "" };
+  if (value.startsWith(`${LAND_KING_TAG} `)) {
+    return { tag: LAND_KING_TAG, name: value.slice(LAND_KING_TAG.length).trim() };
+  }
+  return { tag: "", name: value };
+}
+
+function decoratedNameHtml(rawName) {
+  const parsed = splitDecoratedName(rawName);
+  if (!parsed.tag) return esc(parsed.name);
+  return `<span class="game-chat-land-king-chip">${esc(parsed.tag)}</span> ${esc(parsed.name)}`;
+}
+
+function ensureGameChatStyle() {
+  if (document.getElementById("game-chat-land-king-style")) return;
+  const style = document.createElement("style");
+  style.id = "game-chat-land-king-style";
+  style.textContent = `
+    .game-chat-land-king-chip {
+      display:inline-block;
+      color:#ff2038;
+      font-weight:800;
+      letter-spacing:.02em;
+      text-shadow:0 0 6px #ff485acc,0 0 16px #ff1c35cc,0 0 32px #ff0c26aa;
+      animation:gameChatLandKingSpark 1.1s ease-in-out infinite;
+    }
+    @keyframes gameChatLandKingSpark {
+      0% { color:#ff7280; text-shadow:0 0 4px #ff5f6daa,0 0 11px #ff3f52bb,0 0 22px #ff1f35aa; }
+      50% { color:#ff0d29; text-shadow:0 0 8px #ff1027ee,0 0 20px #ff0c23ee,0 0 42px #ff071cd9; }
+      100% { color:#ffd4d9; text-shadow:0 0 10px #ffd9dfee,0 0 22px #ff8f9bdd,0 0 38px #ff4258cc; }
+    }
+  `;
+  document.head.appendChild(style);
+}
+
 function injectSideChat() {
+  ensureGameChatStyle();
   const panel = document.createElement("aside");
   panel.id = "game-live-chat";
   panel.style.cssText = "position:fixed;right:10px;top:56px;bottom:10px;width:320px;z-index:9998;border:1px solid #7eb5ff66;border-radius:12px;background:#0c1b2fd9;color:#eaf6ff;padding:8px;display:grid;grid-template-rows:auto 1fr;gap:6px;font:12px/1.4 sans-serif";
@@ -154,7 +193,7 @@ function setupGameChat(user) {
             const shownName = normalizeUsername(user, data.username);
             const row = document.createElement("article");
             row.style.cssText = `border:1px solid #7eb5ff33;border-radius:8px;padding:5px 7px;background:${mine ? "#215447" : "#1a3b62"}`;
-            row.innerHTML = `<span style="display:block;font-size:11px;opacity:.82">${rankLabel(rank)} ${esc(shownName)} · ${timeLabel(data.createdAt)}</span>${esc(data.text || "")}`;
+            row.innerHTML = `<span style="display:block;font-size:11px;opacity:.82">${esc(rankLabel(rank))} ${decoratedNameHtml(shownName)} · ${timeLabel(data.createdAt)}</span>${esc(data.text || "")}`;
             messagesEl.appendChild(row);
           });
           messagesEl.scrollTop = messagesEl.scrollHeight;
@@ -177,7 +216,8 @@ function setupGameChat(user) {
           const li = document.createElement("li");
           li.style.cssText = "border:1px solid #7eb5ff33;border-radius:7px;padding:4px 6px;background:#133154";
           const rank = rankMap.get(p.uid);
-          li.textContent = `${rankLabel(rank)} ${normalizeUsername(user, p.username)} ●`.trim();
+          const shownName = normalizeUsername(user, p.username);
+          li.innerHTML = `${esc(rankLabel(rank))} ${decoratedNameHtml(shownName)} ●`.trim();
           presenceEl.appendChild(li);
         });
         if (onlineCount === 0) {
@@ -243,7 +283,7 @@ function setupGameChat(user) {
           const shownName = normalizeUsername(user, data.username);
           const row = document.createElement("article");
           row.style.cssText = `border:1px solid #7eb5ff33;border-radius:8px;padding:5px 7px;background:${mine ? "#215447" : "#1a3b62"}`;
-          row.innerHTML = `<span style="display:block;font-size:11px;opacity:.82">${rankLabel(rank)} ${esc(shownName)} · ${timeLabel(data.createdAt)}</span>${esc(data.text || "")}`;
+          row.innerHTML = `<span style="display:block;font-size:11px;opacity:.82">${esc(rankLabel(rank))} ${decoratedNameHtml(shownName)} · ${timeLabel(data.createdAt)}</span>${esc(data.text || "")}`;
           messagesEl.appendChild(row);
         });
         messagesEl.scrollTop = messagesEl.scrollHeight;
@@ -274,7 +314,8 @@ function setupGameChat(user) {
           const li = document.createElement("li");
           li.style.cssText = "border:1px solid #7eb5ff33;border-radius:7px;padding:4px 6px;background:#133154";
           const rank = rankMap.get(p.uid);
-          li.textContent = `${rankLabel(rank)} ${normalizeUsername(user, p.username)} ●`.trim();
+          const shownName = normalizeUsername(user, p.username);
+          li.innerHTML = `${esc(rankLabel(rank))} ${decoratedNameHtml(shownName)} ●`.trim();
           presenceEl.appendChild(li);
         });
         if (onlineCount === 0) {

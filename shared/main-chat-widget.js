@@ -30,6 +30,7 @@ let rankPoll = null;
 let streamUnsubs = [];
 let streamsActive = false;
 let myTitleTag = "";
+const LAND_KING_TAG = "[LAND KING]";
 
 function normalizeUsername(currentUser, rawName) {
   const byProfile = String(rawName || "").trim();
@@ -72,6 +73,21 @@ function timeLabel(ts) {
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
+function splitDecoratedName(rawName) {
+  const value = String(rawName || "").trim();
+  if (!value) return { tag: "", name: "" };
+  if (value.startsWith(`${LAND_KING_TAG} `)) {
+    return { tag: LAND_KING_TAG, name: value.slice(LAND_KING_TAG.length).trim() };
+  }
+  return { tag: "", name: value };
+}
+
+function decoratedNameHtml(rawName) {
+  const parsed = splitDecoratedName(rawName);
+  if (!parsed.tag) return esc(parsed.name);
+  return `<span class="land-king-chip">${esc(parsed.tag)}</span> ${esc(parsed.name)}`;
+}
+
 function renderPresence(docs) {
   const now = Date.now();
   const rows = docs.map((x) => x.data()).filter((p) => p?.uid).sort((a, b) => {
@@ -88,8 +104,9 @@ function renderPresence(docs) {
     if (!online) return;
     onlineCount += 1;
     const rank = rankMap.get(p.uid);
+    const shownName = normalizeUsername(user, p.username);
     const li = document.createElement("li");
-    li.textContent = `${rankLabel(rank)} ${normalizeUsername(user, p.username)} ●`.trim();
+    li.innerHTML = `${esc(rankLabel(rank))} ${decoratedNameHtml(shownName)} ●`.trim();
     presenceEl.appendChild(li);
   });
   if (onlineCount === 0) {
@@ -108,7 +125,7 @@ function renderMessages(docs) {
     const shownName = normalizeUsername(user, data.username);
     const row = document.createElement("article");
     row.className = `main-msg${mine ? " me" : ""}`;
-    row.innerHTML = `<span class="main-meta">${rankLabel(rank)} ${esc(shownName)} · ${timeLabel(data.createdAt)}</span>${esc(data.text || "")}`;
+    row.innerHTML = `<span class="main-meta">${esc(rankLabel(rank))} ${decoratedNameHtml(shownName)} · ${timeLabel(data.createdAt)}</span>${esc(data.text || "")}`;
     messagesEl.appendChild(row);
   });
   messagesEl.scrollTop = messagesEl.scrollHeight;
