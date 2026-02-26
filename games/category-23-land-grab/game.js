@@ -167,6 +167,13 @@ async function settleTitleBySchedule() {
       discountRate: winner?.uid ? TITLE_DISCOUNT_RATE : 0,
       updatedAt: serverTimestamp()
     }, { merge: true });
+
+    // Reset board after each settlement slot so next race starts fresh.
+    tx.update(dayRefForSettle, {
+      tiles: createDefaultTiles(),
+      lastResetAtSlotId: slot.slotId,
+      updatedAt: serverTimestamp()
+    });
   });
 }
 

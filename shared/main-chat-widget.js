@@ -31,7 +31,11 @@ let streamUnsubs = [];
 let streamsActive = false;
 let myTitleTag = "";
 const EMPEROR_TAG = "[Emperor]";
-const LEGACY_LAND_KING_TAGS = ["Emperor", "[LAND KING]", "LAND KING"];
+const DONATION_KING_TAG = "[기부왕]";
+const TAG_ALIASES = [
+  { canonical: DONATION_KING_TAG, aliases: ["[DONATION KING]", "DONATION KING"] },
+  { canonical: EMPEROR_TAG, aliases: ["Emperor", "[LAND KING]", "LAND KING"] }
+];
 
 function normalizeUsername(currentUser, rawName) {
   const byProfile = String(rawName || "").trim();
@@ -74,15 +78,29 @@ function timeLabel(ts) {
   return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`;
 }
 
+function composeUserTitleTag(profile) {
+  const tags = [];
+  const donation = String(profile?.donationTitleTag || "").trim();
+  const land = String(profile?.landTitleTag || "").trim();
+  if (donation) tags.push(donation);
+  if (land && !tags.includes(land)) tags.push(land);
+  return tags.join(" ").trim();
+}
+
 function splitDecoratedName(rawName) {
   const value = String(rawName || "").trim();
   if (!value) return { tag: "", name: "" };
+  if (value.startsWith(`${DONATION_KING_TAG} `)) {
+    return { tag: DONATION_KING_TAG, name: value.slice(DONATION_KING_TAG.length).trim() };
+  }
   if (value.startsWith(`${EMPEROR_TAG} `)) {
     return { tag: EMPEROR_TAG, name: value.slice(EMPEROR_TAG.length).trim() };
   }
-  for (const tag of LEGACY_LAND_KING_TAGS) {
-    if (value.startsWith(`${tag} `)) {
-      return { tag: EMPEROR_TAG, name: value.slice(tag.length).trim() };
+  for (const item of TAG_ALIASES) {
+    for (const alias of item.aliases) {
+      if (value.startsWith(`${alias} `)) {
+        return { tag: item.canonical, name: value.slice(alias.length).trim() };
+      }
     }
   }
   return { tag: "", name: value };
@@ -188,7 +206,7 @@ async function init() {
     streamUnsubs.push(onSnapshot(doc(db, "users", user.uid), (snap) => {
       const p = snap.data() || {};
       username = normalizeUsername(user, p.username);
-      myTitleTag = String(p.landTitleTag || "");
+      myTitleTag = composeUserTitleTag(p);
     }));
 
     refreshRank().catch(() => {});

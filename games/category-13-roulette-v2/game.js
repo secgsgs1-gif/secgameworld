@@ -73,6 +73,15 @@ function withTitle(name, titleTag) {
   return `${tag} ${base}`;
 }
 
+function composeUserTitleTag(profile) {
+  const tags = [];
+  const donation = String(profile?.donationTitleTag || "").trim();
+  const land = String(profile?.landTitleTag || "").trim();
+  if (donation) tags.push(donation);
+  if (land && !tags.includes(land)) tags.push(land);
+  return tags.join(" ").trim();
+}
+
 function isQuotaError(err) {
   const msg = String(err?.message || "").toLowerCase();
   return err?.code === "resource-exhausted" || msg.includes("quota exceeded") || msg.includes("resource exhausted");
@@ -329,14 +338,17 @@ async function settleMyBet(roundId) {
 
     const bet = betSnap.data();
     if (bet.settled) return;
-    const equippedWeapon = getEquippedWeapon(userSnap.data() || {});
+    const profile = userSnap.data() || {};
+    const equippedWeapon = getEquippedWeapon(profile);
     const cashbackRate = Number(equippedWeapon?.cashbackRate || 0);
+    const donationCashbackRate = Math.max(0, Number(profile.donationCashbackRate || 0));
+    const totalCashbackRate = cashbackRate + donationCashbackRate;
 
     const hitAmount = Number(bet.amounts?.[String(resultMultiplier)] || 0);
     const payoutMultiplier = resultMultiplier + 1;
     const payout = hitAmount > 0 ? hitAmount * payoutMultiplier : 0;
     const totalBet = Math.max(0, Number(bet.total || 0));
-    const cashback = cashbackRate > 0 ? Math.floor(totalBet * cashbackRate) : 0;
+    const cashback = totalCashbackRate > 0 ? Math.floor(totalBet * totalCashbackRate) : 0;
     const totalCredit = payout + cashback;
 
     tx.update(betRef, {
@@ -345,7 +357,9 @@ async function settleMyBet(roundId) {
       resultMultiplier,
       payout,
       cashback,
-      cashbackRate,
+      cashbackRate: totalCashbackRate,
+      cashbackWeaponRate: cashbackRate,
+      cashbackDonationRate: donationCashbackRate,
       cashbackWeaponId: equippedWeapon?.id || null
     });
 
@@ -371,7 +385,7 @@ async function settleMyBet(roundId) {
       }
     }
     else if (cashback > 0) {
-      resultEl.textContent = `미당첨. 결과 x${d.resultMultiplier}, 무기 캐시백 +${cashback}`;
+      resultEl.textContent = `미당첨. 결과 x${d.resultMultiplier}, 페이백 +${cashback}`;
     }
     else {
       resultEl.textContent = `미당첨. 결과 x${d.resultMultiplier}`;
@@ -484,11 +498,13 @@ function init() {
   onSnapshot(doc(db, "users", user.uid), (snap) => {
     const p = snap.data() || {};
     const base = p.username || (user.email || "user").split("@")[0];
-    username = withTitle(base, p.landTitleTag);
+    username = withTitle(base, composeUserTitleTag(p));
     points = p.points || 0;
     pointsEl.textContent = String(points);
     const equipped = getEquippedWeapon(p);
-    weaponBonusEl.textContent = `${equipped.name} (${formatCashbackPercent(equipped.cashbackRate)})`;
+    const donationRate = Math.max(0, Number(p.donationCashbackRate || 0));
+    const totalRate = Number(equipped.cashbackRate || 0) + donationRate;
+    weaponBonusEl.textContent = `${equipped.name} ${formatCashbackPercent(equipped.cashbackRate)} + 기부왕 ${formatCashbackPercent(donationRate)} = ${formatCashbackPercent(totalRate)}`;
   });
 
   placeBetBtn.addEventListener("click", () => {

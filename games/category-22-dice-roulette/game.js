@@ -82,6 +82,15 @@ function withTitle(name, titleTag) {
   return `${tag} ${base}`;
 }
 
+function composeUserTitleTag(profile) {
+  const tags = [];
+  const donation = String(profile?.donationTitleTag || "").trim();
+  const land = String(profile?.landTitleTag || "").trim();
+  if (donation) tags.push(donation);
+  if (land && !tags.includes(land)) tags.push(land);
+  return tags.join(" ").trim();
+}
+
 function pocketColor(n) {
   if (n === 0) return "green";
   return RED_SET.has(n) ? "red" : "black";
@@ -557,7 +566,7 @@ function init() {
 
   onSnapshot(doc(db, "users", user.uid), (snap) => {
     const p = snap.data() || {};
-    username = withTitle(normalizeUsername(user, p.username), p.landTitleTag);
+    username = withTitle(normalizeUsername(user, p.username), composeUserTitleTag(p));
     syncPoints(p.points || 0);
   });
 

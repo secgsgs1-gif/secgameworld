@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Donation Crown</title>
+  <link rel="stylesheet" href="styles.css?v=20260226a" />
+</head>
+<body>
+  <main class="shell">
+    <header class="topbar">
+      <div>
+        <p class="eyebrow">Honor Arena</p>
+        <h1>Donation Crown</h1>
+      </div>
+      <div class="stats">
+        <p>Points: <strong id="points">0</strong></p>
+        <p>Today (KST): <strong id="day-key">-</strong></p>
+      </div>
+    </header>
+
+    <section class="board-wrap">
+      <aside class="panel donate-panel">
+        <h2>Donate Once</h2>
+        <p class="sub">하루 1회 기부 가능 (정산 전까지)</p>
+        <p>17:00 정산까지 남은 시간: <strong id="countdown">--:--:--</strong></p>
+        <div class="donate-row">
+          <input id="donation-amount" type="number" min="1" step="1" value="100" />
+          <button id="donate-btn" type="button">기부하기</button>
+        </div>
+        <p id="my-donation" class="my-donation">내 오늘 기부: -</p>
+        <p id="status" class="status">금액 입력 후 기부하세요.</p>
+      </aside>
+
+      <aside class="panel rank-panel">
+        <h2>기부 랭킹</h2>
+        <p class="sub">1등 기부 금액은 비공개</p>
+        <ol id="rank-list" class="rank-list"></ol>
+      </aside>
+    </section>
+
+    <section class="rules panel">
+      <h2>Rules</h2>
+      <ul>
+        <li>각 유저는 매일 1회만 기부 가능합니다.</li>
+        <li>당일 17:00(KST)에 정산합니다.</li>
+        <li>정산 시 1등에게 <strong>[기부왕]</strong> 칭호가 부여됩니다.</li>
+        <li><strong>[기부왕]</strong> 혜택: 게임 페이백 +5% (무기 페이백과 합산).</li>
+        <li>예: 무기 4% + 기부왕 5% = 총 9% 페이백.</li>
+      </ul>
+    </section>
+
+    <a class="back" href="../../index.html">Back to Home</a>
+  </main>
+
+  <script>window.APP_ROOT = "../../";</script>
+  <script type="module" src="../../shared/auth-guard.js?v=20260224m"></script>
+  <script type="module" src="../../shared/game-access.js?v=20260226d"></script>
+  <script type="module" src="game.js?v=20260226a"></script>
+</body>
+</html>
