@@ -36,10 +36,12 @@ const BLOCKS = {
   coal: { hp: 2, color: "#313841", value: 8, speck: "#1f242b" },
   iron: { hp: 3, color: "#7f705f", value: 16, speck: "#b49c86" },
   gold: { hp: 3, color: "#c7a641", value: 35, speck: "#f2d16b" },
-  diamond: { hp: 4, color: "#4ec8dc", value: 95, speck: "#9ff5ff" }
+  diamond: { hp: 4, color: "#4ec8dc", value: 95, speck: "#9ff5ff" },
+  mythril: { hp: 5, color: "#8f79ff", value: 180, speck: "#c2b6ff" },
+  aether: { hp: 6, color: "#ff5e9a", value: 320, speck: "#ffd2e7" }
 };
 
-const INVENTORY_KEYS = ["dirt", "stone", "coal", "iron", "gold", "diamond"];
+const INVENTORY_KEYS = ["dirt", "stone", "coal", "iron", "gold", "diamond", "mythril", "aether"];
 
 let player = { x: Math.floor(COLS / 2), y: SKY_ROWS - 1 };
 let facing = { x: 0, y: 1 };
@@ -72,7 +74,9 @@ function blockForDepth(y, seed) {
   if (y < SKY_ROWS) return null;
   const depth = y - SKY_ROWS;
   const r = seed % 1000;
-  if (depth > 20 && r < 15) return "diamond";
+  if (depth > 20 && r < 3) return "aether";
+  if (depth > 18 && r < 9) return "mythril";
+  if (depth > 20 && r < 24) return "diamond";
   if (depth > 14 && r < 55) return "gold";
   if (depth > 9 && r < 130) return "iron";
   if (depth > 4 && r < 260) return "coal";
