@@ -66,17 +66,23 @@ function withTitle(name, titleTag) {
 }
 
 function nowKstContext(nowMs = Date.now()) {
-  const kstNow = nowMs + KST_OFFSET_MS;
-  const dayStartKst = Math.floor(kstNow / DAY_MS) * DAY_MS;
-  const dayStartUtc = dayStartKst - KST_OFFSET_MS;
-  const dayKey = new Date(dayStartUtc).toISOString().slice(0, 10);
-  const minutes = Math.floor((kstNow - dayStartKst) / 60000);
-  const settleAtKst = dayStartKst + (SETTLE_MINUTES * 60000);
+  const kstDate = new Date(nowMs + KST_OFFSET_MS);
+  const dayKey = kstDate.toISOString().slice(0, 10);
+  const minutes = (kstDate.getUTCHours() * 60) + kstDate.getUTCMinutes();
+  const settleAtMs = Date.UTC(
+    kstDate.getUTCFullYear(),
+    kstDate.getUTCMonth(),
+    kstDate.getUTCDate(),
+    Math.floor(SETTLE_MINUTES / 60),
+    SETTLE_MINUTES % 60,
+    0,
+    0
+  ) - KST_OFFSET_MS;
   return {
     dayKey,
     minutes,
     canDonate: minutes < SETTLE_MINUTES,
-    settleAtMs: settleAtKst - KST_OFFSET_MS
+    settleAtMs
   };
 }
 

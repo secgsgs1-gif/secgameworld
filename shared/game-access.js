@@ -139,11 +139,9 @@ function ensureGameChatStyle() {
 }
 
 function kstNowContext(nowMs = Date.now()) {
-  const kstMs = nowMs + KST_OFFSET_MS;
-  const dayStartKst = Math.floor(kstMs / DAY_MS) * DAY_MS;
-  const dayStartUtc = dayStartKst - KST_OFFSET_MS;
-  const dayKey = new Date(dayStartUtc).toISOString().slice(0, 10);
-  const minutes = Math.floor((kstMs - dayStartKst) / 60000);
+  const kstDate = new Date(nowMs + KST_OFFSET_MS);
+  const dayKey = kstDate.toISOString().slice(0, 10);
+  const minutes = (kstDate.getUTCHours() * 60) + kstDate.getUTCMinutes();
   return { dayKey, minutes };
 }
 
