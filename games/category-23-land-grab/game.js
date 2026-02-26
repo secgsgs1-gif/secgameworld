@@ -66,6 +66,14 @@ function createDefaultTiles() {
   }));
 }
 
+function tileOwnerUid(tile) {
+  return String(tile?.ownerUid || tile?.uid || "").trim();
+}
+
+function tileOwnerName(tile) {
+  return String(tile?.ownerName || tile?.ownername || "Unknown").trim() || "Unknown";
+}
+
 async function ensureTodayDoc() {
   if (!dayRef) return;
   await runTransaction(db, async (tx) => {
@@ -82,14 +90,14 @@ async function ensureTodayDoc() {
 
 
 function captureCost(tile) {
-  if (!tile?.ownerUid) return BASE_PRICE;
+  if (!tileOwnerUid(tile)) return BASE_PRICE;
   const p = Math.max(BASE_PRICE, Number(tile.price || BASE_PRICE));
   return Math.ceil(p * 1.5);
 }
 
 function ownerLabel(tile) {
-  if (!tile?.ownerUid) return "Unowned";
-  return tile.ownerName || "Unknown";
+  if (!tileOwnerUid(tile)) return "Unowned";
+  return tileOwnerName(tile);
 }
 
 function isLandKingName(name) {
@@ -111,8 +119,9 @@ function renderBoard(state) {
   tiles.forEach((tile, i) => {
     const btn = document.createElement("button");
     btn.type = "button";
-    const mine = tile.ownerUid && tile.ownerUid === user.uid;
-    const enemy = tile.ownerUid && tile.ownerUid !== user.uid;
+    const ownerUid = tileOwnerUid(tile);
+    const mine = ownerUid && ownerUid === user.uid;
+    const enemy = ownerUid && ownerUid !== user.uid;
     btn.className = `tile${mine ? " mine" : ""}${enemy ? " enemy" : ""}${selectedTile === i ? " selected" : ""}`;
     btn.innerHTML = `
       <div class="idx">LAND ${i + 1}</div>
@@ -135,10 +144,11 @@ function renderRanking(state) {
   const tiles = Array.isArray(state?.tiles) ? state.tiles : [];
   const map = new Map();
   tiles.forEach((t) => {
-    if (!t.ownerUid) return;
-    const row = map.get(t.ownerUid) || { name: t.ownerName || "Unknown", count: 0 };
+    const ownerUid = tileOwnerUid(t);
+    if (!ownerUid) return;
+    const row = map.get(ownerUid) || { name: tileOwnerName(t), count: 0 };
     row.count += 1;
-    map.set(t.ownerUid, row);
+    map.set(ownerUid, row);
   });
 
   const rows = [...map.entries()]
@@ -198,7 +208,9 @@ async function buySelectedTile() {
       tiles[idx] = {
         idx,
         ownerUid: user.uid,
+        uid: user.uid,
         ownerName: username,
+        ownername: username,
         price: cost,
         updatedAtMs: Date.now()
       };

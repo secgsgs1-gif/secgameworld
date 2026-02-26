@@ -154,13 +154,22 @@ function createDefaultLandTiles() {
   }));
 }
 
+function tileOwnerUid(tile) {
+  return String(tile?.ownerUid || tile?.uid || "").trim();
+}
+
+function tileOwnerName(tile) {
+  return String(tile?.ownerName || tile?.ownername || "Unknown").trim() || "Unknown";
+}
+
 function pickLandWinner(tiles) {
   const map = new Map();
   (Array.isArray(tiles) ? tiles : []).forEach((t) => {
-    if (!t?.ownerUid) return;
-    const row = map.get(t.ownerUid) || { uid: t.ownerUid, name: t.ownerName || "Unknown", count: 0 };
+    const uid = tileOwnerUid(t);
+    if (!uid) return;
+    const row = map.get(uid) || { uid, name: tileOwnerName(t), count: 0 };
     row.count += 1;
-    map.set(t.ownerUid, row);
+    map.set(uid, row);
   });
   const rows = [...map.values()].sort((a, b) => (b.count - a.count) || a.uid.localeCompare(b.uid));
   return rows[0] || null;
