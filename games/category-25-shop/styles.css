@@ -98,6 +98,10 @@ button {
   z-index: 10000;
 }
 
+.modal[hidden] {
+  display: none !important;
+}
+
 .modal-box {
   width: min(420px, 94vw);
   border: 1px solid #5ca3ca;
