@@ -38,6 +38,9 @@ const STALE_MS = 95000;
 const SPEED_LEVEL_COSTS = [0, 500, 1200, 2600, 5200, 9800];
 const MAX_SPEED_LEVEL = SPEED_LEVEL_COSTS.length - 1;
 const BASE_SPEED = 16;
+const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
+const MARATHON_BASE_REWARD_MULTIPLIER = 1.5;
+const MARATHON_EVENT_MULTIPLIER = 2;
 
 let user = null;
 let username = "";
@@ -111,17 +114,55 @@ function maybeTriggerBurst(now) {
 }
 
 function rewardForLap() {
+  const event = currentMarathonEvent();
+  const multiplier = MARATHON_BASE_REWARD_MULTIPLIER * (event.active ? MARATHON_EVENT_MULTIPLIER : 1);
   const roll = Math.random();
   if (roll < 0.0001) {
-    return { points: 50000, jackpot: true, tier: "ultra" };
+    return {
+      points: Math.floor(50000 * multiplier),
+      jackpot: true,
+      tier: "ultra",
+      eventActive: event.active,
+      eventLabel: event.label
+    };
   }
   if (roll < 0.0011) {
-    return { points: 10000, jackpot: true, tier: "mega" };
+    return {
+      points: Math.floor(10000 * multiplier),
+      jackpot: true,
+      tier: "mega",
+      eventActive: event.active,
+      eventLabel: event.label
+    };
   }
   if (roll < 0.0111) {
-    return { points: 1000, jackpot: true, tier: "bonus" };
+    return {
+      points: Math.floor(1000 * multiplier),
+      jackpot: true,
+      tier: "bonus",
+      eventActive: event.active,
+      eventLabel: event.label
+    };
   }
-  return { points: 20 + Math.floor(Math.random() * 121), jackpot: false, tier: "normal" };
+  return {
+    points: Math.floor((20 + Math.floor(Math.random() * 121)) * multiplier),
+    jackpot: false,
+    tier: "normal",
+    eventActive: event.active,
+    eventLabel: event.label
+  };
+}
+
+function currentMarathonEvent(nowMs = Date.now()) {
+  const kst = new Date(nowMs + KST_OFFSET_MS);
+  const day = kst.getUTCDay();
+  const minutes = (kst.getUTCHours() * 60) + kst.getUTCMinutes();
+  const lunch = minutes >= ((12 * 60) + 30) && minutes < ((13 * 60) + 30);
+  const weekly = day === 1 || day === 5;
+  if (weekly && lunch) return { active: true, label: "월/금 + 점심(12:30~13:30) 2배 이벤트" };
+  if (weekly) return { active: true, label: "월/금 2배 이벤트" };
+  if (lunch) return { active: true, label: "점심(12:30~13:30) 2배 이벤트" };
+  return { active: false, label: "" };
 }
 
 function renderTrack() {
@@ -250,7 +291,7 @@ async function grantLapReward() {
       jackpot: reward.jackpot
     });
     if (reward.tier === "ultra") {
-      eventLogEl.textContent = `초대박! ${targetLap}바퀴 보상으로 +50000 포인트 지급`;
+      eventLogEl.textContent = `초대박! ${targetLap}바퀴 보상으로 +${reward.points} 포인트 지급`;
       addDoc(collection(db, "live_chat_messages"), {
         uid: user.uid,
         username,
@@ -258,7 +299,7 @@ async function grantLapReward() {
         createdAt: serverTimestamp()
       }).catch(() => {});
     } else if (reward.tier === "mega") {
-      eventLogEl.textContent = `대박! ${targetLap}바퀴 보상으로 +10000 포인트 지급`;
+      eventLogEl.textContent = `대박! ${targetLap}바퀴 보상으로 +${reward.points} 포인트 지급`;
       addDoc(collection(db, "live_chat_messages"), {
         uid: user.uid,
         username,
@@ -266,7 +307,7 @@ async function grantLapReward() {
         createdAt: serverTimestamp()
       }).catch(() => {});
     } else if (reward.tier === "bonus") {
-      eventLogEl.textContent = `보너스! ${targetLap}바퀴 보상으로 +1000 포인트 지급`;
+      eventLogEl.textContent = `보너스! ${targetLap}바퀴 보상으로 +${reward.points} 포인트 지급`;
       addDoc(collection(db, "live_chat_messages"), {
         uid: user.uid,
         username,
@@ -275,6 +316,9 @@ async function grantLapReward() {
       }).catch(() => {});
     } else {
       eventLogEl.textContent = `${targetLap}바퀴 달성! +${reward.points} 포인트 지급`;
+    }
+    if (reward.eventActive && reward.eventLabel) {
+      eventLogEl.textContent = `${eventLogEl.textContent} (${reward.eventLabel} 적용)`;
     }
   } catch (err) {
     eventLogEl.textContent = `보상 오류: ${err.message}`;
