@@ -112,7 +112,8 @@ function splitDecoratedName(rawName) {
 function decoratedNameHtml(rawName) {
   const parsed = splitDecoratedName(rawName);
   if (!parsed.tag) return esc(parsed.name);
-  return `<span class="game-chat-land-king-chip">${esc(parsed.tag)}</span> ${esc(parsed.name)}`;
+  const chipClass = parsed.tag === DONATION_KING_TAG ? "game-chat-donation-king-chip" : "game-chat-land-king-chip";
+  return `<span class="${chipClass}">${esc(parsed.tag)}</span> ${esc(parsed.name)}`;
 }
 
 function ensureGameChatStyle() {
@@ -128,10 +129,23 @@ function ensureGameChatStyle() {
       text-shadow:0 0 6px #ff485acc,0 0 16px #ff1c35cc,0 0 32px #ff0c26aa;
       animation:gameChatLandKingSpark 1.1s ease-in-out infinite;
     }
+    .game-chat-donation-king-chip {
+      display:inline-block;
+      color:#27f2a4;
+      font-weight:800;
+      letter-spacing:.02em;
+      text-shadow:0 0 6px #2ef0aecc,0 0 16px #1dcf95cc,0 0 32px #12a87aaa;
+      animation:gameChatDonationKingSpark 1.1s ease-in-out infinite;
+    }
     @keyframes gameChatLandKingSpark {
       0% { color:#ff7280; text-shadow:0 0 4px #ff5f6daa,0 0 11px #ff3f52bb,0 0 22px #ff1f35aa; }
       50% { color:#ff0d29; text-shadow:0 0 8px #ff1027ee,0 0 20px #ff0c23ee,0 0 42px #ff071cd9; }
       100% { color:#ffd4d9; text-shadow:0 0 10px #ffd9dfee,0 0 22px #ff8f9bdd,0 0 38px #ff4258cc; }
+    }
+    @keyframes gameChatDonationKingSpark {
+      0% { color:#90ffd7; text-shadow:0 0 4px #7dffd3aa,0 0 11px #46f0babb,0 0 22px #2ad3a0aa; }
+      50% { color:#14e69b; text-shadow:0 0 8px #1ff0a8ee,0 0 20px #12d08fee,0 0 42px #0fa976d9; }
+      100% { color:#dbfff1; text-shadow:0 0 10px #d7fff0ee,0 0 22px #85f0c9dd,0 0 38px #3edbaacc; }
     }
   `;
   document.head.appendChild(style);

@@ -236,6 +236,15 @@ header h1 {
   animation: landKingSpark 1.1s ease-in-out infinite;
 }
 
+.donation-king-chip {
+  display: inline-block;
+  color: #29f3a8;
+  font-weight: 800;
+  letter-spacing: 0.02em;
+  text-shadow: 0 0 6px #31f2afcc, 0 0 16px #1ed09acc, 0 0 30px #12ab7daa;
+  animation: donationKingSpark 1.1s ease-in-out infinite;
+}
+
 .main-composer {
   display: grid;
   grid-template-columns: 1fr auto;
@@ -262,6 +271,12 @@ header h1 {
   0% { color: #ff6f7e; text-shadow: 0 0 4px #ff5f6daa, 0 0 12px #ff3f52bb, 0 0 24px #ff1f35aa; }
   50% { color: #ff0f2a; text-shadow: 0 0 9px #ff1128ee, 0 0 20px #ff0d23ee, 0 0 40px #ff071cd9; }
   100% { color: #ffd7dc; text-shadow: 0 0 10px #ffd9dfee, 0 0 22px #ff8f9bdd, 0 0 38px #ff4258cc; }
+}
+
+@keyframes donationKingSpark {
+  0% { color: #98ffd8; text-shadow: 0 0 4px #7dffd3aa, 0 0 12px #4beebecc, 0 0 24px #2fd39faa; }
+  50% { color: #12e39a; text-shadow: 0 0 9px #20f0abee, 0 0 20px #13cf8fee, 0 0 40px #0fa976d9; }
+  100% { color: #dbfff1; text-shadow: 0 0 10px #d7fff0ee, 0 0 22px #86f0cada, 0 0 38px #40dbabcc; }
 }
 
 @media (max-width: 1100px) {

@@ -117,7 +117,8 @@ function splitDecoratedName(rawName) {
 function decoratedNameHtml(rawName) {
   const parsed = splitDecoratedName(rawName);
   if (!parsed.tag) return esc(parsed.name);
-  return `<span class="land-king-chip">${esc(parsed.tag)}</span> ${esc(parsed.name)}`;
+  const chipClass = parsed.tag === DONATION_KING_TAG ? "donation-king-chip" : "land-king-chip";
+  return `<span class="${chipClass}">${esc(parsed.tag)}</span> ${esc(parsed.name)}`;
 }
 
 function kstNowContext(nowMs = Date.now()) {
