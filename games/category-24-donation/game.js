@@ -8,13 +8,9 @@ import {
 } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
 import { db } from "../../shared/firebase-app.js?v=20260224m";
 
-const DONATION_TITLE_TAG = "[기부왕]";
-const DONATION_CASHBACK_RATE = 0.05;
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 const DAY_MS = 86400000;
 const SETTLE_MINUTES = 17 * 60;
-const SETTLE_WINDOW_START_OFFSET_MIN = -2; // 16:58
-const SETTLE_WINDOW_END_OFFSET_MIN = 3; // 17:03
 
 const pointsEl = document.getElementById("points");
 const dayKeyEl = document.getElementById("day-key");
@@ -31,7 +27,6 @@ let dayRef = null;
 let dayUnsub = null;
 let currentState = null;
 let busy = false;
-let settlePoll = null;
 let clockTimer = null;
 
 function esc(text) {
@@ -81,16 +76,8 @@ function nowKstContext(nowMs = Date.now()) {
     dayKey,
     minutes,
     canDonate: minutes < SETTLE_MINUTES,
-    settleAtMs: settleAtKst - KST_OFFSET_MS,
-    slotId: `${dayKey}-1700`
+    settleAtMs: settleAtKst - KST_OFFSET_MS
   };
-}
-
-function shouldAttemptSettlement(nowMs = Date.now()) {
-  const c = nowKstContext(nowMs);
-  const start = SETTLE_MINUTES + SETTLE_WINDOW_START_OFFSET_MIN;
-  const end = SETTLE_MINUTES + SETTLE_WINDOW_END_OFFSET_MIN;
-  return c.minutes >= start && c.minutes <= end;
 }
 
 function msToClockLabel(ms) {
@@ -116,11 +103,6 @@ function sortRows(rows) {
   return [...rows].sort((a, b) => (b.amount - a.amount) || a.uid.localeCompare(b.uid));
 }
 
-function pickWinner(rows) {
-  const sorted = sortRows(rows);
-  return sorted[0] || null;
-}
-
 async function ensureTodayDoc() {
   if (!dayRef) return;
   await runTransaction(db, async (tx) => {
@@ -132,60 +114,6 @@ async function ensureTodayDoc() {
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
     });
-  });
-}
-
-async function settleDonationTitle() {
-  if (!shouldAttemptSettlement()) return;
-  const c = nowKstContext();
-  if (c.canDonate) return;
-
-  const dayRefForSettle = doc(db, "donation_days", c.dayKey);
-  const stateRef = doc(db, "donation_meta", "title_state");
-
-  await runTransaction(db, async (tx) => {
-    const stateSnap = await tx.get(stateRef);
-    const state = stateSnap.exists() ? stateSnap.data() : {};
-    if (state.lastSettledSlotId === c.slotId) return;
-
-    const daySnap = await tx.get(dayRefForSettle);
-    const rows = daySnap.exists() ? rowsFromDonations(daySnap.data()?.donations) : [];
-    const winner = pickWinner(rows);
-    const prevHolderUid = String(state.currentHolderUid || "");
-
-    if (prevHolderUid && prevHolderUid !== (winner?.uid || "")) {
-      const oldUserRef = doc(db, "users", prevHolderUid);
-      const oldUserSnap = await tx.get(oldUserRef);
-      if (oldUserSnap.exists()) {
-        tx.update(oldUserRef, {
-          donationTitleTag: "",
-          donationCashbackRate: 0,
-          updatedAt: serverTimestamp()
-        });
-      }
-    }
-
-    if (winner?.uid) {
-      const winnerRef = doc(db, "users", winner.uid);
-      const winnerSnap = await tx.get(winnerRef);
-      if (winnerSnap.exists()) {
-        tx.update(winnerRef, {
-          donationTitleTag: DONATION_TITLE_TAG,
-          donationCashbackRate: DONATION_CASHBACK_RATE,
-          updatedAt: serverTimestamp()
-        });
-      }
-    }
-
-    tx.set(stateRef, {
-      lastSettledDay: c.dayKey,
-      lastSettledSlotId: c.slotId,
-      currentHolderUid: winner?.uid || "",
-      currentHolderName: winner?.name || "",
-      titleTag: winner?.uid ? DONATION_TITLE_TAG : "",
-      cashbackRate: winner?.uid ? DONATION_CASHBACK_RATE : 0,
-      updatedAt: serverTimestamp()
-    }, { merge: true });
   });
 }
 
@@ -325,7 +253,6 @@ async function init() {
   dayRef = doc(db, "donation_days", ctx.dayKey);
 
   await ensureTodayDoc();
-  await settleDonationTitle().catch(() => {});
   startStreams();
 
   donateBtn.addEventListener("click", () => {
@@ -337,11 +264,6 @@ async function init() {
   clockTimer = setInterval(() => {
     renderClock();
   }, 1000);
-
-  if (settlePoll) clearInterval(settlePoll);
-  settlePoll = setInterval(() => {
-    if (document.visibilityState === "visible") settleDonationTitle().catch(() => {});
-  }, 45000);
 }
 
 function boot(nextUser) {

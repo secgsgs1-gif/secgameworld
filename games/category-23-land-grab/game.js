@@ -13,7 +13,6 @@ const TILE_COUNT = 10;
 const BASE_PRICE = 100;
 const TITLE_TAG = "[Emperor]";
 const LEGACY_TITLE_TAGS = ["Emperor", "[LAND KING]", "LAND KING"];
-const TITLE_DISCOUNT_RATE = 0.05;
 
 const pointsEl = document.getElementById("points");
 const dayKeyEl = document.getElementById("day-key");
@@ -46,29 +45,6 @@ function esc(text) {
 function todayKeyKst() {
   const now = new Date(Date.now() + (9 * 60 * 60 * 1000));
   return now.toISOString().slice(0, 10);
-}
-
-function settlementContextKst(nowMs = Date.now()) {
-  const kstMs = nowMs + (9 * 60 * 60 * 1000);
-  const kstDate = new Date(kstMs);
-  const dayKey = kstDate.toISOString().slice(0, 10);
-  const minutes = kstDate.getUTCHours() * 60 + kstDate.getUTCMinutes();
-
-  if (minutes < 12 * 60) return null;
-  if (minutes < 17 * 60) {
-    return {
-      dayKey,
-      slotNo: 1,
-      slotId: `${dayKey}-S1`,
-      slotLabel: "12:00 KST"
-    };
-  }
-  return {
-    dayKey,
-    slotNo: 2,
-    slotId: `${dayKey}-S2`,
-    slotLabel: "17:00 KST"
-  };
 }
 
 function normalizeUsername(currentUser, rawName) {
@@ -104,78 +80,6 @@ async function ensureTodayDoc() {
   });
 }
 
-function pickDailyWinner(tiles) {
-  const map = new Map();
-  (Array.isArray(tiles) ? tiles : []).forEach((t) => {
-    if (!t?.ownerUid) return;
-    const row = map.get(t.ownerUid) || { uid: t.ownerUid, name: t.ownerName || "Unknown", count: 0 };
-    row.count += 1;
-    map.set(t.ownerUid, row);
-  });
-  const rows = [...map.values()].sort((a, b) => (b.count - a.count) || a.uid.localeCompare(b.uid));
-  return rows[0] || null;
-}
-
-async function settleTitleBySchedule() {
-  const slot = settlementContextKst();
-  if (!slot) return;
-
-  const dayRefForSettle = doc(db, "land_grab_days", slot.dayKey);
-  const stateRef = doc(db, "land_grab_meta", "title_state");
-
-  await runTransaction(db, async (tx) => {
-    const stateSnap = await tx.get(stateRef);
-    const state = stateSnap.exists() ? stateSnap.data() : {};
-    if (state.lastSettledSlotId === slot.slotId) return;
-
-    const daySnap = await tx.get(dayRefForSettle);
-    const winner = daySnap.exists() ? pickDailyWinner(daySnap.data()?.tiles) : null;
-    const prevHolderUid = String(state.currentHolderUid || "");
-
-    if (prevHolderUid && prevHolderUid !== (winner?.uid || "")) {
-      const oldUserRef = doc(db, "users", prevHolderUid);
-      const oldUserSnap = await tx.get(oldUserRef);
-      if (oldUserSnap.exists()) {
-        tx.update(oldUserRef, {
-          landTitleTag: "",
-          landDiscountRate: 0,
-          updatedAt: serverTimestamp()
-        });
-      }
-    }
-
-    if (winner?.uid) {
-      const winnerRef = doc(db, "users", winner.uid);
-      const winnerSnap = await tx.get(winnerRef);
-      if (winnerSnap.exists()) {
-        tx.update(winnerRef, {
-          landTitleTag: TITLE_TAG,
-          landDiscountRate: TITLE_DISCOUNT_RATE,
-          updatedAt: serverTimestamp()
-        });
-      }
-    }
-
-    tx.set(stateRef, {
-      lastSettledDay: slot.dayKey,
-      lastSettledSlotNo: slot.slotNo,
-      lastSettledSlotId: slot.slotId,
-      lastSettledSlotLabel: slot.slotLabel,
-      currentHolderUid: winner?.uid || "",
-      currentHolderName: winner?.name || "",
-      titleTag: winner?.uid ? TITLE_TAG : "",
-      discountRate: winner?.uid ? TITLE_DISCOUNT_RATE : 0,
-      updatedAt: serverTimestamp()
-    }, { merge: true });
-
-    // Reset board after each settlement slot so next race starts fresh.
-    tx.update(dayRefForSettle, {
-      tiles: createDefaultTiles(),
-      lastResetAtSlotId: slot.slotId,
-      updatedAt: serverTimestamp()
-    });
-  });
-}
 
 function captureCost(tile) {
   if (!tile?.ownerUid) return BASE_PRICE;
@@ -357,7 +261,6 @@ async function init() {
   dayKeyEl.textContent = key;
   dayRef = doc(db, "land_grab_days", key);
   await ensureTodayDoc();
-  await settleTitleBySchedule().catch(() => {});
   startStreams();
 
   buyBtn.addEventListener("click", () => {
