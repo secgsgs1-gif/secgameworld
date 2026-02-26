@@ -236,10 +236,49 @@ async function settleLandGrabTitleBySchedule() {
     const lastResetAtSlotId = String(dayData.lastResetAtSlotId || "");
     const alreadyResetByDay = String(dayData.lastResetAtSlotId || "") === slot.slotId;
     const alreadyDidAfternoonReset = slot.slotLabel !== "17:00 KST" && !!lastResetAtSlotId;
-    if (state.lastSettledSlotId === slot.slotId || alreadyResetByDay || alreadyDidAfternoonReset) return;
-
     const winner = daySnap.exists() ? pickLandWinner(dayData.tiles) : null;
     const prevHolderUid = String(state.currentHolderUid || "");
+
+    // Heal day/meta mismatch: if board already marked as settled for this slot,
+    // but meta is stale, re-sync title holder and meta without resetting board again.
+    if (alreadyResetByDay && state.lastSettledSlotId !== slot.slotId) {
+      if (prevHolderUid && prevHolderUid !== (winner?.uid || "")) {
+        const oldUserRef = doc(db, "users", prevHolderUid);
+        const oldUserSnap = await tx.get(oldUserRef);
+        if (oldUserSnap.exists()) {
+          tx.update(oldUserRef, {
+            landTitleTag: "",
+            landDiscountRate: 0,
+            updatedAt: serverTimestamp()
+          });
+        }
+      }
+      if (winner?.uid) {
+        const winnerRef = doc(db, "users", winner.uid);
+        const winnerSnap = await tx.get(winnerRef);
+        if (winnerSnap.exists()) {
+          tx.update(winnerRef, {
+            landTitleTag: EMPEROR_TAG,
+            landDiscountRate: LAND_TITLE_DISCOUNT_RATE,
+            updatedAt: serverTimestamp()
+          });
+        }
+      }
+      tx.set(stateRef, {
+        lastSettledDay: slot.dayKey,
+        lastSettledSlotNo: slot.slotNo,
+        lastSettledSlotId: slot.slotId,
+        lastSettledSlotLabel: slot.slotLabel,
+        currentHolderUid: winner?.uid || "",
+        currentHolderName: winner?.name || "",
+        titleTag: winner?.uid ? EMPEROR_TAG : "",
+        discountRate: winner?.uid ? LAND_TITLE_DISCOUNT_RATE : 0,
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+      return;
+    }
+
+    if (state.lastSettledSlotId === slot.slotId || alreadyDidAfternoonReset) return;
 
     if (prevHolderUid && prevHolderUid !== (winner?.uid || "")) {
       const oldUserRef = doc(db, "users", prevHolderUid);
