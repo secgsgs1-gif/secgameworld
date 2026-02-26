@@ -2,9 +2,13 @@ import {
   addDoc,
   collection,
   doc,
+  getDocs,
+  limit,
   onSnapshot,
+  query,
   runTransaction,
-  serverTimestamp
+  serverTimestamp,
+  where
 } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
 import { db } from "../../shared/firebase-app.js?v=20260224m";
 
@@ -40,9 +44,19 @@ function isValidNickname(name) {
   return /^[A-Za-z0-9_가-힣]{2,20}$/.test(v);
 }
 
+function nicknameKey(name) {
+  return encodeURIComponent(String(name || "").trim().toLowerCase());
+}
+
 function safeNameColor(value) {
   const v = String(value || "").trim();
   return /^#[0-9a-fA-F]{6}$/.test(v) ? v : "#5db2ff";
+}
+
+async function isDuplicateNickname(nextName) {
+  const q = query(collection(db, "users"), where("username", "==", nextName), limit(3));
+  const snap = await getDocs(q);
+  return snap.docs.some((d) => d.id !== user.uid);
 }
 
 function render() {
@@ -82,8 +96,24 @@ function closeColorModal() {
 async function purchaseAndChangeNickname() {
   if (!user || busy) return;
   const nextName = String(nicknameInputEl.value || "").trim();
+  const currentName = String(profile?.username || "").trim();
+
   if (!isValidNickname(nextName)) {
     nicknameModalStatusEl.textContent = "닉네임은 2~20자, 한글/영문/숫자/_만 가능합니다.";
+    return;
+  }
+  if (nextName === currentName) {
+    nicknameModalStatusEl.textContent = "현재 닉네임과 같습니다.";
+    return;
+  }
+
+  try {
+    if (await isDuplicateNickname(nextName)) {
+      nicknameModalStatusEl.textContent = "중복된 닉네임 입니다.";
+      return;
+    }
+  } catch (err) {
+    nicknameModalStatusEl.textContent = `중복 확인 실패: ${err.message}`;
     return;
   }
 
@@ -102,25 +132,58 @@ async function purchaseAndChangeNickname() {
       const points = Math.max(0, Number(data.points || 0));
       if (points < NICKNAME_CHANGE_PRICE) throw new Error("포인트가 부족합니다.");
 
+      const txCurrentName = String(data.username || "").trim();
+      const txCurrentKey = txCurrentName ? nicknameKey(txCurrentName) : "";
+      const txNextKey = nicknameKey(nextName);
+      const nextClaimRef = doc(db, "username_claims", txNextKey);
+      const nextClaimSnap = await tx.get(nextClaimRef);
+      if (nextClaimSnap.exists() && String(nextClaimSnap.data()?.uid || "") !== user.uid) {
+        throw new Error("DUPLICATE_NICKNAME");
+      }
+
+      let currentClaimRef = null;
+      let currentClaimSnap = null;
+      if (txCurrentKey && txCurrentKey !== txNextKey) {
+        currentClaimRef = doc(db, "username_claims", txCurrentKey);
+        currentClaimSnap = await tx.get(currentClaimRef);
+      }
+
       tx.update(userRef, {
         points: points - NICKNAME_CHANGE_PRICE,
         username: nextName,
         updatedAt: serverTimestamp()
       });
+
+      tx.set(nextClaimRef, {
+        uid: user.uid,
+        username: nextName,
+        updatedAt: serverTimestamp()
+      }, { merge: true });
+
+      if (currentClaimRef && currentClaimSnap?.exists() && String(currentClaimSnap.data()?.uid || "") === user.uid) {
+        tx.delete(currentClaimRef);
+      }
     });
 
     await addDoc(collection(db, "users", user.uid, "transactions"), {
       type: "shop_purchase",
       amount: -Math.abs(NICKNAME_CHANGE_PRICE),
       reason: "nickname_change_ticket",
-      meta: { changedTo: nextName },
+      meta: {
+        changedFrom: currentName,
+        changedTo: nextName
+      },
       createdAt: serverTimestamp()
     });
 
     statusEl.textContent = `닉네임 변경 완료: ${nextName}`;
     nicknameModalEl.hidden = true;
   } catch (err) {
-    nicknameModalStatusEl.textContent = `변경 실패: ${err.message}`;
+    if (String(err?.message || "") === "DUPLICATE_NICKNAME") {
+      nicknameModalStatusEl.textContent = "중복된 닉네임 입니다.";
+    } else {
+      nicknameModalStatusEl.textContent = `변경 실패: ${err.message}`;
+    }
   } finally {
     busy = false;
     nicknameConfirmBtn.disabled = false;
