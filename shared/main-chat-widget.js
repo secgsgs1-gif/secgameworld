@@ -30,7 +30,8 @@ let rankPoll = null;
 let streamUnsubs = [];
 let streamsActive = false;
 let myTitleTag = "";
-const LAND_KING_TAG = "[LAND KING]";
+const EMPEROR_TAG = "Emperor";
+const LEGACY_LAND_KING_TAGS = ["[LAND KING]", "LAND KING"];
 
 function normalizeUsername(currentUser, rawName) {
   const byProfile = String(rawName || "").trim();
@@ -76,8 +77,13 @@ function timeLabel(ts) {
 function splitDecoratedName(rawName) {
   const value = String(rawName || "").trim();
   if (!value) return { tag: "", name: "" };
-  if (value.startsWith(`${LAND_KING_TAG} `)) {
-    return { tag: LAND_KING_TAG, name: value.slice(LAND_KING_TAG.length).trim() };
+  if (value.startsWith(`${EMPEROR_TAG} `)) {
+    return { tag: EMPEROR_TAG, name: value.slice(EMPEROR_TAG.length).trim() };
+  }
+  for (const tag of LEGACY_LAND_KING_TAGS) {
+    if (value.startsWith(`${tag} `)) {
+      return { tag: EMPEROR_TAG, name: value.slice(tag.length).trim() };
+    }
   }
   return { tag: "", name: value };
 }

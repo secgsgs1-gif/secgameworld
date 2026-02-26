@@ -11,7 +11,8 @@ import { db } from "../../shared/firebase-app.js?v=20260224m";
 
 const TILE_COUNT = 10;
 const BASE_PRICE = 100;
-const TITLE_TAG = "[LAND KING]";
+const TITLE_TAG = "Emperor";
+const LEGACY_TITLE_TAGS = ["[LAND KING]", "LAND KING"];
 const TITLE_DISCOUNT_RATE = 0.05;
 
 const pointsEl = document.getElementById("points");
@@ -159,7 +160,9 @@ function ownerLabel(tile) {
 }
 
 function isLandKingName(name) {
-  return String(name || "").includes(TITLE_TAG);
+  const raw = String(name || "");
+  if (raw.includes(TITLE_TAG)) return true;
+  return LEGACY_TITLE_TAGS.some((tag) => raw.includes(tag));
 }
 
 function ownerLabelHtml(tile) {
