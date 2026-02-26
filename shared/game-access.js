@@ -8,6 +8,7 @@ import {
   onSnapshot,
   orderBy,
   query,
+  runTransaction,
   serverTimestamp,
   setDoc,
   updateDoc
@@ -17,10 +18,19 @@ import { db } from "./firebase-app.js?v=20260224m";
 let appBooted = false;
 const EMPEROR_TAG = "[Emperor]";
 const DONATION_KING_TAG = "[기부왕]";
+const LAND_TITLE_DISCOUNT_RATE = 0.05;
+const DONATION_CASHBACK_RATE = 0.05;
+const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
+const DAY_MS = 86400000;
+const LAND_SETTLE_NOON_MINUTES = 12 * 60;
+const LAND_SETTLE_EVENING_MINUTES = 17 * 60;
+const GLOBAL_SETTLE_POLL_MS = 30000;
 const TAG_ALIASES = [
   { canonical: DONATION_KING_TAG, aliases: ["[DONATION KING]", "DONATION KING"] },
   { canonical: EMPEROR_TAG, aliases: ["Emperor", "[LAND KING]", "LAND KING"] }
 ];
+let globalSettlementTimer = null;
+let globalSettlementBusy = false;
 
 function normalizeUsername(currentUser, rawName) {
   const byProfile = String(rawName || "").trim();
@@ -127,6 +137,210 @@ function ensureGameChatStyle() {
     }
   `;
   document.head.appendChild(style);
+}
+
+function kstNowContext(nowMs = Date.now()) {
+  const kstMs = nowMs + KST_OFFSET_MS;
+  const dayStartKst = Math.floor(kstMs / DAY_MS) * DAY_MS;
+  const dayStartUtc = dayStartKst - KST_OFFSET_MS;
+  const dayKey = new Date(dayStartUtc).toISOString().slice(0, 10);
+  const minutes = Math.floor((kstMs - dayStartKst) / 60000);
+  return { dayKey, minutes };
+}
+
+function createDefaultLandTiles() {
+  return Array.from({ length: 10 }, (_, i) => ({
+    idx: i,
+    ownerUid: "",
+    ownerName: "",
+    price: 100,
+    updatedAtMs: 0
+  }));
+}
+
+function pickLandWinner(tiles) {
+  const map = new Map();
+  (Array.isArray(tiles) ? tiles : []).forEach((t) => {
+    if (!t?.ownerUid) return;
+    const row = map.get(t.ownerUid) || { uid: t.ownerUid, name: t.ownerName || "Unknown", count: 0 };
+    row.count += 1;
+    map.set(t.ownerUid, row);
+  });
+  const rows = [...map.values()].sort((a, b) => (b.count - a.count) || a.uid.localeCompare(b.uid));
+  return rows[0] || null;
+}
+
+function pickDonationWinner(donations) {
+  const rows = Object.values(donations && typeof donations === "object" ? donations : {})
+    .filter((x) => x?.uid)
+    .map((x) => ({
+      uid: String(x.uid),
+      name: String(x.name || "Unknown"),
+      amount: Math.max(0, Math.floor(Number(x.amount || 0)))
+    }))
+    .sort((a, b) => (b.amount - a.amount) || a.uid.localeCompare(b.uid));
+  return rows[0] || null;
+}
+
+function landSettlementContext(nowMs = Date.now()) {
+  const c = kstNowContext(nowMs);
+  if (c.minutes < LAND_SETTLE_NOON_MINUTES) return null;
+  if (c.minutes < LAND_SETTLE_EVENING_MINUTES) {
+    return {
+      dayKey: c.dayKey,
+      slotNo: 1,
+      slotId: `${c.dayKey}-S1`,
+      slotLabel: "12:00 KST"
+    };
+  }
+  return {
+    dayKey: c.dayKey,
+    slotNo: 2,
+    slotId: `${c.dayKey}-S2`,
+    slotLabel: "17:00 KST"
+  };
+}
+
+function donationSettlementContext(nowMs = Date.now()) {
+  const c = kstNowContext(nowMs);
+  if (c.minutes < LAND_SETTLE_EVENING_MINUTES) return null;
+  return {
+    dayKey: c.dayKey,
+    slotId: `${c.dayKey}-1700`
+  };
+}
+
+async function settleLandGrabTitleBySchedule() {
+  const slot = landSettlementContext();
+  if (!slot) return;
+  const dayRef = doc(db, "land_grab_days", slot.dayKey);
+  const stateRef = doc(db, "land_grab_meta", "title_state");
+
+  await runTransaction(db, async (tx) => {
+    const stateSnap = await tx.get(stateRef);
+    const state = stateSnap.exists() ? stateSnap.data() : {};
+    if (state.lastSettledSlotId === slot.slotId) return;
+
+    const daySnap = await tx.get(dayRef);
+    const winner = daySnap.exists() ? pickLandWinner(daySnap.data()?.tiles) : null;
+    const prevHolderUid = String(state.currentHolderUid || "");
+
+    if (prevHolderUid && prevHolderUid !== (winner?.uid || "")) {
+      const oldUserRef = doc(db, "users", prevHolderUid);
+      const oldUserSnap = await tx.get(oldUserRef);
+      if (oldUserSnap.exists()) {
+        tx.update(oldUserRef, {
+          landTitleTag: "",
+          landDiscountRate: 0,
+          updatedAt: serverTimestamp()
+        });
+      }
+    }
+
+    if (winner?.uid) {
+      const winnerRef = doc(db, "users", winner.uid);
+      const winnerSnap = await tx.get(winnerRef);
+      if (winnerSnap.exists()) {
+        tx.update(winnerRef, {
+          landTitleTag: EMPEROR_TAG,
+          landDiscountRate: LAND_TITLE_DISCOUNT_RATE,
+          updatedAt: serverTimestamp()
+        });
+      }
+    }
+
+    tx.set(stateRef, {
+      lastSettledDay: slot.dayKey,
+      lastSettledSlotNo: slot.slotNo,
+      lastSettledSlotId: slot.slotId,
+      lastSettledSlotLabel: slot.slotLabel,
+      currentHolderUid: winner?.uid || "",
+      currentHolderName: winner?.name || "",
+      titleTag: winner?.uid ? EMPEROR_TAG : "",
+      discountRate: winner?.uid ? LAND_TITLE_DISCOUNT_RATE : 0,
+      updatedAt: serverTimestamp()
+    }, { merge: true });
+
+    tx.set(dayRef, {
+      dayKey: slot.dayKey,
+      tiles: createDefaultLandTiles(),
+      lastResetAtSlotId: slot.slotId,
+      updatedAt: serverTimestamp()
+    }, { merge: true });
+  });
+}
+
+async function settleDonationTitleBySchedule() {
+  const slot = donationSettlementContext();
+  if (!slot) return;
+  const dayRef = doc(db, "donation_days", slot.dayKey);
+  const stateRef = doc(db, "donation_meta", "title_state");
+
+  await runTransaction(db, async (tx) => {
+    const stateSnap = await tx.get(stateRef);
+    const state = stateSnap.exists() ? stateSnap.data() : {};
+    if (state.lastSettledSlotId === slot.slotId) return;
+
+    const daySnap = await tx.get(dayRef);
+    const winner = daySnap.exists() ? pickDonationWinner(daySnap.data()?.donations) : null;
+    const prevHolderUid = String(state.currentHolderUid || "");
+
+    if (prevHolderUid && prevHolderUid !== (winner?.uid || "")) {
+      const oldUserRef = doc(db, "users", prevHolderUid);
+      const oldUserSnap = await tx.get(oldUserRef);
+      if (oldUserSnap.exists()) {
+        tx.update(oldUserRef, {
+          donationTitleTag: "",
+          donationCashbackRate: 0,
+          updatedAt: serverTimestamp()
+        });
+      }
+    }
+
+    if (winner?.uid) {
+      const winnerRef = doc(db, "users", winner.uid);
+      const winnerSnap = await tx.get(winnerRef);
+      if (winnerSnap.exists()) {
+        tx.update(winnerRef, {
+          donationTitleTag: DONATION_KING_TAG,
+          donationCashbackRate: DONATION_CASHBACK_RATE,
+          updatedAt: serverTimestamp()
+        });
+      }
+    }
+
+    tx.set(stateRef, {
+      lastSettledDay: slot.dayKey,
+      lastSettledSlotId: slot.slotId,
+      currentHolderUid: winner?.uid || "",
+      currentHolderName: winner?.name || "",
+      titleTag: winner?.uid ? DONATION_KING_TAG : "",
+      cashbackRate: winner?.uid ? DONATION_CASHBACK_RATE : 0,
+      updatedAt: serverTimestamp()
+    }, { merge: true });
+  });
+}
+
+async function runGlobalSettlements() {
+  if (globalSettlementBusy) return;
+  globalSettlementBusy = true;
+  try {
+    await settleLandGrabTitleBySchedule().catch(() => {});
+    await settleDonationTitleBySchedule().catch(() => {});
+  } finally {
+    globalSettlementBusy = false;
+  }
+}
+
+function startGlobalSettlementScheduler() {
+  if (globalSettlementTimer) return;
+  runGlobalSettlements().catch(() => {});
+  globalSettlementTimer = setInterval(() => {
+    if (document.visibilityState === "visible") runGlobalSettlements().catch(() => {});
+  }, GLOBAL_SETTLE_POLL_MS);
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible") runGlobalSettlements().catch(() => {});
+  });
 }
 
 function injectSideChat() {
@@ -471,6 +685,7 @@ async function run(user) {
   };
 
   setupGameChat(user);
+  startGlobalSettlementScheduler();
   document.dispatchEvent(new CustomEvent("app:wallet-ready"));
 }
 
