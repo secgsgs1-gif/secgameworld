@@ -308,8 +308,12 @@ async function runSettlementsOnceOnEntry() {
   settlementOnceStarted = true;
   settlementOnceBusy = true;
   try {
-    await settleLandGrabTitleBySchedule().catch(() => {});
-    await settleDonationTitleBySchedule().catch(() => {});
+    await settleLandGrabTitleBySchedule();
+    await settleDonationTitleBySchedule();
+  } catch (err) {
+    const msg = `정산 오류: ${err?.message || err}`;
+    if (statusEl) statusEl.textContent = msg;
+    console.error("[settlement] main widget", err);
   } finally {
     settlementOnceBusy = false;
   }

@@ -325,8 +325,18 @@ async function runSettlementsOnceOnEntry() {
   settlementOnceStarted = true;
   settlementOnceBusy = true;
   try {
-    await settleLandGrabTitleBySchedule().catch(() => {});
-    await settleDonationTitleBySchedule().catch(() => {});
+    await settleLandGrabTitleBySchedule();
+    await settleDonationTitleBySchedule();
+  } catch (err) {
+    const msg = `정산 오류: ${err?.message || err}`;
+    const prev = document.getElementById("settlement-error-banner");
+    if (prev) prev.remove();
+    const box = document.createElement("div");
+    box.id = "settlement-error-banner";
+    box.style.cssText = "position:fixed;left:10px;bottom:10px;z-index:10001;background:#3a0e13;color:#ffdbe0;border:1px solid #ff7d8d;border-radius:8px;padding:8px 10px;font:12px/1.4 sans-serif;max-width:min(90vw,460px)";
+    box.textContent = msg;
+    document.body.appendChild(box);
+    console.error("[settlement] game access", err);
   } finally {
     settlementOnceBusy = false;
   }
