@@ -60,6 +60,11 @@ canvas {
   gap: 8px;
 }
 
+.bets-grid input[type="number"] {
+  width: 13ch;
+  max-width: 100%;
+}
+
 label {
   display: grid;
   gap: 4px;
