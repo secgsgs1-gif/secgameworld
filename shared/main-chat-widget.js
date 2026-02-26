@@ -40,7 +40,7 @@ const TAG_ALIASES = [
 const LAND_TITLE_DISCOUNT_RATE = 0.05;
 const DONATION_CASHBACK_RATE = 0.05;
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
-const LAND_SETTLE_NOON_MINUTES = 15 * 60;
+const LAND_SETTLE_NOON_MINUTES = (15 * 60) + 5;
 const LAND_SETTLE_EVENING_MINUTES = 17 * 60;
 let settlementOnceStarted = false;
 let settlementOnceBusy = false;
@@ -167,15 +167,15 @@ function landSettlementContext(nowMs = Date.now()) {
   if (c.minutes < LAND_SETTLE_EVENING_MINUTES) {
     return {
       dayKey: c.dayKey,
-      slotNo: 1,
-      slotId: `${c.dayKey}-S1`,
-      slotLabel: "15:00 KST"
+      slotNo: 2,
+      slotId: `${c.dayKey}-S2`,
+      slotLabel: "15:05 KST"
     };
   }
   return {
     dayKey: c.dayKey,
-    slotNo: 2,
-    slotId: `${c.dayKey}-S2`,
+    slotNo: 3,
+    slotId: `${c.dayKey}-S3`,
     slotLabel: "17:00 KST"
   };
 }
