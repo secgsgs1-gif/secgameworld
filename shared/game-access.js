@@ -15,8 +15,8 @@ import {
 import { db } from "./firebase-app.js?v=20260224m";
 
 let appBooted = false;
-const EMPEROR_TAG = "Emperor";
-const LEGACY_LAND_KING_TAGS = ["[LAND KING]", "LAND KING"];
+const EMPEROR_TAG = "[Emperor]";
+const LEGACY_LAND_KING_TAGS = ["Emperor", "[LAND KING]", "LAND KING"];
 
 function normalizeUsername(currentUser, rawName) {
   const byProfile = String(rawName || "").trim();

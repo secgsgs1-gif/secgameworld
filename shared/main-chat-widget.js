@@ -30,8 +30,8 @@ let rankPoll = null;
 let streamUnsubs = [];
 let streamsActive = false;
 let myTitleTag = "";
-const EMPEROR_TAG = "Emperor";
-const LEGACY_LAND_KING_TAGS = ["[LAND KING]", "LAND KING"];
+const EMPEROR_TAG = "[Emperor]";
+const LEGACY_LAND_KING_TAGS = ["Emperor", "[LAND KING]", "LAND KING"];
 
 function normalizeUsername(currentUser, rawName) {
   const byProfile = String(rawName || "").trim();

@@ -11,8 +11,8 @@ import { db } from "../../shared/firebase-app.js?v=20260224m";
 
 const TILE_COUNT = 10;
 const BASE_PRICE = 100;
-const TITLE_TAG = "Emperor";
-const LEGACY_TITLE_TAGS = ["[LAND KING]", "LAND KING"];
+const TITLE_TAG = "[Emperor]";
+const LEGACY_TITLE_TAGS = ["Emperor", "[LAND KING]", "LAND KING"];
 const TITLE_DISCOUNT_RATE = 0.05;
 
 const pointsEl = document.getElementById("points");
