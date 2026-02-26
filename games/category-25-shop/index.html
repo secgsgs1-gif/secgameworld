@@ -24,6 +24,13 @@
         <p class="item-price">가격: <strong>50,000 P</strong></p>
         <button id="buy-nickname-btn" type="button">구매 후 닉네임 변경</button>
       </article>
+      <article class="item-card">
+        <img class="item-image" src="./assets/nickname-color-ticket.svg" alt="닉네임 색상권" />
+        <h2>닉네임 색상권</h2>
+        <p class="item-desc">구매 즉시 닉네임 색상 선택 창이 열립니다.</p>
+        <p class="item-price">가격: <strong>30,000 P</strong></p>
+        <button id="buy-color-btn" type="button">구매 후 색상 변경</button>
+      </article>
     </section>
 
     <p id="status" class="status">구매할 아이템을 선택하세요.</p>
@@ -43,9 +50,23 @@
     </div>
   </div>
 
+  <div id="color-modal" class="modal" hidden>
+    <div class="modal-box" role="dialog" aria-modal="true" aria-labelledby="color-modal-title">
+      <h3 id="color-modal-title">닉네임 색상 변경</h3>
+      <p>원하는 색상을 고르고 변경완료를 누르세요.</p>
+      <div id="color-presets" class="color-presets"></div>
+      <input id="color-input" type="color" value="#5db2ff" />
+      <div class="modal-actions">
+        <button id="color-confirm-btn" type="button">변경완료</button>
+        <button id="color-cancel-btn" type="button">취소</button>
+      </div>
+      <p id="color-modal-status" class="modal-status"></p>
+    </div>
+  </div>
+
   <script>window.APP_ROOT = "../../";</script>
   <script type="module" src="../../shared/auth-guard.js?v=20260224m"></script>
-  <script type="module" src="../../shared/game-access.js?v=20260226x"></script>
-  <script type="module" src="game.js?v=20260226a"></script>
+  <script type="module" src="../../shared/game-access.js?v=20260226y"></script>
+  <script type="module" src="game.js?v=20260226b"></script>
 </body>
 </html>

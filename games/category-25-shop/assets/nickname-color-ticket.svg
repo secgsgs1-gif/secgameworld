@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 320 200" role="img" aria-label="닉네임 색상권">
+  <defs>
+    <linearGradient id="bg2" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0%" stop-color="#2b2f73"/>
+      <stop offset="100%" stop-color="#7a2ec9"/>
+    </linearGradient>
+  </defs>
+  <rect x="8" y="8" width="304" height="184" rx="16" fill="url(#bg2)" stroke="#d2b8ff" stroke-width="3"/>
+  <rect x="22" y="22" width="276" height="58" rx="10" fill="#171a42" opacity="0.86"/>
+  <text x="160" y="58" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" font-weight="700" fill="#f4ecff">닉네임 색상권</text>
+  <g transform="translate(40,102)">
+    <circle cx="22" cy="22" r="18" fill="#ff5d93"/>
+    <circle cx="68" cy="22" r="18" fill="#54d98f"/>
+    <circle cx="114" cy="22" r="18" fill="#56b5ff"/>
+    <circle cx="160" cy="22" r="18" fill="#ffd166"/>
+    <circle cx="206" cy="22" r="18" fill="#b08dff"/>
+  </g>
+  <text x="160" y="168" text-anchor="middle" font-family="Arial, sans-serif" font-size="13" fill="#efe5ff">Pick your nickname color instantly</text>
+</svg>

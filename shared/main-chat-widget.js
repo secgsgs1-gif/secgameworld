@@ -31,6 +31,7 @@ let rankPoll = null;
 let streamUnsubs = [];
 let streamsActive = false;
 let myTitleTag = "";
+let myUsernameColor = "";
 const EMPEROR_TAG = "[Emperor]";
 const DONATION_KING_TAG = "[기부왕]";
 const TAG_ALIASES = [
@@ -119,6 +120,22 @@ function decoratedNameHtml(rawName) {
   if (!parsed.tag) return esc(parsed.name);
   const chipClass = parsed.tag === DONATION_KING_TAG ? "donation-king-chip" : "land-king-chip";
   return `<span class="${chipClass}">${esc(parsed.tag)}</span> ${esc(parsed.name)}`;
+}
+
+function safeNameColor(value) {
+  const v = String(value || "").trim();
+  return /^#[0-9a-fA-F]{6}$/.test(v) ? v : "";
+}
+
+function decoratedNameHtmlWithColor(rawName, nameColor) {
+  const parsed = splitDecoratedName(rawName);
+  if (!parsed.tag) return esc(parsed.name);
+  const chipClass = parsed.tag === DONATION_KING_TAG ? "donation-king-chip" : "land-king-chip";
+  const color = safeNameColor(nameColor);
+  const nameHtml = color
+    ? `<span style="color:${color};font-weight:700">${esc(parsed.name)}</span>`
+    : esc(parsed.name);
+  return `<span class="${chipClass}">${esc(parsed.tag)}</span> ${nameHtml}`;
 }
 
 function kstNowContext(nowMs = Date.now()) {
@@ -402,7 +419,7 @@ function renderPresence(docs) {
     const rank = rankMap.get(p.uid);
     const shownName = normalizeUsername(user, p.username);
     const li = document.createElement("li");
-    li.innerHTML = `${esc(rankLabel(rank))} ${decoratedNameHtml(shownName)} ●`.trim();
+    li.innerHTML = `${esc(rankLabel(rank))} ${decoratedNameHtmlWithColor(shownName, p.usernameColor)} ●`.trim();
     presenceEl.appendChild(li);
   });
   if (onlineCount === 0) {
@@ -421,7 +438,7 @@ function renderMessages(docs) {
     const shownName = normalizeUsername(user, data.username);
     const row = document.createElement("article");
     row.className = `main-msg${mine ? " me" : ""}`;
-    row.innerHTML = `<span class="main-meta">${esc(rankLabel(rank))} ${decoratedNameHtml(shownName)} · ${timeLabel(data.createdAt)}</span>${esc(data.text || "")}`;
+    row.innerHTML = `<span class="main-meta">${esc(rankLabel(rank))} ${decoratedNameHtmlWithColor(shownName, data.usernameColor)} · ${timeLabel(data.createdAt)}</span>${esc(data.text || "")}`;
     messagesEl.appendChild(row);
   });
   messagesEl.scrollTop = messagesEl.scrollHeight;
@@ -433,6 +450,7 @@ async function touchPresence(online) {
   await setDoc(doc(db, "presence", user.uid), {
     uid: user.uid,
     username: safeUsername,
+    usernameColor: myUsernameColor,
     online,
     lastSeen: serverTimestamp()
   }, { merge: true });
@@ -479,6 +497,7 @@ async function init() {
       const p = snap.data() || {};
       username = normalizeUsername(user, p.username);
       myTitleTag = composeUserTitleTag(p);
+      myUsernameColor = safeNameColor(p.usernameColor);
     }));
 
     refreshRank().catch(() => {});
@@ -541,6 +560,7 @@ form?.addEventListener("submit", async (e) => {
     await addDoc(collection(db, "live_chat_messages"), {
       uid: user.uid,
       username: safeUsername,
+      usernameColor: myUsernameColor,
       text,
       createdAt: serverTimestamp()
     });

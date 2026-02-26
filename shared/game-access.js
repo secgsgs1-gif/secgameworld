@@ -116,6 +116,22 @@ function decoratedNameHtml(rawName) {
   return `<span class="${chipClass}">${esc(parsed.tag)}</span> ${esc(parsed.name)}`;
 }
 
+function safeNameColor(value) {
+  const v = String(value || "").trim();
+  return /^#[0-9a-fA-F]{6}$/.test(v) ? v : "";
+}
+
+function decoratedNameHtmlWithColor(rawName, nameColor) {
+  const parsed = splitDecoratedName(rawName);
+  if (!parsed.tag) return esc(parsed.name);
+  const chipClass = parsed.tag === DONATION_KING_TAG ? "game-chat-donation-king-chip" : "game-chat-land-king-chip";
+  const color = safeNameColor(nameColor);
+  const nameHtml = color
+    ? `<span style="color:${color};font-weight:700">${esc(parsed.name)}</span>`
+    : esc(parsed.name);
+  return `<span class="${chipClass}">${esc(parsed.tag)}</span> ${nameHtml}`;
+}
+
 function ensureGameChatStyle() {
   if (document.getElementById("game-chat-land-king-style")) return;
   const style = document.createElement("style");
@@ -468,6 +484,7 @@ function setupGameChat(user) {
   let streamsActive = false;
   let collapsed = false;
   let myTitleTag = "";
+  let myUsernameColor = "";
 
   function applyCollapsed(next) {
     collapsed = next;
@@ -510,7 +527,7 @@ function setupGameChat(user) {
             const shownName = normalizeUsername(user, data.username);
             const row = document.createElement("article");
             row.style.cssText = `border:1px solid #7eb5ff33;border-radius:8px;padding:5px 7px;background:${mine ? "#215447" : "#1a3b62"}`;
-            row.innerHTML = `<span style="display:block;font-size:11px;opacity:.82">${esc(rankLabel(rank))} ${decoratedNameHtml(shownName)} · ${timeLabel(data.createdAt)}</span>${esc(data.text || "")}`;
+            row.innerHTML = `<span style="display:block;font-size:11px;opacity:.82">${esc(rankLabel(rank))} ${decoratedNameHtmlWithColor(shownName, data.usernameColor)} · ${timeLabel(data.createdAt)}</span>${esc(data.text || "")}`;
             messagesEl.appendChild(row);
           });
           messagesEl.scrollTop = messagesEl.scrollHeight;
@@ -534,7 +551,7 @@ function setupGameChat(user) {
           li.style.cssText = "border:1px solid #7eb5ff33;border-radius:7px;padding:4px 6px;background:#133154";
           const rank = rankMap.get(p.uid);
           const shownName = normalizeUsername(user, p.username);
-          li.innerHTML = `${esc(rankLabel(rank))} ${decoratedNameHtml(shownName)} ●`.trim();
+          li.innerHTML = `${esc(rankLabel(rank))} ${decoratedNameHtmlWithColor(shownName, p.usernameColor)} ●`.trim();
           presenceEl.appendChild(li);
         });
         if (onlineCount === 0) {
@@ -554,6 +571,7 @@ function setupGameChat(user) {
     await setDoc(doc(db, "presence", user.uid), {
       uid: user.uid,
       username: safeUsername,
+      usernameColor: myUsernameColor,
       online,
       lastSeen: serverTimestamp()
     }, { merge: true });
@@ -580,6 +598,7 @@ function setupGameChat(user) {
       const p = snap.data() || {};
       username = normalizeUsername(user, p.username);
       myTitleTag = composeUserTitleTag(p);
+      myUsernameColor = safeNameColor(p.usernameColor);
     }));
 
     refreshRank().catch(() => {});
@@ -600,7 +619,7 @@ function setupGameChat(user) {
           const shownName = normalizeUsername(user, data.username);
           const row = document.createElement("article");
           row.style.cssText = `border:1px solid #7eb5ff33;border-radius:8px;padding:5px 7px;background:${mine ? "#215447" : "#1a3b62"}`;
-          row.innerHTML = `<span style="display:block;font-size:11px;opacity:.82">${esc(rankLabel(rank))} ${decoratedNameHtml(shownName)} · ${timeLabel(data.createdAt)}</span>${esc(data.text || "")}`;
+          row.innerHTML = `<span style="display:block;font-size:11px;opacity:.82">${esc(rankLabel(rank))} ${decoratedNameHtmlWithColor(shownName, data.usernameColor)} · ${timeLabel(data.createdAt)}</span>${esc(data.text || "")}`;
           messagesEl.appendChild(row);
         });
         messagesEl.scrollTop = messagesEl.scrollHeight;
@@ -632,7 +651,7 @@ function setupGameChat(user) {
           li.style.cssText = "border:1px solid #7eb5ff33;border-radius:7px;padding:4px 6px;background:#133154";
           const rank = rankMap.get(p.uid);
           const shownName = normalizeUsername(user, p.username);
-          li.innerHTML = `${esc(rankLabel(rank))} ${decoratedNameHtml(shownName)} ●`.trim();
+          li.innerHTML = `${esc(rankLabel(rank))} ${decoratedNameHtmlWithColor(shownName, p.usernameColor)} ●`.trim();
           presenceEl.appendChild(li);
         });
         if (onlineCount === 0) {
@@ -687,6 +706,7 @@ function setupGameChat(user) {
       await addDoc(collection(db, "live_chat_messages"), {
         uid: user.uid,
         username: safeUsername,
+        usernameColor: myUsernameColor,
         text,
         createdAt: serverTimestamp()
       });
