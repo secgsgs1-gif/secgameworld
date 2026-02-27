@@ -69,6 +69,7 @@ let loopTimer = null;
 let booted = false;
 let lastRevealRound = "";
 let recentRenderedRound = "";
+let lastAnimatedRound = "";
 const resultCache = new Map();
 
 function withTitle(name, titleTag) {
@@ -463,7 +464,10 @@ async function settleMyBet(roundId) {
   });
 
   lastSettledRound = roundId;
-  renderLadderVisual(result);
+  if (lastAnimatedRound !== roundId) {
+    renderLadderVisual(result);
+    lastAnimatedRound = roundId;
+  }
 
   const mine = await getDoc(betRef);
   if (mine.exists()) {
@@ -584,6 +588,7 @@ async function tickLoop() {
     lastRevealRound = c.revealRoundId;
     const result = await getRoundResult(c.revealRoundId, true);
     renderLadderVisual(result);
+    lastAnimatedRound = c.revealRoundId;
   }
 
   if (!c.inReveal) {
