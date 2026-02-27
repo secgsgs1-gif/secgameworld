@@ -302,17 +302,21 @@ async function settleMyBet(roundId) {
     const donationCashbackRate = Math.max(0, Number(profile.donationCashbackRate || 0));
     const totalCashbackRate = cashbackRate + donationCashbackRate;
 
+    const playerAmount = Number(bet.amounts?.player || 0);
+    const bankerAmount = Number(bet.amounts?.banker || 0);
     const hitAmount = Number(bet.amounts?.[resultKey] || 0);
     const payout = hitAmount > 0 ? hitAmount * payoutMultiplier : 0;
+    const tieRefund = resultKey === "tie" ? (playerAmount + bankerAmount) : 0;
     const totalBet = Math.max(0, Number(bet.total || 0));
     const cashback = totalCashbackRate > 0 ? Math.floor(totalBet * totalCashbackRate) : 0;
-    const totalCredit = payout + cashback;
+    const totalCredit = payout + cashback + tieRefund;
 
     tx.update(betRef, {
       settled: true,
       settledAt: serverTimestamp(),
       resultKey,
       payout,
+      tieRefund,
       cashback,
       cashbackRate: totalCashbackRate,
       cashbackWeaponRate: cashbackRate,
@@ -333,13 +337,24 @@ async function settleMyBet(roundId) {
   const mine = await getDoc(betRef);
   if (mine.exists()) {
     const d = mine.data();
+    const tieRefund = Number(d.tieRefund || 0);
     const cashback = Number(d.cashback || 0);
     if (d.payout > 0) {
-      if (cashback > 0) {
+      if (tieRefund > 0 && cashback > 0) {
+        resultEl.textContent = `당첨! ${outcomeLabel(d.resultKey)} x${PAYOUT[d.resultKey]}, 배당 +${d.payout}, 환불 +${tieRefund}, 캐시백 +${cashback}`;
+      } else if (tieRefund > 0) {
+        resultEl.textContent = `당첨! ${outcomeLabel(d.resultKey)} x${PAYOUT[d.resultKey]}, 배당 +${d.payout}, 환불 +${tieRefund}`;
+      } else if (cashback > 0) {
         resultEl.textContent = `당첨! ${outcomeLabel(d.resultKey)} x${PAYOUT[d.resultKey]}, 배당 +${d.payout}, 캐시백 +${cashback}`;
       } else {
         resultEl.textContent = `당첨! ${outcomeLabel(d.resultKey)} x${PAYOUT[d.resultKey]} 지급 +${d.payout}`;
       }
+    }
+    else if (tieRefund > 0 && cashback > 0) {
+      resultEl.textContent = `무승부 처리: 플레이어/뱅커 환불 +${tieRefund}, 페이백 +${cashback}`;
+    }
+    else if (tieRefund > 0) {
+      resultEl.textContent = `무승부 처리: 플레이어/뱅커 환불 +${tieRefund}`;
     }
     else if (cashback > 0) {
       resultEl.textContent = `미당첨. 결과: ${outcomeLabel(resultKey)}, 페이백 +${cashback}`;
