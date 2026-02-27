@@ -604,8 +604,8 @@ function init() {
 
   if (toggleGameVisualBtn && gameVisualEl) {
     toggleGameVisualBtn.addEventListener("click", () => {
-      const hidden = !gameVisualEl.hidden;
-      gameVisualEl.hidden = hidden;
+      const hidden = !gameVisualEl.classList.contains("is-hidden");
+      gameVisualEl.classList.toggle("is-hidden", hidden);
       toggleGameVisualBtn.textContent = hidden ? "Show Game Screen" : "Hide Game Screen";
       toggleGameVisualBtn.setAttribute("aria-expanded", hidden ? "false" : "true");
     });

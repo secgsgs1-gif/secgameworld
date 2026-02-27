@@ -40,6 +40,9 @@ h1 { margin: 0; }
   grid-template-columns: 1fr 1fr;
   gap: 12px;
 }
+.game-visual.is-hidden {
+  display: none !important;
+}
 .visual-toggle-row {
   margin-top: 12px;
 }
