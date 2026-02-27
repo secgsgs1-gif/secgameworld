@@ -40,6 +40,17 @@ h1 { margin: 0; }
   grid-template-columns: 1fr 1fr;
   gap: 12px;
 }
+.visual-toggle-row {
+  margin-top: 12px;
+}
+.visual-toggle-row button {
+  border: 1px solid #3f8cbb;
+  border-radius: 10px;
+  background: #163f5f;
+  color: #e7f7ff;
+  padding: 8px 12px;
+  font-weight: 700;
+}
 .result-card, .history-card, .bet-panel, .bettors {
   background: var(--panel);
   border: 1px solid var(--line);
