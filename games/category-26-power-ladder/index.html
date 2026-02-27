@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Named Power Ladder</title>
+  <link rel="stylesheet" href="styles.css?v=20260227a" />
+</head>
+<body>
+  <main class="shell">
+    <h1>Named Power Ladder</h1>
+    <p class="sub">2분 주기 자동 정산. 사다리 결과(줄/방향/홀짝)에 멀티 배팅.</p>
+
+    <section class="round-bar">
+      <p>다음 결과: <strong id="countdown">--:--</strong></p>
+      <p>상태: <strong id="round-status">대기</strong></p>
+      <p>포인트: <strong id="points">0</strong></p>
+      <p>Weapon Cashback: <strong id="weapon-bonus">-</strong></p>
+    </section>
+
+    <section class="board">
+      <div class="result-card">
+        <h2>이번 결과</h2>
+        <div id="result-pill" class="result-pill">대기중</div>
+        <p id="result" class="result">배팅 후 자동 정산을 기다리세요.</p>
+      </div>
+      <div class="history-card">
+        <h2>최근 10회</h2>
+        <ul id="recent-results" class="recent-list"></ul>
+      </div>
+    </section>
+
+    <section class="bet-panel">
+      <h2>배팅 입력 (배당 x1.9)</h2>
+      <div class="bets-grid">
+        <label>줄 3 <input id="bet-line3" type="number" min="0" step="1" value="0" /></label>
+        <label>줄 4 <input id="bet-line4" type="number" min="0" step="1" value="0" /></label>
+        <label>좌 <input id="bet-left" type="number" min="0" step="1" value="0" /></label>
+        <label>우 <input id="bet-right" type="number" min="0" step="1" value="0" /></label>
+        <label>홀 <input id="bet-odd" type="number" min="0" step="1" value="0" /></label>
+        <label>짝 <input id="bet-even" type="number" min="0" step="1" value="0" /></label>
+      </div>
+      <button id="place-bet" type="button">배팅 확정</button>
+    </section>
+
+    <section class="bettors">
+      <h2>현재 라운드 배팅자</h2>
+      <div class="bettor-grid">
+        <div><h3>줄3</h3><ul id="bettors-line3"></ul></div>
+        <div><h3>줄4</h3><ul id="bettors-line4"></ul></div>
+        <div><h3>좌</h3><ul id="bettors-left"></ul></div>
+        <div><h3>우</h3><ul id="bettors-right"></ul></div>
+        <div><h3>홀</h3><ul id="bettors-odd"></ul></div>
+        <div><h3>짝</h3><ul id="bettors-even"></ul></div>
+      </div>
+    </section>
+
+    <a class="back" href="../../index.html">Back to Home</a>
+  </main>
+
+  <script>window.APP_ROOT = "../../";</script>
+  <script type="module" src="../../shared/auth-guard.js?v=20260224m"></script>
+  <script type="module" src="../../shared/game-access.js?v=20260226z"></script>
+  <script type="module" src="game.js?v=20260227a"></script>
+</body>
+</html>

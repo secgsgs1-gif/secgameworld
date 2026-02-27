@@ -1,0 +1,109 @@
+:root {
+  --bg: #0b1224;
+  --panel: #131d36;
+  --line: #2a3c66;
+  --txt: #e9f1ff;
+  --muted: #9eb0d4;
+  --accent: #62d6ff;
+  --ok: #4ef2aa;
+}
+
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: "Space Grotesk", system-ui, sans-serif;
+  background: radial-gradient(1000px 400px at 20% -10%, #173160, transparent), var(--bg);
+  color: var(--txt);
+}
+.shell { max-width: 1080px; margin: 0 auto; padding: 20px; }
+h1 { margin: 0; }
+.sub { color: var(--muted); margin-top: 8px; }
+
+.round-bar {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 10px;
+}
+.round-bar p {
+  margin: 0;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px;
+}
+
+.board {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.result-card, .history-card, .bet-panel, .bettors {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 14px;
+}
+.result-pill {
+  display: inline-block;
+  margin-top: 6px;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid #4a76be;
+  background: #10274f;
+  color: var(--accent);
+  font-weight: 700;
+}
+.result { margin-top: 10px; color: var(--muted); min-height: 24px; }
+
+.recent-list { margin: 10px 0 0; padding-left: 18px; color: var(--muted); max-height: 230px; overflow: auto; }
+
+.bet-panel { margin-top: 12px; }
+.bets-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 10px;
+  margin-bottom: 12px;
+}
+label { display: grid; gap: 6px; font-size: 14px; }
+input {
+  height: 38px;
+  border-radius: 9px;
+  border: 1px solid #3f5f9a;
+  background: #0d1831;
+  color: var(--txt);
+  padding: 0 10px;
+}
+button {
+  height: 40px;
+  border: 0;
+  border-radius: 10px;
+  font-weight: 700;
+  color: #05203f;
+  background: linear-gradient(90deg, #56c7ff, #7fffd8);
+  cursor: pointer;
+}
+
+.bettors { margin-top: 12px; }
+.bettor-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 10px;
+}
+.bettor-grid h3 { margin: 0 0 6px; font-size: 14px; color: #b9c9e8; }
+.bettor-grid ul {
+  margin: 0;
+  padding-left: 16px;
+  min-height: 80px;
+  max-height: 170px;
+  overflow: auto;
+  color: var(--muted);
+}
+.back { display: inline-block; margin-top: 14px; color: #9cd5ff; }
+
+.win { color: var(--ok); }
+
+@media (max-width: 900px) {
+  .board { grid-template-columns: 1fr; }
+}
