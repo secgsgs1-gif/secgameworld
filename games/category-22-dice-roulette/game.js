@@ -11,10 +11,12 @@ import {
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
 import { db } from "../../shared/firebase-app.js?v=20260224m";
+import { formatCashbackPercent, getEquippedWeapon } from "../../shared/weapons.js?v=20260225c";
 
 const wheelCanvas = document.getElementById("wheel");
 const ctx = wheelCanvas.getContext("2d");
 const pointsEl = document.getElementById("points");
+const weaponBonusEl = document.getElementById("weapon-bonus");
 const lastNumberEl = document.getElementById("last-number");
 const countdownEl = document.getElementById("countdown");
 const roundStatusEl = document.getElementById("round-status");
@@ -398,10 +400,17 @@ async function settleMyBet(roundId) {
       type: String(bet.type || ""),
       number: Number(bet.number ?? -1)
     };
+    const profile = userSnap.data() || {};
+    const equippedWeapon = getEquippedWeapon(profile);
+    const cashbackRate = Number(equippedWeapon?.cashbackRate || 0);
+    const donationCashbackRate = Math.max(0, Number(profile.donationCashbackRate || 0));
+    const totalCashbackRate = cashbackRate + donationCashbackRate;
     const amount = Math.max(0, Number(bet.amount || 0));
     const mult = payoutMultiplier(pick.type);
     const win = isWinningBet(pick, resultNumber);
     const payout = win ? amount * mult : 0;
+    const cashback = totalCashbackRate > 0 ? Math.floor(amount * totalCashbackRate) : 0;
+    const totalCredit = payout + cashback;
 
     tx.update(betRef, {
       settled: true,
@@ -409,12 +418,17 @@ async function settleMyBet(roundId) {
       resultNumber,
       win,
       payout,
-      multiplier: win ? mult : 0
+      multiplier: win ? mult : 0,
+      cashback,
+      cashbackRate: totalCashbackRate,
+      cashbackWeaponRate: cashbackRate,
+      cashbackDonationRate: donationCashbackRate,
+      cashbackWeaponId: equippedWeapon?.id || null
     });
 
-    if (payout > 0) {
+    if (totalCredit > 0) {
       tx.update(userRef, {
-        points: increment(payout),
+        points: increment(totalCredit),
         updatedAt: serverTimestamp()
       });
     }
@@ -424,12 +438,21 @@ async function settleMyBet(roundId) {
   const mine = await getDoc(betRef);
   if (!mine.exists()) return;
   const d = mine.data();
+  const cashback = Number(d.cashback || 0);
   const net = Number(d.payout || 0) - Number(d.amount || 0);
   const tone = net >= 0 ? "+" : "";
   if (d.win) {
-    resultEl.textContent = `Round ${roundId} · ${d.resultNumber} (${pocketColor(d.resultNumber).toUpperCase()}) · WIN · Net ${tone}${net}`;
+    if (cashback > 0) {
+      resultEl.textContent = `Round ${roundId} · ${d.resultNumber} (${pocketColor(d.resultNumber).toUpperCase()}) · WIN · Net ${tone}${net} · Cashback +${cashback}`;
+    } else {
+      resultEl.textContent = `Round ${roundId} · ${d.resultNumber} (${pocketColor(d.resultNumber).toUpperCase()}) · WIN · Net ${tone}${net}`;
+    }
   } else {
-    resultEl.textContent = `Round ${roundId} · ${d.resultNumber} (${pocketColor(d.resultNumber).toUpperCase()}) · LOSE · Net ${net}`;
+    if (cashback > 0) {
+      resultEl.textContent = `Round ${roundId} · ${d.resultNumber} (${pocketColor(d.resultNumber).toUpperCase()}) · LOSE · Net ${net} · Cashback +${cashback}`;
+    } else {
+      resultEl.textContent = `Round ${roundId} · ${d.resultNumber} (${pocketColor(d.resultNumber).toUpperCase()}) · LOSE · Net ${net}`;
+    }
   }
 }
 
@@ -567,6 +590,12 @@ function init() {
     const p = snap.data() || {};
     username = withTitle(normalizeUsername(user, p.username), composeUserTitleTag(p));
     syncPoints(p.points || 0);
+    const equipped = getEquippedWeapon(p);
+    const donationRate = Math.max(0, Number(p.donationCashbackRate || 0));
+    const totalRate = Number(equipped.cashbackRate || 0) + donationRate;
+    if (weaponBonusEl) {
+      weaponBonusEl.textContent = `${equipped.name} ${formatCashbackPercent(equipped.cashbackRate)} + 기부왕 ${formatCashbackPercent(donationRate)} = ${formatCashbackPercent(totalRate)}`;
+    }
   });
 
   tickLoop().catch(() => {});
