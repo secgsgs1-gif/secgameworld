@@ -113,9 +113,12 @@ function formatResult(result) {
 
 function normalizeResultShape(raw) {
   const line = String(raw?.line || "line3") === "line4" ? "line4" : "line3";
-  // start is always left rail: odd(3) crossings -> right/even, even(4) crossings -> left/odd
-  const side = line === "line4" ? "left" : "right";
-  const parity = line === "line4" ? "odd" : "even";
+  const rawSide = String(raw?.side || "");
+  const side = rawSide === "right" ? "right" : "left";
+  const bottomSide = line === "line3"
+    ? (side === "left" ? "right" : "left")
+    : side;
+  const parity = bottomSide === "left" ? "odd" : "even";
   return {
     roll: Number(raw?.roll || 0),
     line,
@@ -295,7 +298,8 @@ async function getRoundResult(roundId, createIfMissing = true) {
 
     const roll = Math.floor(Math.random() * 100);
     const line = roll < 50 ? "line3" : "line4";
-    const shaped = normalizeResultShape({ roll, line });
+    const side = (Math.floor(roll / 3) % 2 === 0) ? "left" : "right";
+    const shaped = normalizeResultShape({ roll, line, side });
 
     tx.set(roundRef, {
       roll: shaped.roll,
