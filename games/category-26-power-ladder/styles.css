@@ -270,9 +270,8 @@ h1 { margin: 0; }
   color: #f4fbff;
   border: 1px solid #5f98bb;
 }
-.badge.side { background: #3fa4cf; }
-.badge.line { background: #2d8dbc; }
-.badge.parity { background: #ef4c3a; border-color: #ff7d70; }
+.badge.blue { background: #3fa4cf; border-color: #7bc6e4; }
+.badge.red { background: #ef4c3a; border-color: #ff7d70; }
 
 .bet-panel { margin-top: 12px; }
 .bets-grid {

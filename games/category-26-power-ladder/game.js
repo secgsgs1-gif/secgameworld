@@ -541,12 +541,15 @@ async function renderRecentResults(dayKey, revealRoundNo) {
     const li = document.createElement("li");
     li.className = "result-row";
     if (result) {
+      const sideTone = result.side === "left" ? "blue" : "red";
+      const lineTone = result.line === "line3" ? "blue" : "red";
+      const parityTone = result.parity === "odd" ? "blue" : "red";
       li.innerHTML = `
         <div class="result-meta">${r}회 · ${roundId}</div>
         <div class="result-badges">
-          <span class="badge side">${sideBadge(result)}</span>
-          <span class="badge line">${lineBadge(result)}</span>
-          <span class="badge parity">${parityBadge(result)}</span>
+          <span class="badge ${sideTone}">${sideBadge(result)}</span>
+          <span class="badge ${lineTone}">${lineBadge(result)}</span>
+          <span class="badge ${parityTone}">${parityBadge(result)}</span>
         </div>
       `;
     } else {
