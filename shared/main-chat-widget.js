@@ -451,6 +451,8 @@ async function touchPresence(online) {
     uid: user.uid,
     username: safeUsername,
     usernameColor: myUsernameColor,
+    currentGame: "main-portal",
+    currentPath: window.location.pathname || "",
     online,
     lastSeen: serverTimestamp()
   }, { merge: true });

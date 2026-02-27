@@ -29,6 +29,10 @@ const TAG_ALIASES = [
 ];
 let settlementOnceStarted = false;
 let settlementOnceBusy = false;
+const CURRENT_GAME_ID = (() => {
+  const m = String(window.location.pathname || "").match(/\/games\/([^/]+)\//);
+  return m?.[1] ? String(m[1]) : "unknown-game";
+})();
 
 function normalizeUsername(currentUser, rawName) {
   const byProfile = String(rawName || "").trim();
@@ -572,6 +576,8 @@ function setupGameChat(user) {
       uid: user.uid,
       username: safeUsername,
       usernameColor: myUsernameColor,
+      currentGame: CURRENT_GAME_ID,
+      currentPath: window.location.pathname || "",
       online,
       lastSeen: serverTimestamp()
     }, { merge: true });
