@@ -34,13 +34,10 @@ const tracePathGlowEl = document.getElementById("trace-path-glow");
 const resultBallEl = document.getElementById("result-ball");
 
 const BET_KEYS = ["line3", "line4", "left", "right", "odd", "even"];
-const PAYOUT = {
-  line3: 1.9,
-  line4: 1.9,
-  left: 1.9,
-  right: 1.9,
-  odd: 1.9,
-  even: 1.9
+const COMBO_PAYOUT = {
+  1: 1.9,
+  2: 3.6,
+  3: 6.8
 };
 
 const betInputs = {
@@ -332,6 +329,15 @@ function parseBets() {
   return { amounts, total };
 }
 
+function pickSelectedOption(amounts, a, b) {
+  const aAmt = Number(amounts[a] || 0);
+  const bAmt = Number(amounts[b] || 0);
+  if (aAmt > 0 && bAmt > 0) return { error: `${a}/${b}는 동시에 선택할 수 없습니다.` };
+  if (aAmt > 0) return { key: a, amount: aAmt };
+  if (bAmt > 0) return { key: b, amount: bAmt };
+  return { key: "", amount: 0 };
+}
+
 async function placeBet() {
   const c = currentClock();
   if (c.inReveal) {
@@ -342,6 +348,33 @@ async function placeBet() {
   const { amounts, total } = parseBets();
   if (total <= 0) {
     resultEl.textContent = "배팅 금액을 입력하세요.";
+    return;
+  }
+  const side = pickSelectedOption(amounts, "left", "right");
+  if (side.error) {
+    resultEl.textContent = side.error;
+    return;
+  }
+  const line = pickSelectedOption(amounts, "line3", "line4");
+  if (line.error) {
+    resultEl.textContent = line.error;
+    return;
+  }
+  const parity = pickSelectedOption(amounts, "odd", "even");
+  if (parity.error) {
+    resultEl.textContent = parity.error;
+    return;
+  }
+
+  const selected = [side.key, line.key, parity.key].filter(Boolean);
+  const comboCount = selected.length;
+  if (comboCount <= 0) {
+    resultEl.textContent = "좌/우, 3줄/4줄, 홀/짝 중 최소 1개를 선택하세요.";
+    return;
+  }
+  const comboMultiplier = Number(COMBO_PAYOUT[comboCount] || 0);
+  if (comboMultiplier <= 0) {
+    resultEl.textContent = "배팅 배수 계산 오류";
     return;
   }
 
@@ -370,6 +403,9 @@ async function placeBet() {
       username,
       amounts,
       total,
+      selected,
+      comboCount,
+      comboMultiplier,
       settled: false,
       createdAt: serverTimestamp()
     });
@@ -404,15 +440,15 @@ async function settleMyBet(roundId) {
     const donationCashbackRate = Math.max(0, Number(profile.donationCashbackRate || 0));
     const totalCashbackRate = cashbackRate + donationCashbackRate;
 
-    let payout = 0;
-    BET_KEYS.forEach((key) => {
-      const amt = Math.max(0, Number(bet.amounts?.[key] || 0));
-      if (amt <= 0) return;
-      if (!winMap[key]) return;
-      payout += Math.floor(amt * Number(PAYOUT[key] || 0));
-    });
+    const selected = Array.isArray(bet.selected)
+      ? bet.selected.map((x) => String(x || "")).filter((x) => BET_KEYS.includes(x))
+      : BET_KEYS.filter((key) => Number(bet.amounts?.[key] || 0) > 0);
+    const comboCount = Math.max(1, Math.min(3, Number(bet.comboCount || selected.length || 1)));
+    const comboMultiplier = Number(bet.comboMultiplier || COMBO_PAYOUT[comboCount] || COMBO_PAYOUT[1]);
+    const isComboHit = selected.length > 0 && selected.every((key) => Boolean(winMap[key]));
 
     const totalBet = Math.max(0, Number(bet.total || 0));
+    const payout = isComboHit ? Math.floor(totalBet * comboMultiplier) : 0;
     const cashback = totalCashbackRate > 0 ? Math.floor(totalBet * totalCashbackRate) : 0;
     const totalCredit = payout + cashback;
 
@@ -420,6 +456,10 @@ async function settleMyBet(roundId) {
       settled: true,
       settledAt: serverTimestamp(),
       result,
+      selected,
+      comboCount,
+      comboMultiplier,
+      comboHit: isComboHit,
       payout,
       cashback,
       cashbackRate: totalCashbackRate,
@@ -446,9 +486,9 @@ async function settleMyBet(roundId) {
     if (Number(d.payout || 0) > 0) {
       resultEl.classList.add("win");
       if (cashback > 0) {
-        resultEl.textContent = `당첨! 배당 +${d.payout}, 캐시백 +${cashback}`;
+        resultEl.textContent = `당첨! ${d.comboCount || 1}묶음 x${d.comboMultiplier || COMBO_PAYOUT[1]} · 배당 +${d.payout}, 캐시백 +${cashback}`;
       } else {
-        resultEl.textContent = `당첨! 배당 +${d.payout}`;
+        resultEl.textContent = `당첨! ${d.comboCount || 1}묶음 x${d.comboMultiplier || COMBO_PAYOUT[1]} · 배당 +${d.payout}`;
       }
     } else {
       resultEl.classList.remove("win");
