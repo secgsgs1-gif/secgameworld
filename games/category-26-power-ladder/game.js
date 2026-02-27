@@ -111,6 +111,19 @@ function formatResult(result) {
   return `${lineText} · ${sideText} · ${parityText}`;
 }
 
+function normalizeResultShape(raw) {
+  const line = String(raw?.line || "line3") === "line4" ? "line4" : "line3";
+  // start is always left rail: odd(3) crossings -> right/even, even(4) crossings -> left/odd
+  const side = line === "line4" ? "left" : "right";
+  const parity = line === "line4" ? "odd" : "even";
+  return {
+    roll: Number(raw?.roll || 0),
+    line,
+    side,
+    parity
+  };
+}
+
 function sideBadge(result) {
   return result?.side === "left" ? "좌" : "우";
 }
@@ -131,7 +144,7 @@ function buildTracePoints(result) {
   const isLine3 = result.line === "line3";
   const rungYs = isLine3 ? [45, 95, 145] : [35, 80, 125, 170];
 
-  const startOnRight = result.side === "right";
+  const startOnRight = false;
   let currentRight = startOnRight;
   const points = [{ x: currentRight ? rightX : leftX, y: yStart }];
 
@@ -269,12 +282,7 @@ async function getRoundResult(roundId, createIfMissing = true) {
     const snap = await getDoc(roundRef);
     if (!snap.exists()) return null;
     const d = snap.data() || {};
-    const result = {
-      roll: Number(d.roll || 0),
-      line: String(d.line || "line3"),
-      side: String(d.side || "left"),
-      parity: String(d.parity || "odd")
-    };
+    const result = normalizeResultShape(d);
     resultCache.set(key, result);
     return result;
   }
@@ -282,30 +290,23 @@ async function getRoundResult(roundId, createIfMissing = true) {
   const result = await runTransaction(db, async (tx) => {
     const snap = await tx.get(roundRef);
     if (snap.exists()) {
-      const d = snap.data() || {};
-      return {
-        roll: Number(d.roll || 0),
-        line: String(d.line || "line3"),
-        side: String(d.side || "left"),
-        parity: String(d.parity || "odd")
-      };
+      return normalizeResultShape(snap.data() || {});
     }
 
     const roll = Math.floor(Math.random() * 100);
     const line = roll < 50 ? "line3" : "line4";
-    const side = roll % 2 === 0 ? "left" : "right";
-    const parity = Math.floor(roll / 2) % 2 === 0 ? "even" : "odd";
+    const shaped = normalizeResultShape({ roll, line });
 
     tx.set(roundRef, {
-      roll,
-      line,
-      side,
-      parity,
+      roll: shaped.roll,
+      line: shaped.line,
+      side: shaped.side,
+      parity: shaped.parity,
       generatedAt: serverTimestamp(),
       updatedAt: serverTimestamp()
     }, { merge: true });
 
-    return { roll, line, side, parity };
+    return shaped;
   });
 
   resultCache.set(key, result);
