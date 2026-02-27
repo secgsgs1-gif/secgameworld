@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Named Power Ladder</title>
-  <link rel="stylesheet" href="styles.css?v=20260227d" />
+  <link rel="stylesheet" href="styles.css?v=20260227e" />
 </head>
 <body>
   <main class="shell">
@@ -34,11 +34,21 @@
             <div class="rung r2"></div>
             <div class="rung r3"></div>
             <div class="rung r4"></div>
+            <div id="node-top-left" class="node node-top-left">좌</div>
+            <div id="node-top-right" class="node node-top-right">우</div>
+            <div id="node-bottom-left" class="node node-bottom-left">홀</div>
+            <div id="node-bottom-right" class="node node-bottom-right">짝</div>
+            <div class="center-mark">BEPICK</div>
             <svg class="trace-svg" viewBox="0 0 100 200" preserveAspectRatio="none" aria-hidden="true">
               <path id="trace-path-glow" class="trace-path glow" d="M25 8 L25 192"></path>
               <path id="trace-path" class="trace-path" d="M25 8 L25 192"></path>
             </svg>
             <div id="result-ball" class="result-ball">●</div>
+          </div>
+          <div class="draw-track">
+            <div id="draw-fill" class="draw-fill">
+              <span id="draw-text">대기중</span>
+            </div>
           </div>
           <div class="ladder-foot">
             <span id="foot-left">좌 / 홀</span>
@@ -84,6 +94,6 @@
   <script>window.APP_ROOT = "../../";</script>
   <script type="module" src="../../shared/auth-guard.js?v=20260224m"></script>
   <script type="module" src="../../shared/game-access.js?v=20260227a"></script>
-  <script type="module" src="game.js?v=20260227e"></script>
+  <script type="module" src="game.js?v=20260227f"></script>
 </body>
 </html>

@@ -24,6 +24,12 @@ const placeBetBtn = document.getElementById("place-bet");
 const ladderBoardEl = document.getElementById("ladder-board");
 const ladderHeadLine3El = document.getElementById("ladder-head-line3");
 const ladderHeadLine4El = document.getElementById("ladder-head-line4");
+const nodeTopLeftEl = document.getElementById("node-top-left");
+const nodeTopRightEl = document.getElementById("node-top-right");
+const nodeBottomLeftEl = document.getElementById("node-bottom-left");
+const nodeBottomRightEl = document.getElementById("node-bottom-right");
+const drawFillEl = document.getElementById("draw-fill");
+const drawTextEl = document.getElementById("draw-text");
 const tracePathEl = document.getElementById("trace-path");
 const tracePathGlowEl = document.getElementById("trace-path-glow");
 const resultBallEl = document.getElementById("result-ball");
@@ -192,6 +198,10 @@ function renderLadderVisual(result) {
     ladderBoardEl.classList.add("mode-3");
     if (ladderHeadLine3El) ladderHeadLine3El.classList.add("active");
     if (ladderHeadLine4El) ladderHeadLine4El.classList.remove("active");
+    if (nodeTopLeftEl) nodeTopLeftEl.classList.remove("active");
+    if (nodeTopRightEl) nodeTopRightEl.classList.remove("active");
+    if (nodeBottomLeftEl) nodeBottomLeftEl.classList.remove("active");
+    if (nodeBottomRightEl) nodeBottomRightEl.classList.remove("active");
     footLeftEl.textContent = "좌 / 홀";
     footRightEl.textContent = "우 / 짝";
     return;
@@ -202,6 +212,10 @@ function renderLadderVisual(result) {
   ladderBoardEl.classList.toggle("mode-4", !isLine3);
   if (ladderHeadLine3El) ladderHeadLine3El.classList.toggle("active", isLine3);
   if (ladderHeadLine4El) ladderHeadLine4El.classList.toggle("active", !isLine3);
+  if (nodeTopLeftEl) nodeTopLeftEl.classList.toggle("active", result.side === "left");
+  if (nodeTopRightEl) nodeTopRightEl.classList.toggle("active", result.side === "right");
+  if (nodeBottomLeftEl) nodeBottomLeftEl.classList.toggle("active", result.parity === "odd");
+  if (nodeBottomRightEl) nodeBottomRightEl.classList.toggle("active", result.parity === "even");
 
   const right = result.side === "right";
   resultBallEl.classList.toggle("right", right);
@@ -525,6 +539,12 @@ async function tickLoop() {
   const ss = String(sec % 60).padStart(2, "0");
 
   countdownEl.textContent = `${mm}:${ss}`;
+  if (drawFillEl && drawTextEl) {
+    const elapsed = Math.max(0, ROUND_INTERVAL_MS - (c.nextRoundAt - c.now));
+    const pct = Math.max(0, Math.min(100, Math.floor((elapsed / ROUND_INTERVAL_MS) * 100)));
+    drawFillEl.style.width = `${Math.max(34, pct)}%`;
+    drawTextEl.textContent = `${sec}초 후 ${c.revealRoundNo + 1}회차 추첨`;
+  }
   roundStatusEl.textContent = c.inReveal
     ? `결과 공개중 (Round ${c.revealRoundNo})`
     : `배팅중 (Round ${c.bettingRoundNo})`;
