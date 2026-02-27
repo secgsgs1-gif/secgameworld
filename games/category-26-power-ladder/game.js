@@ -22,8 +22,6 @@ const resultEl = document.getElementById("result");
 const recentResultsEl = document.getElementById("recent-results");
 const placeBetBtn = document.getElementById("place-bet");
 const ladderBoardEl = document.getElementById("ladder-board");
-const ladderHeadLine3El = document.getElementById("ladder-head-line3");
-const ladderHeadLine4El = document.getElementById("ladder-head-line4");
 const nodeTopLeftEl = document.getElementById("node-top-left");
 const nodeTopRightEl = document.getElementById("node-top-right");
 const nodeBottomLeftEl = document.getElementById("node-bottom-left");
@@ -33,8 +31,6 @@ const drawTextEl = document.getElementById("draw-text");
 const tracePathEl = document.getElementById("trace-path");
 const tracePathGlowEl = document.getElementById("trace-path-glow");
 const resultBallEl = document.getElementById("result-ball");
-const footLeftEl = document.getElementById("foot-left");
-const footRightEl = document.getElementById("foot-right");
 
 const BET_KEYS = ["line3", "line4", "left", "right", "odd", "even"];
 const PAYOUT = {
@@ -198,7 +194,7 @@ function animateBallOnPath(pathEl, ballEl, durationMs = 3200) {
 }
 
 function renderLadderVisual(result) {
-  if (!tracePathEl || !resultBallEl || !footLeftEl || !footRightEl || !ladderBoardEl) return;
+  if (!tracePathEl || !resultBallEl || !ladderBoardEl) return;
   if (!result) {
     const d = "M25 8 L25 192";
     tracePathEl.setAttribute("d", d);
@@ -208,22 +204,16 @@ function renderLadderVisual(result) {
     resultBallEl.style.top = "8%";
     ladderBoardEl.classList.remove("mode-3", "mode-4");
     ladderBoardEl.classList.add("mode-3");
-    if (ladderHeadLine3El) ladderHeadLine3El.classList.add("active");
-    if (ladderHeadLine4El) ladderHeadLine4El.classList.remove("active");
     if (nodeTopLeftEl) nodeTopLeftEl.classList.remove("active");
     if (nodeTopRightEl) nodeTopRightEl.classList.remove("active");
     if (nodeBottomLeftEl) nodeBottomLeftEl.classList.remove("active");
     if (nodeBottomRightEl) nodeBottomRightEl.classList.remove("active");
-    footLeftEl.textContent = "좌 / 홀";
-    footRightEl.textContent = "우 / 짝";
     return;
   }
 
   const isLine3 = result.line === "line3";
   ladderBoardEl.classList.toggle("mode-3", isLine3);
   ladderBoardEl.classList.toggle("mode-4", !isLine3);
-  if (ladderHeadLine3El) ladderHeadLine3El.classList.toggle("active", isLine3);
-  if (ladderHeadLine4El) ladderHeadLine4El.classList.toggle("active", !isLine3);
   if (nodeTopLeftEl) nodeTopLeftEl.classList.toggle("active", result.side === "left");
   if (nodeTopRightEl) nodeTopRightEl.classList.toggle("active", result.side === "right");
   if (nodeBottomLeftEl) nodeBottomLeftEl.classList.toggle("active", result.parity === "odd");
@@ -236,11 +226,6 @@ function renderLadderVisual(result) {
   tracePathEl.setAttribute("d", d);
   if (tracePathGlowEl) tracePathGlowEl.setAttribute("d", d);
   animateBallOnPath(tracePathEl, resultBallEl);
-
-  const leftParity = result.parity === "odd" ? "홀" : "짝";
-  const rightParity = result.parity === "odd" ? "짝" : "홀";
-  footLeftEl.textContent = `좌 / ${leftParity}`;
-  footRightEl.textContent = `우 / ${rightParity}`;
 }
 
 function winnersForResult(result) {
@@ -567,9 +552,9 @@ async function tickLoop() {
 
   countdownEl.textContent = `${mm}:${ss}`;
   if (drawFillEl && drawTextEl) {
-    const elapsed = Math.max(0, ROUND_INTERVAL_MS - (c.nextRoundAt - c.now));
-    const pct = Math.max(0, Math.min(100, Math.floor((elapsed / ROUND_INTERVAL_MS) * 100)));
-    drawFillEl.style.width = `${Math.max(34, pct)}%`;
+    const remainMs = Math.max(0, c.nextRoundAt - c.now);
+    const pct = Math.max(0, Math.min(100, Math.floor((remainMs / ROUND_INTERVAL_MS) * 100)));
+    drawFillEl.style.width = `${Math.max(6, pct)}%`;
     drawTextEl.textContent = `${sec}초 후 ${c.revealRoundNo + 1}회차 추첨`;
   }
   roundStatusEl.textContent = c.inReveal

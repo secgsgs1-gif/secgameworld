@@ -63,35 +63,9 @@ h1 { margin: 0; }
   padding: 10px;
   background: linear-gradient(180deg, #10213f, #0b1630);
 }
-.ladder-head,
-.ladder-foot {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 8px;
-  text-align: center;
-  font-weight: 700;
-  color: #bcd4ff;
-}
-.ladder-head span {
-  border: 1px solid #3b5f99;
-  border-radius: 999px;
-  padding: 4px 8px;
-  background: #142a50;
-  opacity: 0.6;
-}
-.ladder-head span.active {
-  opacity: 1;
-  border-color: #87c6ff;
-  box-shadow: 0 0 10px #5eb4ff88;
-}
-.ladder-foot {
-  margin-top: 6px;
-  color: #93b2eb;
-  font-size: 13px;
-}
 .ladder-board {
   position: relative;
-  margin-top: 8px;
+  margin-top: 2px;
   height: 210px;
   border-radius: 8px;
   border: 1px solid #2f4a7d;
