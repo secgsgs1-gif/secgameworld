@@ -17,7 +17,6 @@ const countdownEl = document.getElementById("countdown");
 const roundStatusEl = document.getElementById("round-status");
 const pointsEl = document.getElementById("points");
 const weaponBonusEl = document.getElementById("weapon-bonus");
-const resultPillEl = document.getElementById("result-pill");
 const resultEl = document.getElementById("result");
 const recentResultsEl = document.getElementById("recent-results");
 const placeBetBtn = document.getElementById("place-bet");
@@ -442,7 +441,6 @@ async function settleMyBet(roundId) {
   });
 
   lastSettledRound = roundId;
-  resultPillEl.textContent = formatResult(result);
   renderLadderVisual(result);
 
   const mine = await getDoc(betRef);
@@ -563,7 +561,6 @@ async function tickLoop() {
   if (c.inReveal && lastRevealRound !== c.revealRoundId) {
     lastRevealRound = c.revealRoundId;
     const result = await getRoundResult(c.revealRoundId, true);
-    resultPillEl.textContent = formatResult(result);
     renderLadderVisual(result);
   }
 
