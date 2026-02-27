@@ -116,6 +116,18 @@ function formatResult(result) {
   return `${lineText} · ${sideText} · ${parityText}`;
 }
 
+function sideBadge(result) {
+  return result?.side === "left" ? "좌" : "우";
+}
+
+function lineBadge(result) {
+  return result?.line === "line3" ? "3줄" : "4줄";
+}
+
+function parityBadge(result) {
+  return result?.parity === "odd" ? "홀" : "짝";
+}
+
 function buildTracePoints(result) {
   const leftX = 25;
   const rightX = 75;
@@ -527,7 +539,19 @@ async function renderRecentResults(dayKey, revealRoundNo) {
     const roundId = `${dayKey}-R${r}`;
     const result = await getRoundResult(roundId, true);
     const li = document.createElement("li");
-    li.textContent = result ? `R${r}: ${formatResult(result)}` : `R${r}: ?`;
+    li.className = "result-row";
+    if (result) {
+      li.innerHTML = `
+        <div class="result-meta">${r}회 · ${roundId}</div>
+        <div class="result-badges">
+          <span class="badge side">${sideBadge(result)}</span>
+          <span class="badge line">${lineBadge(result)}</span>
+          <span class="badge parity">${parityBadge(result)}</span>
+        </div>
+      `;
+    } else {
+      li.innerHTML = `<div class="result-meta">${r}회 · 결과 대기</div>`;
+    }
     recentResultsEl.appendChild(li);
   }
 }
