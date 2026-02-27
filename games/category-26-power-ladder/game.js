@@ -452,16 +452,16 @@ async function settleMyBet(roundId) {
     if (Number(d.payout || 0) > 0) {
       resultEl.classList.add("win");
       if (cashback > 0) {
-        resultEl.textContent = `당첨! ${formatResult(d.result)} · 배당 +${d.payout}, 캐시백 +${cashback}`;
+        resultEl.textContent = `당첨! 배당 +${d.payout}, 캐시백 +${cashback}`;
       } else {
-        resultEl.textContent = `당첨! ${formatResult(d.result)} · 배당 +${d.payout}`;
+        resultEl.textContent = `당첨! 배당 +${d.payout}`;
       }
     } else {
       resultEl.classList.remove("win");
       if (cashback > 0) {
-        resultEl.textContent = `미당첨. 결과: ${formatResult(d.result)} · 페이백 +${cashback}`;
+        resultEl.textContent = `미당첨. 페이백 +${cashback}`;
       } else {
-        resultEl.textContent = `미당첨. 결과: ${formatResult(d.result)}`;
+        resultEl.textContent = "미당첨.";
       }
     }
   }
