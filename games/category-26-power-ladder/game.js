@@ -608,11 +608,18 @@ function init() {
   renderLadderVisual(null);
 
   if (toggleGameVisualBtn && gameVisualEl) {
-    toggleGameVisualBtn.addEventListener("click", () => {
-      const hidden = !gameVisualEl.classList.contains("is-hidden");
+    const applyGameVisualHidden = (hidden) => {
       gameVisualEl.classList.toggle("is-hidden", hidden);
+      gameVisualEl.hidden = hidden;
+      gameVisualEl.style.display = hidden ? "none" : "grid";
       toggleGameVisualBtn.textContent = hidden ? "Show Game Screen" : "Hide Game Screen";
       toggleGameVisualBtn.setAttribute("aria-expanded", hidden ? "false" : "true");
+    };
+    applyGameVisualHidden(false);
+
+    toggleGameVisualBtn.addEventListener("click", () => {
+      const hidden = !gameVisualEl.classList.contains("is-hidden");
+      applyGameVisualHidden(hidden);
     });
   }
 
