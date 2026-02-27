@@ -21,7 +21,8 @@ const resultPillEl = document.getElementById("result-pill");
 const resultEl = document.getElementById("result");
 const recentResultsEl = document.getElementById("recent-results");
 const placeBetBtn = document.getElementById("place-bet");
-const pathHighlightEl = document.getElementById("path-highlight");
+const tracePathEl = document.getElementById("trace-path");
+const tracePathGlowEl = document.getElementById("trace-path-glow");
 const resultBallEl = document.getElementById("result-ball");
 const footLeftEl = document.getElementById("foot-left");
 const footRightEl = document.getElementById("foot-right");
@@ -106,20 +107,93 @@ function formatResult(result) {
   return `${lineText} · ${sideText} · ${parityText}`;
 }
 
+function buildTracePoints(result) {
+  const leftX = 25;
+  const rightX = 75;
+  const yStart = 8;
+  const yEnd = 192;
+  const rungYs = [35, 80, 125, 170];
+
+  const startOnRight = result.line === "line4";
+  const endOnRight = result.side === "right";
+  let currentRight = startOnRight;
+  const points = [{ x: currentRight ? rightX : leftX, y: yStart }];
+
+  let crossings = 1 + (Number(result.roll || 0) % 3); // 1..3
+  if (((startOnRight ? 1 : 0) ^ (crossings % 2 ? 1 : 0)) !== (endOnRight ? 1 : 0)) {
+    crossings += 1;
+  }
+
+  const gap = Math.max(1, Math.floor(rungYs.length / crossings));
+  const selected = [];
+  for (let i = 0; i < crossings; i += 1) {
+    selected.push(rungYs[Math.min(rungYs.length - 1, i * gap)]);
+  }
+
+  selected.forEach((y) => {
+    points.push({ x: currentRight ? rightX : leftX, y });
+    currentRight = !currentRight;
+    points.push({ x: currentRight ? rightX : leftX, y });
+  });
+
+  points.push({ x: currentRight ? rightX : leftX, y: yEnd });
+  return points;
+}
+
+function pointsToPath(points) {
+  if (!points.length) return "M25 8 L25 192";
+  return points.map((p, i) => `${i === 0 ? "M" : "L"}${p.x} ${p.y}`).join(" ");
+}
+
+function animateBallOnPath(pathEl, ballEl, durationMs = 1700) {
+  if (!pathEl || !ballEl) return;
+  const total = pathEl.getTotalLength();
+  if (!total || !Number.isFinite(total)) return;
+
+  pathEl.style.strokeDasharray = String(total);
+  pathEl.style.strokeDashoffset = String(total);
+  if (tracePathGlowEl) {
+    tracePathGlowEl.style.strokeDasharray = String(total);
+    tracePathGlowEl.style.strokeDashoffset = String(total);
+  }
+
+  const t0 = performance.now();
+  function step(now) {
+    const p = Math.min(1, (now - t0) / durationMs);
+    const eased = 1 - Math.pow(1 - p, 3);
+    const drawLen = total * (1 - eased);
+    pathEl.style.strokeDashoffset = String(drawLen);
+    if (tracePathGlowEl) tracePathGlowEl.style.strokeDashoffset = String(drawLen);
+
+    const pt = pathEl.getPointAtLength(total * eased);
+    ballEl.style.left = `${pt.x}%`;
+    ballEl.style.top = `${(pt.y / 200) * 100}%`;
+    if (p < 1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+
 function renderLadderVisual(result) {
-  if (!pathHighlightEl || !resultBallEl || !footLeftEl || !footRightEl) return;
+  if (!tracePathEl || !resultBallEl || !footLeftEl || !footRightEl) return;
   if (!result) {
-    pathHighlightEl.classList.remove("show", "right-path");
+    const d = "M25 8 L25 192";
+    tracePathEl.setAttribute("d", d);
+    if (tracePathGlowEl) tracePathGlowEl.setAttribute("d", d);
     resultBallEl.classList.remove("right");
+    resultBallEl.style.left = "25%";
+    resultBallEl.style.top = "8%";
     footLeftEl.textContent = "좌 / 홀";
     footRightEl.textContent = "우 / 짝";
     return;
   }
 
   const right = result.side === "right";
-  pathHighlightEl.classList.add("show");
-  pathHighlightEl.classList.toggle("right-path", right);
   resultBallEl.classList.toggle("right", right);
+  const points = buildTracePoints(result);
+  const d = pointsToPath(points);
+  tracePathEl.setAttribute("d", d);
+  if (tracePathGlowEl) tracePathGlowEl.setAttribute("d", d);
+  animateBallOnPath(tracePathEl, resultBallEl);
 
   const leftParity = result.parity === "odd" ? "홀" : "짝";
   const rightParity = result.parity === "odd" ? "짝" : "홀";

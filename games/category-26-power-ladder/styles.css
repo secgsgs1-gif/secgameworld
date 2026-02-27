@@ -113,37 +113,36 @@ h1 { margin: 0; }
 .r2 { top: 80px; }
 .r3 { top: 125px; }
 .r4 { top: 170px; }
-.path-highlight {
+.trace-svg {
   position: absolute;
-  width: 10px;
-  height: 190px;
-  top: 10px;
-  left: 25%;
-  border-radius: 99px;
-  opacity: 0;
-  transform: translateX(-50%);
-  background: linear-gradient(180deg, #82ffe2, #1fd5a4);
-  box-shadow: 0 0 14px #2ff3b5aa;
+  inset: 8px;
+  width: calc(100% - 16px);
+  height: calc(100% - 16px);
+  pointer-events: none;
 }
-.path-highlight.show {
-  opacity: 0.85;
-  animation: pathPulse 0.9s ease-in-out infinite;
+.trace-path {
+  fill: none;
+  stroke: #7fffe0;
+  stroke-width: 2.2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  opacity: 0.95;
 }
-.path-highlight.right-path {
-  left: 75%;
-  background: linear-gradient(180deg, #ffd075, #ff8f3c);
-  box-shadow: 0 0 14px #ff9e45aa;
+.trace-path.glow {
+  stroke: #2cf5bf;
+  stroke-width: 5;
+  opacity: 0.35;
 }
 .result-ball {
   position: absolute;
-  top: 7px;
+  top: 8%;
   left: 25%;
-  transform: translateX(-50%);
+  transform: translate(-50%, -50%);
   font-size: 20px;
   line-height: 1;
   color: #d8fff3;
   text-shadow: 0 0 8px #8bffe2, 0 0 16px #56f5cf;
-  transition: left 0.45s ease, top 0.45s ease;
+  transition: color 0.2s ease, text-shadow 0.2s ease;
 }
 .result-ball.right {
   left: 75%;
