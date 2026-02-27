@@ -132,28 +132,27 @@ function buildTracePoints(result) {
   const isLine3 = result.line === "line3";
   const rungYs = isLine3 ? [45, 95, 145] : [35, 80, 125, 170];
 
-  const startOnRight = false;
+  const startOnRight = false; // Top always starts from left rail (좌)
   const endOnRight = result.side === "right";
   let currentRight = startOnRight;
   const points = [{ x: currentRight ? rightX : leftX, y: yStart }];
 
-  let crossings = Math.min(rungYs.length, 1 + (Number(result.roll || 0) % rungYs.length));
-  if ((crossings % 2 === 1) !== endOnRight) {
-    crossings = Math.max(0, crossings - 1);
-    if ((crossings % 2 === 1) !== endOnRight) crossings = Math.min(rungYs.length, crossings + 2);
-  }
-  if ((crossings % 2 === 1) !== endOnRight) crossings = endOnRight ? 1 : 0;
-
-  const gap = Math.max(1, Math.floor(rungYs.length / Math.max(1, crossings)));
-  const selected = [];
-  for (let i = 0; i < crossings; i += 1) {
-    selected.push(rungYs[Math.min(rungYs.length - 1, i * gap)]);
+  const roll = Math.max(0, Math.floor(Number(result.roll || 0)));
+  const crosses = rungYs.map((_, i) => ((roll >> i) & 1) === 1);
+  const parity = crosses.reduce((acc, flag) => acc ^ (flag ? 1 : 0), 0);
+  const desiredParity = endOnRight ? 1 : 0;
+  if (parity !== desiredParity && crosses.length > 0) {
+    crosses[crosses.length - 1] = !crosses[crosses.length - 1];
   }
 
-  selected.forEach((y) => {
+  rungYs.forEach((y, i) => {
+    // descend to each rung level first
     points.push({ x: currentRight ? rightX : leftX, y });
-    currentRight = !currentRight;
-    points.push({ x: currentRight ? rightX : leftX, y });
+    // then cross horizontally if this rung is active
+    if (crosses[i]) {
+      currentRight = !currentRight;
+      points.push({ x: currentRight ? rightX : leftX, y });
+    }
   });
 
   points.push({ x: currentRight ? rightX : leftX, y: yEnd });
@@ -554,7 +553,7 @@ async function tickLoop() {
   if (drawFillEl && drawTextEl) {
     const remainMs = Math.max(0, c.nextRoundAt - c.now);
     const pct = Math.max(0, Math.min(100, Math.floor((remainMs / ROUND_INTERVAL_MS) * 100)));
-    drawFillEl.style.width = `${Math.max(6, pct)}%`;
+    drawFillEl.style.width = `${pct}%`;
     drawTextEl.textContent = `${sec}초 후 ${c.revealRoundNo + 1}회차 추첨`;
   }
   roundStatusEl.textContent = c.inReveal
