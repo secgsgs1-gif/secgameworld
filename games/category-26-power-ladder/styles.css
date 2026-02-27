@@ -164,6 +164,13 @@ h1 { margin: 0; }
   left: 75%;
   transform: translateX(-50%);
 }
+.node-top-right,
+.node-bottom-right {
+  color: #ffd5d5;
+  background: radial-gradient(circle at 30% 28%, #d35a5a, #7a2020 72%);
+  border-color: #9b3636;
+  box-shadow: inset 0 0 0 1px #5d1414, 0 2px 0 #451111;
+}
 .center-mark {
   position: absolute;
   left: 50%;

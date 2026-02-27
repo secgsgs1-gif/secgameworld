@@ -131,27 +131,16 @@ function buildTracePoints(result) {
   const isLine3 = result.line === "line3";
   const rungYs = isLine3 ? [45, 95, 145] : [35, 80, 125, 170];
 
-  const startOnRight = false; // Top always starts from left rail (좌)
-  const endOnRight = result.side === "right";
+  const startOnRight = result.side === "right";
   let currentRight = startOnRight;
   const points = [{ x: currentRight ? rightX : leftX, y: yStart }];
-
-  const roll = Math.max(0, Math.floor(Number(result.roll || 0)));
-  const crosses = rungYs.map((_, i) => ((roll >> i) & 1) === 1);
-  const parity = crosses.reduce((acc, flag) => acc ^ (flag ? 1 : 0), 0);
-  const desiredParity = endOnRight ? 1 : 0;
-  if (parity !== desiredParity && crosses.length > 0) {
-    crosses[crosses.length - 1] = !crosses[crosses.length - 1];
-  }
 
   rungYs.forEach((y, i) => {
     // descend to each rung level first
     points.push({ x: currentRight ? rightX : leftX, y });
-    // then cross horizontally if this rung is active
-    if (crosses[i]) {
-      currentRight = !currentRight;
-      points.push({ x: currentRight ? rightX : leftX, y });
-    }
+    // every rung is traversed to produce clear 3-line/4-line ladder movement
+    currentRight = !currentRight;
+    points.push({ x: currentRight ? rightX : leftX, y });
   });
 
   points.push({ x: currentRight ? rightX : leftX, y: yEnd });
@@ -163,7 +152,7 @@ function pointsToPath(points) {
   return points.map((p, i) => `${i === 0 ? "M" : "L"}${p.x} ${p.y}`).join(" ");
 }
 
-function animateBallOnPath(pathEl, ballEl, durationMs = 3200) {
+function animateBallOnPath(pathEl, ballEl, durationMs = 4200) {
   if (!pathEl || !ballEl) return;
   const total = pathEl.getTotalLength();
   if (!total || !Number.isFinite(total)) return;
