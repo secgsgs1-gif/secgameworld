@@ -495,7 +495,7 @@ async function renderRecentResults(dayKey, revealRoundNo) {
     const r = revealRoundNo - i;
     if (r <= 0) break;
     const roundId = `${dayKey}-R${r}`;
-    const result = await getRoundResult(roundId, false);
+    const result = await getRoundResult(roundId, true);
     const li = document.createElement("li");
     li.textContent = result ? `R${r}: ${formatResult(result)}` : `R${r}: ?`;
     recentResultsEl.appendChild(li);
