@@ -21,6 +21,9 @@ const resultPillEl = document.getElementById("result-pill");
 const resultEl = document.getElementById("result");
 const recentResultsEl = document.getElementById("recent-results");
 const placeBetBtn = document.getElementById("place-bet");
+const ladderBoardEl = document.getElementById("ladder-board");
+const ladderHeadLine3El = document.getElementById("ladder-head-line3");
+const ladderHeadLine4El = document.getElementById("ladder-head-line4");
 const tracePathEl = document.getElementById("trace-path");
 const tracePathGlowEl = document.getElementById("trace-path-glow");
 const resultBallEl = document.getElementById("result-ball");
@@ -112,19 +115,22 @@ function buildTracePoints(result) {
   const rightX = 75;
   const yStart = 8;
   const yEnd = 192;
-  const rungYs = [35, 80, 125, 170];
+  const isLine3 = result.line === "line3";
+  const rungYs = isLine3 ? [45, 95, 145] : [35, 80, 125, 170];
 
-  const startOnRight = result.line === "line4";
+  const startOnRight = false;
   const endOnRight = result.side === "right";
   let currentRight = startOnRight;
   const points = [{ x: currentRight ? rightX : leftX, y: yStart }];
 
-  let crossings = 1 + (Number(result.roll || 0) % 3); // 1..3
-  if (((startOnRight ? 1 : 0) ^ (crossings % 2 ? 1 : 0)) !== (endOnRight ? 1 : 0)) {
-    crossings += 1;
+  let crossings = Math.min(rungYs.length, 1 + (Number(result.roll || 0) % rungYs.length));
+  if ((crossings % 2 === 1) !== endOnRight) {
+    crossings = Math.max(0, crossings - 1);
+    if ((crossings % 2 === 1) !== endOnRight) crossings = Math.min(rungYs.length, crossings + 2);
   }
+  if ((crossings % 2 === 1) !== endOnRight) crossings = endOnRight ? 1 : 0;
 
-  const gap = Math.max(1, Math.floor(rungYs.length / crossings));
+  const gap = Math.max(1, Math.floor(rungYs.length / Math.max(1, crossings)));
   const selected = [];
   for (let i = 0; i < crossings; i += 1) {
     selected.push(rungYs[Math.min(rungYs.length - 1, i * gap)]);
@@ -145,7 +151,7 @@ function pointsToPath(points) {
   return points.map((p, i) => `${i === 0 ? "M" : "L"}${p.x} ${p.y}`).join(" ");
 }
 
-function animateBallOnPath(pathEl, ballEl, durationMs = 1700) {
+function animateBallOnPath(pathEl, ballEl, durationMs = 3200) {
   if (!pathEl || !ballEl) return;
   const total = pathEl.getTotalLength();
   if (!total || !Number.isFinite(total)) return;
@@ -174,7 +180,7 @@ function animateBallOnPath(pathEl, ballEl, durationMs = 1700) {
 }
 
 function renderLadderVisual(result) {
-  if (!tracePathEl || !resultBallEl || !footLeftEl || !footRightEl) return;
+  if (!tracePathEl || !resultBallEl || !footLeftEl || !footRightEl || !ladderBoardEl) return;
   if (!result) {
     const d = "M25 8 L25 192";
     tracePathEl.setAttribute("d", d);
@@ -182,10 +188,20 @@ function renderLadderVisual(result) {
     resultBallEl.classList.remove("right");
     resultBallEl.style.left = "25%";
     resultBallEl.style.top = "8%";
+    ladderBoardEl.classList.remove("mode-3", "mode-4");
+    ladderBoardEl.classList.add("mode-3");
+    if (ladderHeadLine3El) ladderHeadLine3El.classList.add("active");
+    if (ladderHeadLine4El) ladderHeadLine4El.classList.remove("active");
     footLeftEl.textContent = "좌 / 홀";
     footRightEl.textContent = "우 / 짝";
     return;
   }
+
+  const isLine3 = result.line === "line3";
+  ladderBoardEl.classList.toggle("mode-3", isLine3);
+  ladderBoardEl.classList.toggle("mode-4", !isLine3);
+  if (ladderHeadLine3El) ladderHeadLine3El.classList.toggle("active", isLine3);
+  if (ladderHeadLine4El) ladderHeadLine4El.classList.toggle("active", !isLine3);
 
   const right = result.side === "right";
   resultBallEl.classList.toggle("right", right);

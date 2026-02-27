@@ -72,6 +72,18 @@ h1 { margin: 0; }
   font-weight: 700;
   color: #bcd4ff;
 }
+.ladder-head span {
+  border: 1px solid #3b5f99;
+  border-radius: 999px;
+  padding: 4px 8px;
+  background: #142a50;
+  opacity: 0.6;
+}
+.ladder-head span.active {
+  opacity: 1;
+  border-color: #87c6ff;
+  box-shadow: 0 0 10px #5eb4ff88;
+}
 .ladder-foot {
   margin-top: 6px;
   color: #93b2eb;
@@ -113,6 +125,11 @@ h1 { margin: 0; }
 .r2 { top: 80px; }
 .r3 { top: 125px; }
 .r4 { top: 170px; }
+.ladder-board.mode-3 .r1 { top: 45px; }
+.ladder-board.mode-3 .r2 { top: 95px; }
+.ladder-board.mode-3 .r3 { top: 145px; }
+.ladder-board.mode-3 .r4 { display: none; }
+.ladder-board.mode-4 .r4 { display: block; }
 .trace-svg {
   position: absolute;
   inset: 8px;
