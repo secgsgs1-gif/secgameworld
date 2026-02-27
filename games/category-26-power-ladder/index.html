@@ -64,12 +64,34 @@
     <section class="bet-panel">
       <h2>배팅 입력 (1묶음 x1.9 / 2묶음 x3.6 / 3묶음 x6.8)</h2>
       <div class="bets-grid">
-        <label>줄 3 <input id="bet-line3" type="number" min="0" step="1" value="0" /></label>
-        <label>줄 4 <input id="bet-line4" type="number" min="0" step="1" value="0" /></label>
-        <label>좌 <input id="bet-left" type="number" min="0" step="1" value="0" /></label>
-        <label>우 <input id="bet-right" type="number" min="0" step="1" value="0" /></label>
-        <label>홀 <input id="bet-odd" type="number" min="0" step="1" value="0" /></label>
-        <label>짝 <input id="bet-even" type="number" min="0" step="1" value="0" /></label>
+        <label>
+          좌/우 선택
+          <select id="pick-side">
+            <option value="">선택 안함</option>
+            <option value="left">좌</option>
+            <option value="right">우</option>
+          </select>
+        </label>
+        <label>
+          3줄/4줄 선택
+          <select id="pick-line">
+            <option value="">선택 안함</option>
+            <option value="line3">3줄</option>
+            <option value="line4">4줄</option>
+          </select>
+        </label>
+        <label>
+          홀/짝 선택
+          <select id="pick-parity">
+            <option value="">선택 안함</option>
+            <option value="odd">홀</option>
+            <option value="even">짝</option>
+          </select>
+        </label>
+        <label>
+          배팅금액
+          <input id="bet-amount" type="number" min="1" step="1" value="100" />
+        </label>
       </div>
       <button id="place-bet" type="button">배팅 확정</button>
     </section>
@@ -92,6 +114,6 @@
   <script>window.APP_ROOT = "../../";</script>
   <script type="module" src="../../shared/auth-guard.js?v=20260224m"></script>
   <script type="module" src="../../shared/game-access.js?v=20260227a"></script>
-  <script type="module" src="game.js?v=20260227o"></script>
+  <script type="module" src="game.js?v=20260227p"></script>
 </body>
 </html>

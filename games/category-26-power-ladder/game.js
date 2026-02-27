@@ -40,14 +40,10 @@ const COMBO_PAYOUT = {
   3: 6.8
 };
 
-const betInputs = {
-  line3: document.getElementById("bet-line3"),
-  line4: document.getElementById("bet-line4"),
-  left: document.getElementById("bet-left"),
-  right: document.getElementById("bet-right"),
-  odd: document.getElementById("bet-odd"),
-  even: document.getElementById("bet-even")
-};
+const pickSideEl = document.getElementById("pick-side");
+const pickLineEl = document.getElementById("pick-line");
+const pickParityEl = document.getElementById("pick-parity");
+const betAmountEl = document.getElementById("bet-amount");
 
 const bettorsEls = {
   line3: document.getElementById("bettors-line3"),
@@ -316,26 +312,27 @@ async function getRoundResult(roundId, createIfMissing = true) {
   return result;
 }
 
-function parseBets() {
-  const amounts = {};
-  let total = 0;
-  BET_KEYS.forEach((key) => {
-    const v = Math.max(0, Math.floor(Number(betInputs[key].value) || 0));
-    if (v > 0) {
-      amounts[key] = v;
-      total += v;
-    }
-  });
-  return { amounts, total };
-}
+function parseBetSelection() {
+  const side = String(pickSideEl?.value || "").trim();
+  const line = String(pickLineEl?.value || "").trim();
+  const parity = String(pickParityEl?.value || "").trim();
+  const amount = Math.max(0, Math.floor(Number(betAmountEl?.value) || 0));
 
-function pickSelectedOption(amounts, a, b) {
-  const aAmt = Number(amounts[a] || 0);
-  const bAmt = Number(amounts[b] || 0);
-  if (aAmt > 0 && bAmt > 0) return { error: `${a}/${b}는 동시에 선택할 수 없습니다.` };
-  if (aAmt > 0) return { key: a, amount: aAmt };
-  if (bAmt > 0) return { key: b, amount: bAmt };
-  return { key: "", amount: 0 };
+  const selected = [side, line, parity].filter((key) => BET_KEYS.includes(key));
+  const comboCount = selected.length;
+  const comboMultiplier = Number(COMBO_PAYOUT[comboCount] || 0);
+  const amounts = {};
+  selected.forEach((key) => {
+    amounts[key] = amount;
+  });
+  return {
+    selected,
+    comboCount,
+    comboMultiplier,
+    amount,
+    amounts,
+    total: amount
+  };
 }
 
 async function placeBet() {
@@ -345,34 +342,23 @@ async function placeBet() {
     return;
   }
 
-  const { amounts, total } = parseBets();
-  if (total <= 0) {
-    resultEl.textContent = "배팅 금액을 입력하세요.";
-    return;
-  }
-  const side = pickSelectedOption(amounts, "left", "right");
-  if (side.error) {
-    resultEl.textContent = side.error;
-    return;
-  }
-  const line = pickSelectedOption(amounts, "line3", "line4");
-  if (line.error) {
-    resultEl.textContent = line.error;
-    return;
-  }
-  const parity = pickSelectedOption(amounts, "odd", "even");
-  if (parity.error) {
-    resultEl.textContent = parity.error;
-    return;
-  }
+  const {
+    selected,
+    comboCount,
+    comboMultiplier,
+    amount,
+    amounts,
+    total
+  } = parseBetSelection();
 
-  const selected = [side.key, line.key, parity.key].filter(Boolean);
-  const comboCount = selected.length;
   if (comboCount <= 0) {
     resultEl.textContent = "좌/우, 3줄/4줄, 홀/짝 중 최소 1개를 선택하세요.";
     return;
   }
-  const comboMultiplier = Number(COMBO_PAYOUT[comboCount] || 0);
+  if (amount <= 0) {
+    resultEl.textContent = "배팅 금액을 입력하세요.";
+    return;
+  }
   if (comboMultiplier <= 0) {
     resultEl.textContent = "배팅 배수 계산 오류";
     return;
@@ -401,7 +387,7 @@ async function placeBet() {
     tx.set(betRef, {
       uid: user.uid,
       username,
-      amounts,
+      amounts, // compatibility for current bettor board rendering
       total,
       selected,
       comboCount,
