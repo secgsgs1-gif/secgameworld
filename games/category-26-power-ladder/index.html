@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Named Power Ladder</title>
-  <link rel="stylesheet" href="styles.css?v=20260227a" />
+  <link rel="stylesheet" href="styles.css?v=20260227b" />
 </head>
 <body>
   <main class="shell">
@@ -22,6 +22,26 @@
       <div class="result-card">
         <h2>이번 결과</h2>
         <div id="result-pill" class="result-pill">대기중</div>
+        <div class="ladder-wrap">
+          <div class="ladder-head">
+            <span>3줄</span>
+            <span>4줄</span>
+          </div>
+          <div id="ladder-board" class="ladder-board">
+            <div class="vline left"></div>
+            <div class="vline right"></div>
+            <div class="rung r1"></div>
+            <div class="rung r2"></div>
+            <div class="rung r3"></div>
+            <div class="rung r4"></div>
+            <div id="path-highlight" class="path-highlight"></div>
+            <div id="result-ball" class="result-ball">●</div>
+          </div>
+          <div class="ladder-foot">
+            <span id="foot-left">좌 / 홀</span>
+            <span id="foot-right">우 / 짝</span>
+          </div>
+        </div>
         <p id="result" class="result">배팅 후 자동 정산을 기다리세요.</p>
       </div>
       <div class="history-card">
@@ -61,6 +81,6 @@
   <script>window.APP_ROOT = "../../";</script>
   <script type="module" src="../../shared/auth-guard.js?v=20260224m"></script>
   <script type="module" src="../../shared/game-access.js?v=20260226z"></script>
-  <script type="module" src="game.js?v=20260227a"></script>
+  <script type="module" src="game.js?v=20260227b"></script>
 </body>
 </html>

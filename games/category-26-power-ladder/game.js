@@ -21,6 +21,10 @@ const resultPillEl = document.getElementById("result-pill");
 const resultEl = document.getElementById("result");
 const recentResultsEl = document.getElementById("recent-results");
 const placeBetBtn = document.getElementById("place-bet");
+const pathHighlightEl = document.getElementById("path-highlight");
+const resultBallEl = document.getElementById("result-ball");
+const footLeftEl = document.getElementById("foot-left");
+const footRightEl = document.getElementById("foot-right");
 
 const BET_KEYS = ["line3", "line4", "left", "right", "odd", "even"];
 const PAYOUT = {
@@ -100,6 +104,27 @@ function formatResult(result) {
   const sideText = result.side === "left" ? "좌" : "우";
   const parityText = result.parity === "odd" ? "홀" : "짝";
   return `${lineText} · ${sideText} · ${parityText}`;
+}
+
+function renderLadderVisual(result) {
+  if (!pathHighlightEl || !resultBallEl || !footLeftEl || !footRightEl) return;
+  if (!result) {
+    pathHighlightEl.classList.remove("show", "right-path");
+    resultBallEl.classList.remove("right");
+    footLeftEl.textContent = "좌 / 홀";
+    footRightEl.textContent = "우 / 짝";
+    return;
+  }
+
+  const right = result.side === "right";
+  pathHighlightEl.classList.add("show");
+  pathHighlightEl.classList.toggle("right-path", right);
+  resultBallEl.classList.toggle("right", right);
+
+  const leftParity = result.parity === "odd" ? "홀" : "짝";
+  const rightParity = result.parity === "odd" ? "짝" : "홀";
+  footLeftEl.textContent = `좌 / ${leftParity}`;
+  footRightEl.textContent = `우 / ${rightParity}`;
 }
 
 function winnersForResult(result) {
@@ -318,6 +343,7 @@ async function settleMyBet(roundId) {
 
   lastSettledRound = roundId;
   resultPillEl.textContent = formatResult(result);
+  renderLadderVisual(result);
 
   const mine = await getDoc(betRef);
   if (mine.exists()) {
@@ -417,6 +443,7 @@ async function tickLoop() {
     lastRevealRound = c.revealRoundId;
     const result = await getRoundResult(c.revealRoundId, true);
     resultPillEl.textContent = formatResult(result);
+    renderLadderVisual(result);
   }
 
   if (!c.inReveal) {
@@ -433,6 +460,8 @@ async function tickLoop() {
 }
 
 function init() {
+  renderLadderVisual(null);
+
   onSnapshot(doc(db, "users", user.uid), (snap) => {
     const p = snap.data() || {};
     username = withTitle(normalizeUsername(user, p.username), composeUserTitleTag(p));
