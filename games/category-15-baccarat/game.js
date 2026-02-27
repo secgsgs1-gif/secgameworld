@@ -245,6 +245,12 @@ async function placeBet() {
     resultEl.textContent = "배팅 금액을 입력하세요.";
     return;
   }
+  const playerBet = Number(amounts.player || 0);
+  const bankerBet = Number(amounts.banker || 0);
+  if (playerBet > 0 && bankerBet > 0) {
+    resultEl.textContent = "Player와 Banker는 동시에 배팅할 수 없습니다. 한쪽만 선택하세요.";
+    return;
+  }
   const roundId = String(c.bettingRoundId);
   const betRef = doc(db, "baccarat_rounds", roundId, "bets", user.uid);
   const existing = await getDoc(betRef);
