@@ -49,59 +49,66 @@ h1 { margin: 0; }
 .result-pill {
   display: inline-block;
   margin-top: 6px;
-  padding: 8px 12px;
+  padding: 10px 18px;
   border-radius: 999px;
-  border: 1px solid #4a76be;
-  background: #10274f;
-  color: var(--accent);
-  font-weight: 700;
+  border: 1px solid #1a4460;
+  background: #072842;
+  color: #ffffff;
+  font-weight: 800;
+  letter-spacing: 0.02em;
 }
 .ladder-wrap {
   margin-top: 10px;
-  border: 1px solid #35538a;
-  border-radius: 10px;
-  padding: 10px;
-  background: linear-gradient(180deg, #10213f, #0b1630);
+  border: 6px solid #2f89b3;
+  border-radius: 26px;
+  padding: 16px 16px 14px;
+  background: linear-gradient(180deg, #0f4f71, #0f4360);
+  box-shadow: inset 0 0 0 3px #1e668a;
 }
 .ladder-board {
   position: relative;
-  margin-top: 2px;
-  height: 210px;
-  border-radius: 8px;
-  border: 1px solid #2f4a7d;
+  margin-top: 10px;
+  height: 248px;
+  border-radius: 16px;
+  border: 1px solid #155472;
   background:
-    radial-gradient(10px 10px at 20% 20%, #ffffff14, transparent 60%),
+    radial-gradient(10px 10px at 20% 20%, #ffffff10, transparent 60%),
     radial-gradient(12px 12px at 80% 70%, #ffffff10, transparent 60%),
-    #0c1834;
+    #10455f;
   overflow: hidden;
 }
 .vline {
   position: absolute;
-  top: 14px;
-  bottom: 14px;
+  top: 34px;
+  bottom: 34px;
   width: 6px;
   border-radius: 99px;
-  background: #9ed5f9;
-  box-shadow: 0 0 0 1px #6ea6ca;
+  background: #8bc6e6;
+  box-shadow: 0 0 0 1px #5c9dbf;
 }
 .vline.left { left: 25%; }
-.vline.right { right: 25%; }
+.vline.right {
+  left: 75%;
+  width: 16px;
+  background: #b8d7e8;
+  box-shadow: 0 0 0 1px #84abc3;
+}
 .rung {
   position: absolute;
   left: 25%;
   right: 25%;
-  height: 10px;
+  height: 12px;
   border-radius: 99px;
-  background: #9ed5f9;
+  background: #a9d8f2;
   box-shadow: 0 0 0 1px #6ea6ca;
 }
-.r1 { top: 35px; }
-.r2 { top: 80px; }
-.r3 { top: 125px; }
-.r4 { top: 170px; }
-.ladder-board.mode-3 .r1 { top: 45px; }
-.ladder-board.mode-3 .r2 { top: 95px; }
-.ladder-board.mode-3 .r3 { top: 145px; }
+.r1 { top: 64px; }
+.r2 { top: 112px; }
+.r3 { top: 160px; }
+.r4 { top: 206px; }
+.ladder-board.mode-3 .r1 { top: 78px; }
+.ladder-board.mode-3 .r2 { top: 126px; }
+.ladder-board.mode-3 .r3 { top: 174px; }
 .ladder-board.mode-3 .r4 { display: none; }
 .ladder-board.mode-4 .r4 { display: block; }
 .trace-svg {
@@ -132,21 +139,21 @@ h1 { margin: 0; }
   display: grid;
   place-items: center;
   font-weight: 800;
-  color: #8bc2ea;
-  background: #0f3f60;
-  border: 2px solid #2b5f83;
-  box-shadow: inset 0 0 0 1px #0a324e;
+  color: #66c9f7;
+  background: radial-gradient(circle at 30% 28%, #2f9dcb, #0f4d72 72%);
+  border: 2px solid #1b6d96;
+  box-shadow: inset 0 0 0 1px #0a3854, 0 2px 0 #08324a;
   z-index: 3;
 }
 .node.active {
   color: #ffffff;
-  border-color: #8be0ff;
-  box-shadow: 0 0 12px #59cbff99, inset 0 0 0 1px #1f5f8b;
+  border-color: #b4eeff;
+  box-shadow: 0 0 14px #71dcffb5, inset 0 0 0 1px #3a86ad;
 }
-.node-top-left { left: 12%; top: 14%; }
-.node-top-right { right: 12%; top: 14%; }
-.node-bottom-left { left: 12%; bottom: 12%; }
-.node-bottom-right { right: 12%; bottom: 12%; }
+.node-top-left { left: 12%; top: 12%; }
+.node-top-right { right: 12%; top: 12%; }
+.node-bottom-left { left: 12%; bottom: 10%; }
+.node-bottom-right { right: 12%; bottom: 10%; }
 .node-top-left,
 .node-bottom-left {
   left: 25%;
@@ -174,8 +181,8 @@ h1 { margin: 0; }
   transform: translate(-50%, -50%);
   font-size: 20px;
   line-height: 1;
-  color: #d8fff3;
-  text-shadow: 0 0 8px #8bffe2, 0 0 16px #56f5cf;
+  color: #fff4cb;
+  text-shadow: 0 0 8px #ffe4a8, 0 0 16px #ffc56d;
   transition: color 0.2s ease, text-shadow 0.2s ease;
   z-index: 4;
 }
@@ -186,11 +193,11 @@ h1 { margin: 0; }
 }
 .result { margin-top: 10px; color: var(--muted); min-height: 24px; }
 .draw-track {
-  margin-top: 9px;
-  height: 42px;
+  margin-top: 12px;
+  height: 48px;
   border-radius: 14px;
-  border: 1px solid #2f6d93;
-  background: #0a2440;
+  border: 2px solid #2f89b3;
+  background: #0b2f4d;
   padding: 4px;
 }
 .draw-fill {
