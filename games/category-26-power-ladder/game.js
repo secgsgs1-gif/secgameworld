@@ -35,9 +35,9 @@ const resultBallEl = document.getElementById("result-ball");
 
 const BET_KEYS = ["line3", "line4", "left", "right", "odd", "even"];
 const COMBO_PAYOUT = {
-  1: 1.9,
-  2: 3.6,
-  3: 6.8
+  1: 2,
+  2: 4,
+  3: 8
 };
 
 const pickSideEl = document.getElementById("pick-side");
