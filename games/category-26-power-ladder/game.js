@@ -40,10 +40,13 @@ const COMBO_PAYOUT = {
   3: 8
 };
 
-const pickSideEl = document.getElementById("pick-side");
-const pickLineEl = document.getElementById("pick-line");
-const pickParityEl = document.getElementById("pick-parity");
+const pickButtons = Array.from(document.querySelectorAll(".pick-btn"));
 const betAmountEl = document.getElementById("bet-amount");
+const selectedPick = {
+  side: "",
+  line: "",
+  parity: ""
+};
 
 const bettorsEls = {
   line3: document.getElementById("bettors-line3"),
@@ -314,9 +317,9 @@ async function getRoundResult(roundId, createIfMissing = true) {
 }
 
 function parseBetSelection() {
-  const side = String(pickSideEl?.value || "").trim();
-  const line = String(pickLineEl?.value || "").trim();
-  const parity = String(pickParityEl?.value || "").trim();
+  const side = String(selectedPick.side || "").trim();
+  const line = String(selectedPick.line || "").trim();
+  const parity = String(selectedPick.parity || "").trim();
   const amount = Math.max(0, Math.floor(Number(betAmountEl?.value) || 0));
 
   const selected = [side, line, parity].filter((key) => BET_KEYS.includes(key));
@@ -334,6 +337,36 @@ function parseBetSelection() {
     amounts,
     total: amount
   };
+}
+
+function bindPickButtons() {
+  const validValues = {
+    side: ["left", "right"],
+    line: ["line3", "line4"],
+    parity: ["odd", "even"]
+  };
+
+  const renderPickButtons = () => {
+    pickButtons.forEach((btn) => {
+      const group = String(btn.dataset.group || "");
+      const value = String(btn.dataset.value || "");
+      const active = selectedPick[group] === value;
+      btn.classList.toggle("active", active);
+      btn.setAttribute("aria-pressed", active ? "true" : "false");
+    });
+  };
+
+  pickButtons.forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const group = String(btn.dataset.group || "");
+      const value = String(btn.dataset.value || "");
+      if (!validValues[group]?.includes(value)) return;
+      selectedPick[group] = selectedPick[group] === value ? "" : value;
+      renderPickButtons();
+    });
+  });
+
+  renderPickButtons();
 }
 
 async function placeBet() {
@@ -606,6 +639,7 @@ async function tickLoop() {
 
 function init() {
   renderLadderVisual(null);
+  bindPickButtons();
 
   if (toggleGameVisualBtn && gameVisualEl) {
     const applyGameVisualHidden = (hidden) => {

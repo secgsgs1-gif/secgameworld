@@ -294,11 +294,52 @@ h1 { margin: 0; }
 .badge.red { background: #ef4c3a; border-color: #ff7d70; }
 
 .bet-panel { margin-top: 12px; }
-.bets-grid {
+.pick-groups {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
   gap: 10px;
   margin-bottom: 12px;
+}
+.pick-group {
+  border: 1px solid #37547d;
+  background: #0f1f3c;
+  border-radius: 10px;
+  padding: 10px;
+}
+.pick-group p {
+  margin: 0 0 8px;
+  font-size: 13px;
+  color: #9dc1ea;
+}
+.pick-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.pick-btn {
+  height: 36px;
+  border: 1px solid #3f5f9a;
+  border-radius: 8px;
+  background: #13274b;
+  color: #cfe6ff;
+  font-weight: 800;
+}
+.pick-btn.active {
+  border-color: #7ed8ff;
+  background: linear-gradient(90deg, #1e74a8, #26a6cf);
+  color: #f6fdff;
+  box-shadow: 0 0 0 1px #88e2ff66 inset;
+}
+.bet-actions {
+  display: flex;
+  align-items: end;
+  gap: 10px;
+}
+.bet-amount-inline {
+  display: grid;
+  gap: 6px;
+  font-size: 14px;
+  min-width: 220px;
 }
 label { display: grid; gap: 6px; font-size: 14px; }
 input {
@@ -309,7 +350,7 @@ input {
   color: var(--txt);
   padding: 0 10px;
 }
-button {
+button:not(.pick-btn) {
   height: 40px;
   border: 0;
   border-radius: 10px;
@@ -345,4 +386,11 @@ button {
 
 @media (max-width: 900px) {
   .board { grid-template-columns: 1fr; }
+  .bet-actions {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .bet-amount-inline {
+    min-width: 0;
+  }
 }

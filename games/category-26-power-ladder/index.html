@@ -4,7 +4,7 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Named Power Ladder</title>
-  <link rel="stylesheet" href="styles.css?v=20260227j" />
+  <link rel="stylesheet" href="styles.css?v=20260227k" />
 </head>
 <body>
   <main class="shell">
@@ -63,37 +63,36 @@
 
     <section class="bet-panel">
       <h2>배팅 입력 (1묶음 x2 / 2묶음 x4 / 3묶음 x8)</h2>
-      <div class="bets-grid">
-        <label>
-          좌/우 선택
-          <select id="pick-side">
-            <option value="">선택 안함</option>
-            <option value="left">좌</option>
-            <option value="right">우</option>
-          </select>
-        </label>
-        <label>
-          3줄/4줄 선택
-          <select id="pick-line">
-            <option value="">선택 안함</option>
-            <option value="line3">3줄</option>
-            <option value="line4">4줄</option>
-          </select>
-        </label>
-        <label>
-          홀/짝 선택
-          <select id="pick-parity">
-            <option value="">선택 안함</option>
-            <option value="odd">홀</option>
-            <option value="even">짝</option>
-          </select>
-        </label>
-        <label>
+      <div class="pick-groups">
+        <div class="pick-group">
+          <p>좌/우 선택</p>
+          <div class="pick-row">
+            <button type="button" class="pick-btn" data-group="side" data-value="left">좌</button>
+            <button type="button" class="pick-btn" data-group="side" data-value="right">우</button>
+          </div>
+        </div>
+        <div class="pick-group">
+          <p>3줄/4줄 선택</p>
+          <div class="pick-row">
+            <button type="button" class="pick-btn" data-group="line" data-value="line3">3줄</button>
+            <button type="button" class="pick-btn" data-group="line" data-value="line4">4줄</button>
+          </div>
+        </div>
+        <div class="pick-group">
+          <p>홀/짝 선택</p>
+          <div class="pick-row">
+            <button type="button" class="pick-btn" data-group="parity" data-value="odd">홀</button>
+            <button type="button" class="pick-btn" data-group="parity" data-value="even">짝</button>
+          </div>
+        </div>
+      </div>
+      <div class="bet-actions">
+        <label class="bet-amount-inline">
           배팅금액
           <input id="bet-amount" type="number" min="1" step="1" value="100" />
         </label>
+        <button id="place-bet" type="button">배팅 확정</button>
       </div>
-      <button id="place-bet" type="button">배팅 확정</button>
     </section>
 
     <section class="bettors">
@@ -114,6 +113,6 @@
   <script>window.APP_ROOT = "../../";</script>
   <script type="module" src="../../shared/auth-guard.js?v=20260224m"></script>
   <script type="module" src="../../shared/game-access.js?v=20260227a"></script>
-  <script type="module" src="game.js?v=20260227u"></script>
+  <script type="module" src="game.js?v=20260227v"></script>
 </body>
 </html>
