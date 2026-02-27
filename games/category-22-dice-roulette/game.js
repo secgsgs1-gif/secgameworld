@@ -36,7 +36,6 @@ const toggleWheelBtn = document.getElementById("toggle-wheel");
 const TAU = Math.PI * 2;
 const POINTER_ANGLE = (3 * Math.PI) / 2;
 const MIN_BET = 10;
-const MAX_BET = 100000;
 const SPIN_INTERVAL_MS = 180000;
 const SPIN_DURATION_MS = 6500;
 const DAY_MS = 86400000;
@@ -333,8 +332,8 @@ async function placeBet() {
   }
 
   const bet = parseBet();
-  if (!Number.isFinite(bet.amount) || bet.amount < MIN_BET || bet.amount > MAX_BET) {
-    updateStatus(`Bet must be ${MIN_BET}~${MAX_BET}.`);
+  if (!Number.isFinite(bet.amount) || bet.amount < MIN_BET) {
+    updateStatus(`Bet must be at least ${MIN_BET}.`);
     return;
   }
   if (bet.type === "number" && (bet.number < 0 || bet.number > 36)) {
