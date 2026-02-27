@@ -61,7 +61,9 @@ let inventory = {
   coal: 0,
   iron: 0,
   gold: 0,
-  diamond: 0
+  diamond: 0,
+  mythril: 0,
+  aether: 0
 };
 
 function rngSeed(x, y) {
@@ -412,7 +414,7 @@ function mineTile(tx, ty) {
   if (breakProgress[key] >= hp) {
     setTile(tx, ty, null);
     delete breakProgress[key];
-    inventory[block] += 1;
+    inventory[block] = Number(inventory[block] || 0) + 1;
     statusEl.textContent = `Mined ${block}.`;
   } else {
     statusEl.textContent = `Mining ${block}...`;
