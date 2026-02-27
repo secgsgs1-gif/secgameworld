@@ -24,15 +24,20 @@ function parseGameIdFromHref(href) {
 }
 
 function mountGamePresenceBoard() {
-  const cards = Array.from(document.querySelectorAll(".cards .card.ready"));
-  const gameCards = cards
-    .map((card) => {
-      const link = card.querySelector("a[href*=\"/games/\"]");
-      const gameId = parseGameIdFromHref(link?.getAttribute("href"));
-      if (!gameId) return null;
-      return { card, gameId };
-    })
-    .filter(Boolean);
+  const allowedSections = new Set(["games", "mining"]);
+  const gameCards = Array.from(document.querySelectorAll(".catalog-section"))
+    .flatMap((section) => {
+      const title = String(section.querySelector(".section-title")?.textContent || "").trim().toLowerCase();
+      if (!allowedSections.has(title)) return [];
+      return Array.from(section.querySelectorAll(".cards .card.ready"))
+        .map((card) => {
+          const link = card.querySelector("a[href*=\"/games/\"]");
+          const gameId = parseGameIdFromHref(link?.getAttribute("href"));
+          if (!gameId) return null;
+          return { card, gameId };
+        })
+        .filter(Boolean);
+    });
 
   if (!gameCards.length) return;
 
