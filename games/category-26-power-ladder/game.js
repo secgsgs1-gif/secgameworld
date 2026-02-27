@@ -20,6 +20,8 @@ const weaponBonusEl = document.getElementById("weapon-bonus");
 const resultEl = document.getElementById("result");
 const recentResultsEl = document.getElementById("recent-results");
 const placeBetBtn = document.getElementById("place-bet");
+const gameVisualEl = document.getElementById("game-visual");
+const toggleGameVisualBtn = document.getElementById("toggle-game-visual");
 const ladderBoardEl = document.getElementById("ladder-board");
 const nodeTopLeftEl = document.getElementById("node-top-left");
 const nodeTopRightEl = document.getElementById("node-top-right");
@@ -147,7 +149,7 @@ function buildTracePoints(result) {
   const isLine3 = result.line === "line3";
   const rungYs = isLine3 ? [45, 95, 145] : [35, 80, 125, 170];
 
-  const startOnRight = false;
+  const startOnRight = result.side === "right";
   let currentRight = startOnRight;
   const points = [{ x: currentRight ? rightX : leftX, y: yStart }];
 
@@ -573,6 +575,15 @@ async function tickLoop() {
 
 function init() {
   renderLadderVisual(null);
+
+  if (toggleGameVisualBtn && gameVisualEl) {
+    toggleGameVisualBtn.addEventListener("click", () => {
+      const hidden = !gameVisualEl.hidden;
+      gameVisualEl.hidden = hidden;
+      toggleGameVisualBtn.textContent = hidden ? "Show Game Screen" : "Hide Game Screen";
+      toggleGameVisualBtn.setAttribute("aria-expanded", hidden ? "false" : "true");
+    });
+  }
 
   onSnapshot(doc(db, "users", user.uid), (snap) => {
     const p = snap.data() || {};
