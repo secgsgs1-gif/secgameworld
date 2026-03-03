@@ -41,6 +41,7 @@ const BASE_SPEED = 16;
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 const MARATHON_BASE_REWARD_MULTIPLIER = 1.5;
 const MARATHON_EVENT_MULTIPLIER = 2;
+const MARATHON_GLOBAL_EARN_MULTIPLIER = 2;
 
 let user = null;
 let username = "";
@@ -115,7 +116,9 @@ function maybeTriggerBurst(now) {
 
 function rewardForLap() {
   const event = currentMarathonEvent();
-  const multiplier = MARATHON_BASE_REWARD_MULTIPLIER * (event.active ? MARATHON_EVENT_MULTIPLIER : 1);
+  const multiplier = MARATHON_BASE_REWARD_MULTIPLIER
+    * (event.active ? MARATHON_EVENT_MULTIPLIER : 1)
+    * MARATHON_GLOBAL_EARN_MULTIPLIER;
   const roll = Math.random();
   if (roll < 0.0001) {
     return {

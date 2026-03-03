@@ -29,6 +29,7 @@ const UPGRADE_GROWTH = 1.9;
 const TICKET_MAX = 3;
 const TICKET_INTERVAL_MS = 30 * 60 * 1000;
 const MANUAL_MINE_SELL_MULTIPLIER = 3;
+const MANUAL_MINE_GLOBAL_EARN_MULTIPLIER = 2;
 
 const BLOCKS = {
   dirt: { hp: 1, color: "#7a573d", value: 1, speck: "#63452f" },
@@ -358,7 +359,7 @@ function renderInventory() {
   INVENTORY_KEYS.forEach((k) => {
     const li = document.createElement("li");
     const qty = Number(inventory[k] || 0);
-    const each = BLOCKS[k].value * MANUAL_MINE_SELL_MULTIPLIER;
+    const each = BLOCKS[k].value * MANUAL_MINE_SELL_MULTIPLIER * MANUAL_MINE_GLOBAL_EARN_MULTIPLIER;
     li.textContent = `${k.toUpperCase()}: ${qty} (value ${each})`;
     inventoryListEl.appendChild(li);
   });
@@ -428,7 +429,12 @@ function sellInventory() {
   let total = 0;
   INVENTORY_KEYS.forEach((k) => {
     const qty = Number(inventory[k] || 0);
-    if (qty > 0) total += qty * BLOCKS[k].value * MANUAL_MINE_SELL_MULTIPLIER;
+    if (qty > 0) {
+      total += qty
+        * BLOCKS[k].value
+        * MANUAL_MINE_SELL_MULTIPLIER
+        * MANUAL_MINE_GLOBAL_EARN_MULTIPLIER;
+    }
   });
   if (total <= 0) {
     statusEl.textContent = "No items to sell.";
