@@ -127,9 +127,12 @@ function safeNameColor(value) {
 
 function decoratedNameHtmlWithColor(rawName, nameColor) {
   const parsed = splitDecoratedName(rawName);
-  if (!parsed.tag) return esc(parsed.name);
-  const chipClass = parsed.tag === DONATION_KING_TAG ? "game-chat-donation-king-chip" : "game-chat-land-king-chip";
   const color = safeNameColor(nameColor);
+  const plainNameHtml = color
+    ? `<span style="color:${color};font-weight:700">${esc(parsed.name)}</span>`
+    : esc(parsed.name);
+  if (!parsed.tag) return plainNameHtml;
+  const chipClass = parsed.tag === DONATION_KING_TAG ? "game-chat-donation-king-chip" : "game-chat-land-king-chip";
   const nameHtml = color
     ? `<span style="color:${color};font-weight:700">${esc(parsed.name)}</span>`
     : esc(parsed.name);
@@ -484,6 +487,7 @@ function setupGameChat(user) {
   let latestPresenceDocs = [];
   let rankPoll = null;
   let presenceHb = null;
+  let profileUnsub = null;
   let streamUnsubs = [];
   let streamsActive = false;
   let collapsed = false;
@@ -583,6 +587,23 @@ function setupGameChat(user) {
     }, { merge: true });
   }
 
+  function startProfileSync() {
+    if (profileUnsub) return;
+    profileUnsub = onSnapshot(doc(db, "users", user.uid), (snap) => {
+      const p = snap.data() || {};
+      username = normalizeUsername(user, p.username);
+      myTitleTag = composeUserTitleTag(p);
+      myUsernameColor = safeNameColor(p.usernameColor);
+      touchPresence(true).catch(() => {});
+    });
+  }
+
+  function stopProfileSync() {
+    if (!profileUnsub) return;
+    profileUnsub();
+    profileUnsub = null;
+  }
+
   function startPresenceHeartbeat() {
     if (presenceHb) return;
     touchPresence(true).catch(() => {});
@@ -611,12 +632,6 @@ function setupGameChat(user) {
   function startStreams() {
     if (streamsActive) return;
     streamsActive = true;
-    streamUnsubs.push(onSnapshot(doc(db, "users", user.uid), (snap) => {
-      const p = snap.data() || {};
-      username = normalizeUsername(user, p.username);
-      myTitleTag = composeUserTitleTag(p);
-      myUsernameColor = safeNameColor(p.usernameColor);
-    }));
 
     refreshRank().catch(() => {});
     rankPoll = setInterval(() => {
@@ -689,6 +704,7 @@ function setupGameChat(user) {
 
   function onVisibility() {
     if (document.visibilityState === "visible") {
+      startProfileSync();
       startPresenceHeartbeat();
       if (!collapsed) {
         startStreams();
@@ -698,6 +714,7 @@ function setupGameChat(user) {
     }
     stopStreams();
     stopPresenceHeartbeat();
+    stopProfileSync();
     updateDoc(doc(db, "presence", user.uid), {
       online: false,
       lastSeen: serverTimestamp()
@@ -712,6 +729,7 @@ function setupGameChat(user) {
   const mobile = window.matchMedia("(max-width: 900px)").matches;
   applyCollapsed(mobile);
   document.addEventListener("visibilitychange", onVisibility);
+  startProfileSync();
   startPresenceHeartbeat();
   if (!mobile) startStreams();
 
@@ -737,6 +755,7 @@ function setupGameChat(user) {
 
   window.addEventListener("beforeunload", () => {
     if (rankPoll) clearInterval(rankPoll);
+    stopProfileSync();
     stopPresenceHeartbeat();
     streamUnsubs.forEach((fn) => fn());
     updateDoc(doc(db, "presence", user.uid), {

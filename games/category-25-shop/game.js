@@ -39,6 +39,24 @@ let user = null;
 let profile = null;
 let busy = false;
 
+function composeUserTitleTag(data) {
+  const tags = [];
+  const donation = String(data?.donationTitleTag || "").trim();
+  const land = String(data?.landTitleTag || "").trim();
+  if (donation) tags.push(donation);
+  if (land && !tags.includes(land)) tags.push(land);
+  return tags.join(" ").trim();
+}
+
+function withTitle(name, titleTag) {
+  const base = String(name || "").trim();
+  const tag = String(titleTag || "").trim();
+  if (!base) return base;
+  if (!tag) return base;
+  if (base.startsWith(`${tag} `)) return base;
+  return `${tag} ${base}`;
+}
+
 function isValidNickname(name) {
   const v = String(name || "").trim();
   return /^[A-Za-z0-9_가-힣]{2,20}$/.test(v);
@@ -125,6 +143,7 @@ async function purchaseAndChangeNickname() {
 
   try {
     const userRef = doc(db, "users", user.uid);
+    const presenceRef = doc(db, "presence", user.uid);
     await runTransaction(db, async (tx) => {
       const snap = await tx.get(userRef);
       if (!snap.exists()) throw new Error("유저 정보가 없습니다.");
@@ -153,6 +172,16 @@ async function purchaseAndChangeNickname() {
         username: nextName,
         updatedAt: serverTimestamp()
       });
+
+      const titleTag = composeUserTitleTag(data);
+      const usernameColor = safeNameColor(data.usernameColor || "");
+      tx.set(presenceRef, {
+        uid: user.uid,
+        username: withTitle(nextName, titleTag),
+        usernameColor,
+        online: true,
+        lastSeen: serverTimestamp()
+      }, { merge: true });
 
       tx.set(nextClaimRef, {
         uid: user.uid,
@@ -204,6 +233,7 @@ async function purchaseAndChangeColor() {
 
   try {
     const userRef = doc(db, "users", user.uid);
+    const presenceRef = doc(db, "presence", user.uid);
     await runTransaction(db, async (tx) => {
       const snap = await tx.get(userRef);
       if (!snap.exists()) throw new Error("유저 정보가 없습니다.");
@@ -216,6 +246,13 @@ async function purchaseAndChangeColor() {
         usernameColor: nextColor,
         updatedAt: serverTimestamp()
       });
+
+      tx.set(presenceRef, {
+        uid: user.uid,
+        usernameColor: nextColor,
+        online: true,
+        lastSeen: serverTimestamp()
+      }, { merge: true });
     });
 
     await addDoc(collection(db, "users", user.uid, "transactions"), {

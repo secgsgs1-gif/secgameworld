@@ -129,9 +129,12 @@ function safeNameColor(value) {
 
 function decoratedNameHtmlWithColor(rawName, nameColor) {
   const parsed = splitDecoratedName(rawName);
-  if (!parsed.tag) return esc(parsed.name);
-  const chipClass = parsed.tag === DONATION_KING_TAG ? "donation-king-chip" : "land-king-chip";
   const color = safeNameColor(nameColor);
+  const plainNameHtml = color
+    ? `<span style="color:${color};font-weight:700">${esc(parsed.name)}</span>`
+    : esc(parsed.name);
+  if (!parsed.tag) return plainNameHtml;
+  const chipClass = parsed.tag === DONATION_KING_TAG ? "donation-king-chip" : "land-king-chip";
   const nameHtml = color
     ? `<span style="color:${color};font-weight:700">${esc(parsed.name)}</span>`
     : esc(parsed.name);
@@ -500,6 +503,7 @@ async function init() {
       username = normalizeUsername(user, p.username);
       myTitleTag = composeUserTitleTag(p);
       myUsernameColor = safeNameColor(p.usernameColor);
+      touchPresence(true).catch(() => {});
     }));
 
     refreshRank().catch(() => {});
