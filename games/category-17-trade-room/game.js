@@ -27,7 +27,6 @@ const input = document.getElementById("chat-input");
 const COMMAND_RE = /^\/give\s+([^\s]+)\s+(\d+)$/i;
 const FEE_RATE = 0.05;
 const MIN_GIVE = 20;
-const MAX_GIVE = 100000;
 
 let user = null;
 let username = "";
@@ -175,8 +174,8 @@ async function claimIncomingTransfers() {
 
 async function handleGiveCommand(targetName, grossAmount) {
   const gross = Math.floor(Number(grossAmount));
-  if (!Number.isFinite(gross) || gross < MIN_GIVE || gross > MAX_GIVE) {
-    statusEl.textContent = `송금 금액은 ${MIN_GIVE}~${MAX_GIVE} 범위여야 합니다.`;
+  if (!Number.isFinite(gross) || gross < MIN_GIVE) {
+    statusEl.textContent = `송금 금액은 최소 ${MIN_GIVE} 이상이어야 합니다.`;
     return;
   }
   if (!targetName || targetName === username) {
