@@ -17,7 +17,7 @@ import {
   isWeaponOwned,
   normalizeOwnedWeapons,
   rollWeaponFromGacha
-} from "../../shared/weapons.js?v=20260225c";
+} from "../../shared/weapons.js?v=20260303a";
 
 const pointsEl = document.getElementById("points");
 const equippedWeaponEl = document.getElementById("equipped-weapon");

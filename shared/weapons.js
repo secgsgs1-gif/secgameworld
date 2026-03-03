@@ -2,6 +2,7 @@ export const DEFAULT_WEAPON_ID = "starter_dagger";
 export const WEAPON_CRATE_COST = 1800;
 export const RARE_DUPLICATE_PAYBACK_RATE = 0.1;
 export const LEGENDARY_DUPLICATE_BONUS_PER_LEVEL = 0.002;
+export const MAX_WEAPON_CASHBACK_RATE = 0.05;
 
 export const WEAPON_CATALOG = [
   {
@@ -62,13 +63,19 @@ export function isWeaponOwned(profile, weaponId) {
 
 export function getEquippedWeapon(profile) {
   const equippedId = String(profile?.equippedWeaponId || "");
+  const clampWeaponCashback = (rate) => Math.min(MAX_WEAPON_CASHBACK_RATE, Math.max(0, Number(rate || 0)));
   const withLegendaryBonus = (weapon) => {
     if (!weapon) return null;
-    if (weapon.id !== "neon_katana") return weapon;
+    if (weapon.id !== "neon_katana") {
+      return {
+        ...weapon,
+        cashbackRate: clampWeaponCashback(weapon.cashbackRate)
+      };
+    }
     const level = Math.max(0, Math.floor(Number(profile?.neonKatanaLevel || 0)));
     return {
       ...weapon,
-      cashbackRate: weapon.cashbackRate + (level * LEGENDARY_DUPLICATE_BONUS_PER_LEVEL),
+      cashbackRate: clampWeaponCashback(weapon.cashbackRate + (level * LEGENDARY_DUPLICATE_BONUS_PER_LEVEL)),
       legendaryLevel: level
     };
   };
