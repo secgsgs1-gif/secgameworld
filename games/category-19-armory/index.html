@@ -14,7 +14,7 @@
     <section class="summary">
       <p>Points: <strong id="points">0</strong></p>
       <p>Equipped Weapon: <strong id="equipped-weapon">-</strong></p>
-      <p>Cashback: <strong id="equipped-cashback">0%</strong></p>
+      <p>Cashback (max 5%): <strong id="equipped-cashback">0%</strong></p>
       <p>Neon Katana Level: <strong id="neon-level">Lv.0</strong></p>
     </section>
 
@@ -22,7 +22,7 @@
       <h2>Weapon Crate</h2>
       <p>Open a crate to draw a random weapon.</p>
       <p>Drop Rates: Steel Blade 70% / Neon Katana 30%</p>
-      <p>Duplicate Rules: Rare -> 10% payback / Legendary -> Neon Katana level +1</p>
+      <p>Duplicate Rules: Rare -> 10% payback / Legendary -> Neon Katana level +1 (weapon cashback capped at 5%)</p>
       <p>Cost per open: <strong id="crate-cost">0</strong></p>
       <button id="open-crate-btn" type="button">Open Weapon Crate</button>
       <p id="crate-result" class="crate-result"></p>
@@ -45,6 +45,6 @@
   <script>window.APP_ROOT = "../../";</script>
   <script type="module" src="../../shared/auth-guard.js?v=20260224m"></script>
   <script type="module" src="../../shared/game-access.js?v=20260303b"></script>
-  <script type="module" src="game.js?v=20260225c"></script>
+  <script type="module" src="game.js?v=20260303b"></script>
 </body>
 </html>

@@ -9,6 +9,7 @@ import {
 import { db } from "../../shared/firebase-app.js?v=20260224m";
 import {
   LEGENDARY_DUPLICATE_BONUS_PER_LEVEL,
+  MAX_WEAPON_CASHBACK_RATE,
   RARE_DUPLICATE_PAYBACK_RATE,
   WEAPON_CRATE_COST,
   WEAPON_CATALOG,
@@ -71,7 +72,7 @@ function render() {
     card.appendChild(cashback);
     if (weapon.id === "neon_katana") {
       const bonus = document.createElement("p");
-      bonus.textContent = `Legend Level Bonus: +${formatCashbackPercent(LEGENDARY_DUPLICATE_BONUS_PER_LEVEL)} per level (current Lv.${neonLevel})`;
+      bonus.textContent = `Legend Level Bonus: +${formatCashbackPercent(LEGENDARY_DUPLICATE_BONUS_PER_LEVEL)} per level (current Lv.${neonLevel}, max ${formatCashbackPercent(MAX_WEAPON_CASHBACK_RATE)})`;
       card.appendChild(bonus);
     }
 
