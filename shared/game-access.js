@@ -483,7 +483,7 @@ function setupGameChat(user) {
   let latestMessageDocs = [];
   let latestPresenceDocs = [];
   let rankPoll = null;
-  let hb = null;
+  let presenceHb = null;
   let streamUnsubs = [];
   let streamsActive = false;
   let collapsed = false;
@@ -583,6 +583,21 @@ function setupGameChat(user) {
     }, { merge: true });
   }
 
+  function startPresenceHeartbeat() {
+    if (presenceHb) return;
+    touchPresence(true).catch(() => {});
+    presenceHb = setInterval(() => {
+      if (document.visibilityState !== "visible") return;
+      touchPresence(true).catch(() => {});
+    }, 45000);
+  }
+
+  function stopPresenceHeartbeat() {
+    if (!presenceHb) return;
+    clearInterval(presenceHb);
+    presenceHb = null;
+  }
+
   function stopStreams() {
     streamUnsubs.forEach((fn) => fn());
     streamUnsubs = [];
@@ -590,10 +605,6 @@ function setupGameChat(user) {
     if (rankPoll) {
       clearInterval(rankPoll);
       rankPoll = null;
-    }
-    if (hb) {
-      clearInterval(hb);
-      hb = null;
     }
   }
 
@@ -673,19 +684,20 @@ function setupGameChat(user) {
     ));
 
     touchPresence(true).catch(() => {});
-    hb = setInterval(() => touchPresence(true).catch(() => {}), 45000);
     statusEl.textContent = "실시간 연결됨";
   }
 
   function onVisibility() {
     if (document.visibilityState === "visible") {
+      startPresenceHeartbeat();
       if (!collapsed) {
         startStreams();
-        touchPresence(true).catch(() => {});
       }
+      touchPresence(true).catch(() => {});
       return;
     }
     stopStreams();
+    stopPresenceHeartbeat();
     updateDoc(doc(db, "presence", user.uid), {
       online: false,
       lastSeen: serverTimestamp()
@@ -700,6 +712,7 @@ function setupGameChat(user) {
   const mobile = window.matchMedia("(max-width: 900px)").matches;
   applyCollapsed(mobile);
   document.addEventListener("visibilitychange", onVisibility);
+  startPresenceHeartbeat();
   if (!mobile) startStreams();
 
   form.addEventListener("submit", async (e) => {
@@ -724,7 +737,7 @@ function setupGameChat(user) {
 
   window.addEventListener("beforeunload", () => {
     if (rankPoll) clearInterval(rankPoll);
-    if (hb) clearInterval(hb);
+    stopPresenceHeartbeat();
     streamUnsubs.forEach((fn) => fn());
     updateDoc(doc(db, "presence", user.uid), {
       online: false,
