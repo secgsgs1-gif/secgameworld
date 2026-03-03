@@ -34,10 +34,10 @@ const tracePathGlowEl = document.getElementById("trace-path-glow");
 const resultBallEl = document.getElementById("result-ball");
 
 const BET_KEYS = ["line3", "line4", "left", "right", "odd", "even"];
+const MAX_COMBO_COUNT = 2;
 const COMBO_PAYOUT = {
   1: 2,
-  2: 4,
-  3: 8
+  2: 4
 };
 
 const pickButtons = Array.from(document.querySelectorAll(".pick-btn"));
@@ -323,7 +323,7 @@ function parseBetSelection() {
   const amount = Math.max(0, Math.floor(Number(betAmountEl?.value) || 0));
 
   const selected = [side, line, parity].filter((key) => BET_KEYS.includes(key));
-  const comboCount = selected.length;
+  const comboCount = Math.min(MAX_COMBO_COUNT, selected.length);
   const comboMultiplier = Number(COMBO_PAYOUT[comboCount] || 0);
   const amounts = {};
   selected.forEach((key) => {
@@ -361,6 +361,14 @@ function bindPickButtons() {
       const group = String(btn.dataset.group || "");
       const value = String(btn.dataset.value || "");
       if (!validValues[group]?.includes(value)) return;
+      const currentSelectionCount = [selectedPick.side, selectedPick.line, selectedPick.parity]
+        .filter((v) => String(v || "").trim())
+        .length;
+      const isSelectingNew = selectedPick[group] !== value && !selectedPick[group];
+      if (isSelectingNew && currentSelectionCount >= MAX_COMBO_COUNT) {
+        resultEl.textContent = "최대 2묶음까지만 선택할 수 있습니다.";
+        return;
+      }
       selectedPick[group] = selectedPick[group] === value ? "" : value;
       renderPickButtons();
     });
@@ -387,6 +395,10 @@ async function placeBet() {
 
   if (comboCount <= 0) {
     resultEl.textContent = "좌/우, 3줄/4줄, 홀/짝 중 최소 1개를 선택하세요.";
+    return;
+  }
+  if (selected.length > MAX_COMBO_COUNT) {
+    resultEl.textContent = "최대 2묶음까지만 배팅할 수 있습니다.";
     return;
   }
   if (amount <= 0) {
@@ -463,8 +475,8 @@ async function settleMyBet(roundId) {
     const selected = Array.isArray(bet.selected)
       ? bet.selected.map((x) => String(x || "")).filter((x) => BET_KEYS.includes(x))
       : BET_KEYS.filter((key) => Number(bet.amounts?.[key] || 0) > 0);
-    const comboCount = Math.max(1, Math.min(3, Number(bet.comboCount || selected.length || 1)));
-    const comboMultiplier = Number(bet.comboMultiplier || COMBO_PAYOUT[comboCount] || COMBO_PAYOUT[1]);
+    const comboCount = Math.max(1, Math.min(MAX_COMBO_COUNT, Number(bet.comboCount || selected.length || 1)));
+    const comboMultiplier = Number(COMBO_PAYOUT[comboCount] || COMBO_PAYOUT[1]);
     const isComboHit = selected.length > 0 && selected.every((key) => Boolean(winMap[key]));
 
     const totalBet = Math.max(0, Number(bet.total || 0));
