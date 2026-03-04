@@ -31,6 +31,8 @@
           <option value="reset_mining_levels_all">reset_mining_levels_all</option>
           <option value="grant_nickname_change_ticket_all">grant_nickname_change_ticket_all</option>
           <option value="clear_all_username_colors">clear_all_username_colors</option>
+          <option value="reset_titles_all">reset_titles_all</option>
+          <option value="reset_weapon_upgrades_all">reset_weapon_upgrades_all</option>
         </select>
       </label>
       <label>
@@ -42,7 +44,7 @@
         <input id="target-amount" type="number" step="1" placeholder="정수 입력" />
       </label>
       <button id="run-command" type="button">명령 실행</button>
-      <p class="hint">예: <code>reset_points_all</code> / <code>reset_mining_levels_all</code> / <code>grant_nickname_change_ticket_all</code> / <code>clear_all_username_colors</code></p>
+      <p class="hint">예: <code>reset_mining_levels_all</code> / <code>reset_titles_all</code> / <code>reset_weapon_upgrades_all</code> / <code>grant_nickname_change_ticket_all</code></p>
     </section>
 
     <section id="history-panel" class="history-panel" hidden>
@@ -55,6 +57,6 @@
 
   <script>window.APP_ROOT = "../../";</script>
   <script type="module" src="../../shared/auth-guard.js?v=20260224m"></script>
-  <script type="module" src="game.js?v=20260304c"></script>
+  <script type="module" src="game.js?v=20260304d"></script>
 </body>
 </html>

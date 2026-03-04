@@ -144,7 +144,7 @@ service cloud.firestore {
   - `updatedAt`: timestamp
 
 - `admin_commands/{commandId}`
-  - `command`: string (`reset_points_all` | `reset_points_user` | `set_points_user` | `add_points_user` | `set_mining_x2_today` | `clear_mining_boost` | `reset_mining_levels_all` | `grant_nickname_change_ticket_all` | `clear_all_username_colors`)
+  - `command`: string (`reset_points_all` | `reset_points_user` | `set_points_user` | `add_points_user` | `set_mining_x2_today` | `clear_mining_boost` | `reset_mining_levels_all` | `grant_nickname_change_ticket_all` | `clear_all_username_colors` | `reset_titles_all` | `reset_weapon_upgrades_all`)
   - `args`: map
   - `status`: `queued` | `running` | `success` | `error`
   - `requestedByUid`: string

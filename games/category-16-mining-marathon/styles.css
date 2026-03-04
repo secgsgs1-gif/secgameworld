@@ -90,6 +90,10 @@ canvas {
   color: #bbf4c9;
 }
 
+#event-status.event-active {
+  color: #ffe9a8;
+}
+
 .live {
   border: 1px solid #9fd5ac55;
   border-radius: 10px;

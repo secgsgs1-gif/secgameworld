@@ -239,6 +239,27 @@ async function clearAllUsernameColors() {
   }), "clearedUsers");
 }
 
+async function resetTitlesAll() {
+  return batchUpdateUsers(() => ({
+    donationTitleTag: "",
+    landTitleTag: "",
+    donationCashbackRate: 0,
+    landDiscountRate: 0,
+    updatedAt: serverTimestamp()
+  }), "resetUsers");
+}
+
+async function resetWeaponUpgradesAll() {
+  return batchUpdateUsers(() => ({
+    equippedWeaponId: "starter_blaster",
+    ownedWeapons: {
+      starter_blaster: true
+    },
+    neonKatanaLevel: 0,
+    updatedAt: serverTimestamp()
+  }), "resetUsers");
+}
+
 async function executeCommand(payload) {
   const command = payload.command;
   const uid = String(payload.args?.uid || "");
@@ -253,6 +274,8 @@ async function executeCommand(payload) {
   if (command === "reset_mining_levels_all") return resetMiningLevelsAll();
   if (command === "grant_nickname_change_ticket_all") return grantNicknameChangeTicketAll();
   if (command === "clear_all_username_colors") return clearAllUsernameColors();
+  if (command === "reset_titles_all") return resetTitlesAll();
+  if (command === "reset_weapon_upgrades_all") return resetWeaponUpgradesAll();
   throw new Error("지원하지 않는 명령어입니다.");
 }
 

@@ -26,6 +26,7 @@ const upgradeBtn = document.getElementById("upgrade-btn");
 const lapEl = document.getElementById("lap");
 const speedEl = document.getElementById("speed");
 const syncStatusEl = document.getElementById("sync-status");
+const eventStatusEl = document.getElementById("event-status");
 const eventLogEl = document.getElementById("event-log");
 const runnersEl = document.getElementById("runners");
 
@@ -99,6 +100,18 @@ function updateUpgradeUI() {
   nextCostEl.textContent = String(cost);
   upgradeBtn.disabled = upgrading;
   upgradeBtn.textContent = `속도 ${next}단계 업그레이드`;
+}
+
+function updateEventStatus() {
+  if (!eventStatusEl) return;
+  if (adminMiningBoost.active) {
+    const m = Number(adminMiningBoost.multiplier || 1);
+    eventStatusEl.textContent = `지금 ${m}배 이벤트 진행중`;
+    eventStatusEl.classList.add("event-active");
+    return;
+  }
+  eventStatusEl.textContent = "일반 진행중";
+  eventStatusEl.classList.remove("event-active");
 }
 
 function normalizeUsername(currentUser, rawName) {
@@ -477,10 +490,12 @@ function init() {
   profileUnsub = onSnapshot(doc(db, "users", user.uid), (snap) => {
     const profile = snap.data() || {};
     speedLevel = clampSpeedLevel(profile.miningSpeedLevel);
+    username = normalizeUsername(user, profile.username);
     updateUpgradeUI();
   });
   miningBoostUnsub = watchMiningBoost((state) => {
     adminMiningBoost = state;
+    updateEventStatus();
   });
 
   upgradeBtn.addEventListener("click", () => {
@@ -488,6 +503,7 @@ function init() {
   });
 
   loopTimer = setInterval(tick, TICK_MS);
+  updateEventStatus();
   syncMine().catch(() => {});
   pollOthers().catch(() => {});
   rescheduleNetworkLoops();
