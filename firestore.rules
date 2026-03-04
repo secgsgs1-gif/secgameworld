@@ -1,0 +1,232 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isSelf(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    function isRoomParticipant(room) {
+      return isSignedIn() && (
+        room.hostUid == request.auth.uid ||
+        room.blackUid == request.auth.uid ||
+        room.whiteUid == request.auth.uid
+      );
+    }
+
+    // =========================
+    // Users / Wallet / Profile
+    // =========================
+    match /users/{uid} {
+      allow read: if isSignedIn();
+
+      // First profile creation at sign-up
+      allow create: if isSelf(uid);
+
+      // NOTE: prototype-friendly rule.
+      // Needed because some features (trade payout, game settlement) update other users' points client-side.
+      allow update: if isSignedIn();
+
+      // No direct profile delete from client
+      allow delete: if false;
+
+      match /transactions/{txId} {
+        allow read: if isSelf(uid);
+        allow create: if isSignedIn();
+        allow update, delete: if false;
+      }
+    }
+
+    // =========================
+    // Username uniqueness claim
+    // =========================
+    match /username_claims/{nameKey} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isSignedIn();
+    }
+
+    // ============
+    // Presence
+    // ============
+    match /presence/{uid} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isSelf(uid);
+    }
+
+    // ============
+    // Live Chat
+    // ============
+    match /live_chat_messages/{msgId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.text is string
+        && request.resource.data.text.size() > 0
+        && request.resource.data.text.size() <= 240;
+      allow update, delete: if false;
+    }
+
+    // ============
+    // Trade Room
+    // ============
+    match /trade_room_messages/{msgId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn()
+        && request.resource.data.uid == request.auth.uid
+        && request.resource.data.text is string
+        && request.resource.data.text.size() > 0
+        && request.resource.data.text.size() <= 240;
+      allow update, delete: if false;
+    }
+
+    match /trade_transfers/{transferId} {
+      allow read: if isSignedIn();
+
+      allow create: if isSignedIn()
+        && request.resource.data.senderUid == request.auth.uid
+        && request.resource.data.amount is number
+        && request.resource.data.amount > 0;
+
+      // Sender can edit own transfer record, and recipient can claim pending transfer.
+      allow update: if isSignedIn() && (
+        resource.data.senderUid == request.auth.uid
+        || resource.data.toUid == request.auth.uid
+      );
+
+      allow delete: if false;
+    }
+
+    // ====================
+    // Mining Marathon Live
+    // ====================
+    match /miners/{uid} {
+      allow read: if isSignedIn();
+      allow create, update, delete: if isSelf(uid);
+    }
+
+    // ====================
+    // Roulette V2
+    // ====================
+    match /roulette_v2_rounds/{roundId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn();
+      allow delete: if false;
+
+      match /bets/{uid} {
+        allow read: if isSignedIn();
+        allow create, update: if isSelf(uid);
+        allow delete: if false;
+      }
+    }
+
+    // ====================
+    // Dice Roulette
+    // ====================
+    match /dice_roulette_rounds/{roundId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn();
+      allow delete: if false;
+
+      match /bets/{uid} {
+        allow read: if isSignedIn();
+        allow create, update: if isSelf(uid);
+        allow delete: if false;
+      }
+    }
+
+    // ====================
+    // Named Power Ladder
+    // ====================
+    match /power_ladder_rounds/{roundId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn();
+      allow delete: if false;
+
+      match /bets/{uid} {
+        allow read: if isSignedIn();
+        allow create, update: if isSelf(uid);
+        allow delete: if false;
+      }
+    }
+
+    // ====================
+    // Land Grab Clash
+    // ====================
+    match /land_grab_days/{dayKey} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn();
+      allow delete: if false;
+    }
+
+    match /land_grab_meta/{docId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn();
+      allow delete: if false;
+    }
+
+    // ====================
+    // Donation Crown
+    // ====================
+    match /donation_days/{dayKey} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn();
+      allow delete: if false;
+    }
+
+    match /donation_meta/{docId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn();
+      allow delete: if false;
+    }
+
+    // ====================
+    // Baccarat
+    // ====================
+    match /baccarat_rounds/{roundId} {
+      allow read: if isSignedIn();
+      allow write: if false;
+
+      match /bets/{uid} {
+        allow read: if isSignedIn();
+        allow create, update: if isSelf(uid);
+        allow delete: if false;
+      }
+    }
+
+    // ====================
+    // Multiplayer Arcade
+    // ====================
+    match /mp_rooms/{roomId} {
+      allow read: if isSignedIn();
+
+      allow create: if isSignedIn()
+        && request.resource.data.hostUid == request.auth.uid;
+
+      // Host/player actions + waiting-room join operations
+      allow update: if isSignedIn() && (
+        isRoomParticipant(resource.data) ||
+        (resource.data.status == "waiting")
+      );
+
+      allow delete: if isSignedIn() && resource.data.hostUid == request.auth.uid;
+    }
+
+    // ====================
+    // Admin Console
+    // ====================
+    match /admin_commands/{commandId} {
+      allow read, create, update: if isSignedIn()
+        && request.auth.token.admin == true;
+      allow delete: if false;
+    }
+
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

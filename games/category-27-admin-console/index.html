@@ -1,0 +1,55 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Console</title>
+  <link rel="stylesheet" href="styles.css?v=20260304a" />
+</head>
+<body>
+  <main class="shell">
+    <h1>Admin Console</h1>
+    <p class="sub">관리자 전용 명령 실행 및 결과 로그</p>
+
+    <section class="status-card">
+      <p>접속 계정: <strong id="admin-user">-</strong></p>
+      <p>권한 상태: <strong id="admin-status">확인 중</strong></p>
+      <p id="admin-message" class="message"></p>
+    </section>
+
+    <section id="command-panel" class="command-panel" hidden>
+      <h2>명령 실행</h2>
+      <label>
+        Command
+        <select id="command-type">
+          <option value="reset_points_all">reset_points_all</option>
+          <option value="reset_points_user">reset_points_user</option>
+          <option value="set_points_user">set_points_user</option>
+          <option value="add_points_user">add_points_user</option>
+        </select>
+      </label>
+      <label>
+        Target UID
+        <input id="target-uid" type="text" placeholder="uid 입력 (all 명령은 비움)" />
+      </label>
+      <label>
+        Amount
+        <input id="target-amount" type="number" step="1" placeholder="정수 입력" />
+      </label>
+      <button id="run-command" type="button">명령 실행</button>
+      <p class="hint">예: 전체 초기화는 <code>reset_points_all</code>, 특정 유저 0 초기화는 <code>reset_points_user + UID</code></p>
+    </section>
+
+    <section id="history-panel" class="history-panel" hidden>
+      <h2>최근 실행 로그</h2>
+      <ul id="history-list" class="history-list"></ul>
+    </section>
+
+    <a class="back" href="../../index.html">Back to Home</a>
+  </main>
+
+  <script>window.APP_ROOT = "../../";</script>
+  <script type="module" src="../../shared/auth-guard.js?v=20260224m"></script>
+  <script type="module" src="game.js?v=20260304a"></script>
+</body>
+</html>

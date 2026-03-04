@@ -14,11 +14,18 @@ service cloud.firestore {
   match /databases/{database}/documents {
     match /users/{userId} {
       allow read: if request.auth != null;
-      allow write: if request.auth != null && request.auth.uid == userId;
+      allow write: if request.auth != null
+                   && (request.auth.uid == userId || request.auth.token.admin == true);
 
       match /transactions/{txId} {
         allow read, write: if request.auth != null && request.auth.uid == userId;
       }
+    }
+
+    match /admin_commands/{commandId} {
+      allow read, create, update: if request.auth != null
+                                  && request.auth.token.admin == true;
+      allow delete: if false;
     }
 
     match /live_chat_messages/{msgId} {
@@ -119,9 +126,23 @@ service cloud.firestore {
 - `users/{uid}`
   - `email`: string
   - `points`: number
+  - `isAdmin`: boolean (optional fallback for UI display only)
+  - `role`: `"admin"` (optional fallback for UI display only)
   - `lastCheckInDate`: string (`YYYY-MM-DD`)
   - `createdAt`: timestamp
   - `updatedAt`: timestamp
+
+- `admin_commands/{commandId}`
+  - `command`: string (`reset_points_all` | `reset_points_user` | `set_points_user` | `add_points_user`)
+  - `args`: map
+  - `status`: `queued` | `running` | `success` | `error`
+  - `requestedByUid`: string
+  - `requestedByEmail`: string
+  - `createdAt`: timestamp
+  - `startedAt`: timestamp (optional)
+  - `finishedAt`: timestamp (optional)
+  - `result`: map (optional)
+  - `error`: string (optional)
 
 - `users/{uid}/transactions/{txId}`
   - `type`: `daily_check_in` | `spend` | `earn`

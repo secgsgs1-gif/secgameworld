@@ -1,0 +1,115 @@
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: radial-gradient(circle at top, #2b3f5f, #111826 58%);
+  color: #ecf3ff;
+  font-family: "Space Grotesk", "Segoe UI", sans-serif;
+}
+
+.shell {
+  width: min(940px, 96vw);
+  margin: 24px auto;
+  padding: 16px;
+  border: 1px solid #6ea2ff44;
+  border-radius: 12px;
+  background: #111b2dd9;
+}
+
+h1, h2 {
+  margin: 0 0 8px;
+}
+
+.sub {
+  margin: 0 0 12px;
+  color: #a6bfeb;
+}
+
+.status-card,
+.command-panel,
+.history-panel {
+  margin-top: 12px;
+  padding: 12px;
+  border: 1px solid #6ea2ff3f;
+  border-radius: 10px;
+  background: #1a2740;
+}
+
+.status-card p {
+  margin: 4px 0;
+}
+
+.message {
+  min-height: 1.2em;
+  color: #ffd7a4;
+}
+
+.command-panel {
+  display: grid;
+  gap: 8px;
+}
+
+label {
+  display: grid;
+  gap: 4px;
+  font-size: 0.95rem;
+}
+
+select,
+input,
+button {
+  border: 1px solid #7ea9ff66;
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: #13233f;
+  color: #ecf3ff;
+}
+
+button {
+  width: fit-content;
+  cursor: pointer;
+  background: #254c93;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.hint {
+  margin: 0;
+  color: #b7c8e8;
+}
+
+.history-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  gap: 8px;
+}
+
+.history-item {
+  border: 1px solid #6ea2ff33;
+  border-radius: 8px;
+  padding: 8px;
+  background: #12203a;
+}
+
+.history-item p {
+  margin: 2px 0;
+  word-break: break-word;
+}
+
+.status-success {
+  color: #9ff2b3;
+}
+
+.status-error {
+  color: #ffb2b2;
+}
+
+.back {
+  display: inline-block;
+  margin-top: 12px;
+  color: #cfe3ff;
+}

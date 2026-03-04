@@ -1,5 +1,6 @@
 import { logOut } from "./auth.js?v=20260224m";
 import { claimDailyCheckIn, watchUserProfile } from "./points.js?v=20260226a";
+import { resolveAdminAccess } from "./admin-role.js?v=20260304a";
 import {
   collection,
   limit,
@@ -11,6 +12,7 @@ import { db } from "./firebase-app.js?v=20260224m";
 
 let unsub = null;
 let presenceUnsub = null;
+let adminMounted = false;
 
 function normalizeName(raw) {
   const v = String(raw || "").trim();
@@ -122,12 +124,23 @@ function mountUI(user) {
   };
 }
 
+async function mountAdminCard(user) {
+  if (adminMounted) return;
+  adminMounted = true;
+  const card = document.getElementById("admin-console-card");
+  if (!card) return;
+  const access = await resolveAdminAccess(user);
+  card.hidden = !access.isAdmin;
+}
+
 document.addEventListener("app:user-ready", (e) => {
   mountUI(e.detail.user);
   mountGamePresenceBoard();
+  mountAdminCard(e.detail.user).catch(() => {});
 });
 
 if (window.__AUTH_USER__) {
   mountUI(window.__AUTH_USER__);
   mountGamePresenceBoard();
+  mountAdminCard(window.__AUTH_USER__).catch(() => {});
 }
