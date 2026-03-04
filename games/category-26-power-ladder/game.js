@@ -75,6 +75,21 @@ let recentRenderedRound = "";
 let lastAnimatedRound = "";
 const resultCache = new Map();
 
+function randomInt(maxExclusive) {
+  const max = Math.floor(Number(maxExclusive));
+  if (!Number.isFinite(max) || max <= 0) return 0;
+  const cryptoObj = globalThis.crypto;
+  if (!cryptoObj || typeof cryptoObj.getRandomValues !== "function") {
+    return Math.floor(Math.random() * max);
+  }
+  const limit = Math.floor(0x100000000 / max) * max;
+  const buf = new Uint32Array(1);
+  do {
+    cryptoObj.getRandomValues(buf);
+  } while (buf[0] >= limit);
+  return buf[0] % max;
+}
+
 function withTitle(name, titleTag) {
   const base = String(name || "").trim();
   const tag = String(titleTag || "").trim();
@@ -295,9 +310,9 @@ async function getRoundResult(roundId, createIfMissing = true) {
       return normalizeResultShape(snap.data() || {});
     }
 
-    const roll = Math.floor(Math.random() * 100);
-    const line = roll < 50 ? "line3" : "line4";
-    const side = (Math.floor(roll / 3) % 2 === 0) ? "left" : "right";
+    const roll = randomInt(100);
+    const line = randomInt(2) === 0 ? "line3" : "line4";
+    const side = randomInt(2) === 0 ? "left" : "right";
     const shaped = normalizeResultShape({ roll, line, side });
 
     tx.set(roundRef, {
