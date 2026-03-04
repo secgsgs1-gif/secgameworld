@@ -13,6 +13,7 @@ import { db } from "./firebase-app.js?v=20260224m";
 let unsub = null;
 let presenceUnsub = null;
 let adminMounted = false;
+let forcedNicknameRedirected = false;
 
 function normalizeName(raw) {
   const v = String(raw || "").trim();
@@ -102,6 +103,11 @@ function mountUI(user) {
   if (unsub) unsub();
   unsub = watchUserProfile(user.uid, (profile) => {
     if (!profile) return;
+    if (!forcedNicknameRedirected && profile.forceNicknameChangeOnLogin === true) {
+      forcedNicknameRedirected = true;
+      location.href = "./games/category-25-shop/index.html?forceNicknameChange=1";
+      return;
+    }
     emailEl.textContent = profile.username || profile.email || user.email || "익명";
     pointsEl.textContent = String(profile.points || 0);
   });

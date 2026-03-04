@@ -92,7 +92,14 @@ function readCommandPayload() {
 }
 
 async function resetPointsAll() {
-  let updatedUsers = 0;
+  return batchUpdateUsers((row) => ({
+    points: 0,
+    updatedAt: serverTimestamp()
+  }), "updatedUsers");
+}
+
+async function batchUpdateUsers(buildPatch, resultKey = "updatedUsers") {
+  let touched = 0;
   let batchCount = 0;
   let last = null;
 
@@ -105,11 +112,8 @@ async function resetPointsAll() {
 
     const batch = writeBatch(db);
     snap.docs.forEach((row) => {
-      batch.update(row.ref, {
-        points: 0,
-        updatedAt: serverTimestamp()
-      });
-      updatedUsers += 1;
+      batch.update(row.ref, buildPatch(row));
+      touched += 1;
     });
     await batch.commit();
     batchCount += 1;
@@ -118,7 +122,7 @@ async function resetPointsAll() {
     if (snap.size < PAGE_SIZE) break;
   }
 
-  return { updatedUsers, batchCount };
+  return { [resultKey]: touched, batchCount };
 }
 
 async function requireUser(uid) {
@@ -209,6 +213,32 @@ async function clearMiningBoost() {
   return { enabled: false, multiplier: 1 };
 }
 
+async function resetMiningLevelsAll() {
+  return batchUpdateUsers(() => ({
+    miningSpeedLevel: 0,
+    updatedAt: serverTimestamp()
+  }), "resetUsers");
+}
+
+async function grantNicknameChangeTicketAll() {
+  return batchUpdateUsers((row) => {
+    const data = row.data() || {};
+    const current = Math.max(0, Math.floor(Number(data.nicknameChangeTickets || 0)));
+    return {
+      nicknameChangeTickets: current + 1,
+      forceNicknameChangeOnLogin: true,
+      updatedAt: serverTimestamp()
+    };
+  }, "grantedUsers");
+}
+
+async function clearAllUsernameColors() {
+  return batchUpdateUsers(() => ({
+    usernameColor: "",
+    updatedAt: serverTimestamp()
+  }), "clearedUsers");
+}
+
 async function executeCommand(payload) {
   const command = payload.command;
   const uid = String(payload.args?.uid || "");
@@ -220,6 +250,9 @@ async function executeCommand(payload) {
   if (command === "add_points_user") return addPointsUser(uid, amount);
   if (command === "set_mining_x2_today") return setMiningX2Today();
   if (command === "clear_mining_boost") return clearMiningBoost();
+  if (command === "reset_mining_levels_all") return resetMiningLevelsAll();
+  if (command === "grant_nickname_change_ticket_all") return grantNicknameChangeTicketAll();
+  if (command === "clear_all_username_colors") return clearAllUsernameColors();
   throw new Error("지원하지 않는 명령어입니다.");
 }
 

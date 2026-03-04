@@ -38,6 +38,8 @@ const colorModalStatusEl = document.getElementById("color-modal-status");
 let user = null;
 let profile = null;
 let busy = false;
+let forceNicknameMode = false;
+let forceNicknameByQueryPending = new URLSearchParams(window.location.search).get("forceNicknameChange") === "1";
 
 function composeUserTitleTag(data) {
   const tags = [];
@@ -80,11 +82,12 @@ async function isDuplicateNickname(nextName) {
 function render() {
   const points = Math.max(0, Number(profile?.points || 0));
   const username = String(profile?.username || user?.email?.split("@")[0] || "user").trim();
+  const nicknameTickets = Math.max(0, Math.floor(Number(profile?.nicknameChangeTickets || 0)));
   const usernameColor = safeNameColor(profile?.usernameColor || "#ffffff");
   pointsEl.textContent = String(points);
   usernameEl.textContent = username;
   usernameEl.style.color = usernameColor;
-  buyNicknameBtn.disabled = busy || points < NICKNAME_CHANGE_PRICE;
+  buyNicknameBtn.disabled = busy || (points < NICKNAME_CHANGE_PRICE && nicknameTickets <= 0);
   buyColorBtn.disabled = busy || points < NICKNAME_COLOR_PRICE;
 }
 
@@ -96,7 +99,7 @@ function openNicknameModal() {
 }
 
 function closeNicknameModal() {
-  if (busy) return;
+  if (busy || forceNicknameMode) return;
   nicknameModalEl.hidden = true;
 }
 
@@ -149,7 +152,9 @@ async function purchaseAndChangeNickname() {
       if (!snap.exists()) throw new Error("유저 정보가 없습니다.");
       const data = snap.data() || {};
       const points = Math.max(0, Number(data.points || 0));
-      if (points < NICKNAME_CHANGE_PRICE) throw new Error("포인트가 부족합니다.");
+      const tickets = Math.max(0, Math.floor(Number(data.nicknameChangeTickets || 0)));
+      const useTicket = tickets > 0;
+      if (!useTicket && points < NICKNAME_CHANGE_PRICE) throw new Error("포인트가 부족합니다.");
 
       const txCurrentName = String(data.username || "").trim();
       const txCurrentKey = txCurrentName ? nicknameKey(txCurrentName) : "";
@@ -167,11 +172,17 @@ async function purchaseAndChangeNickname() {
         currentClaimSnap = await tx.get(currentClaimRef);
       }
 
-      tx.update(userRef, {
-        points: points - NICKNAME_CHANGE_PRICE,
+      const updatePayload = {
         username: nextName,
         updatedAt: serverTimestamp()
-      });
+      };
+      if (useTicket) {
+        updatePayload.nicknameChangeTickets = Math.max(0, tickets - 1);
+        updatePayload.forceNicknameChangeOnLogin = false;
+      } else {
+        updatePayload.points = points - NICKNAME_CHANGE_PRICE;
+      }
+      tx.update(userRef, updatePayload);
 
       const titleTag = composeUserTitleTag(data);
       const usernameColor = safeNameColor(data.usernameColor || "");
@@ -194,18 +205,33 @@ async function purchaseAndChangeNickname() {
       }
     });
 
-    await addDoc(collection(db, "users", user.uid, "transactions"), {
-      type: "shop_purchase",
-      amount: -Math.abs(NICKNAME_CHANGE_PRICE),
-      reason: "nickname_change_ticket",
-      meta: {
-        changedFrom: currentName,
-        changedTo: nextName
-      },
-      createdAt: serverTimestamp()
-    });
+    const usedTicket = Math.max(0, Math.floor(Number(profile?.nicknameChangeTickets || 0))) > 0;
+    if (usedTicket) {
+      await addDoc(collection(db, "users", user.uid, "transactions"), {
+        type: "earn",
+        amount: 0,
+        reason: "nickname_change_ticket_used",
+        meta: {
+          changedFrom: currentName,
+          changedTo: nextName
+        },
+        createdAt: serverTimestamp()
+      });
+    } else {
+      await addDoc(collection(db, "users", user.uid, "transactions"), {
+        type: "shop_purchase",
+        amount: -Math.abs(NICKNAME_CHANGE_PRICE),
+        reason: "nickname_change_ticket",
+        meta: {
+          changedFrom: currentName,
+          changedTo: nextName
+        },
+        createdAt: serverTimestamp()
+      });
+    }
 
     statusEl.textContent = `닉네임 변경 완료: ${nextName}`;
+    forceNicknameMode = false;
     nicknameModalEl.hidden = true;
   } catch (err) {
     if (String(err?.message || "") === "DUPLICATE_NICKNAME") {
@@ -295,7 +321,9 @@ function init() {
 
   buyNicknameBtn.addEventListener("click", () => {
     if (busy) return;
-    if (Math.max(0, Number(profile?.points || 0)) < NICKNAME_CHANGE_PRICE) {
+    const points = Math.max(0, Number(profile?.points || 0));
+    const tickets = Math.max(0, Math.floor(Number(profile?.nicknameChangeTickets || 0)));
+    if (points < NICKNAME_CHANGE_PRICE && tickets <= 0) {
       statusEl.textContent = "포인트가 부족합니다.";
       return;
     }
@@ -329,6 +357,15 @@ function init() {
 
   onSnapshot(doc(db, "users", user.uid), (snap) => {
     profile = snap.data() || {};
+    if (!nicknameModalEl.hidden && profile.forceNicknameChangeOnLogin !== true) {
+      forceNicknameMode = false;
+    }
+    if ((profile.forceNicknameChangeOnLogin === true || forceNicknameByQueryPending) && !busy && nicknameModalEl.hidden) {
+      forceNicknameMode = true;
+      openNicknameModal();
+      nicknameModalStatusEl.textContent = "관리자 지급 변경권이 있어 닉네임 변경이 필요합니다.";
+      forceNicknameByQueryPending = false;
+    }
     render();
   }, (err) => {
     statusEl.textContent = `로딩 오류: ${err.message}`;

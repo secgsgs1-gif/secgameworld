@@ -133,6 +133,10 @@ service cloud.firestore {
 - `users/{uid}`
   - `email`: string
   - `points`: number
+  - `miningSpeedLevel`: number
+  - `nicknameChangeTickets`: number
+  - `forceNicknameChangeOnLogin`: boolean
+  - `usernameColor`: string (`#RRGGBB` or empty)
   - `isAdmin`: boolean (optional fallback for UI display only)
   - `role`: `"admin"` (optional fallback for UI display only)
   - `lastCheckInDate`: string (`YYYY-MM-DD`)
@@ -140,7 +144,7 @@ service cloud.firestore {
   - `updatedAt`: timestamp
 
 - `admin_commands/{commandId}`
-  - `command`: string (`reset_points_all` | `reset_points_user` | `set_points_user` | `add_points_user`)
+  - `command`: string (`reset_points_all` | `reset_points_user` | `set_points_user` | `add_points_user` | `set_mining_x2_today` | `clear_mining_boost` | `reset_mining_levels_all` | `grant_nickname_change_ticket_all` | `clear_all_username_colors`)
   - `args`: map
   - `status`: `queued` | `running` | `success` | `error`
   - `requestedByUid`: string
