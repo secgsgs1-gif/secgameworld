@@ -224,6 +224,13 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /runtime_events/{eventId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn()
+        && request.auth.token.admin == true;
+      allow delete: if false;
+    }
+
     // Default deny
     match /{document=**} {
       allow read, write: if false;

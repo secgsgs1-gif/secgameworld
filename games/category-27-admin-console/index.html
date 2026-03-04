@@ -26,6 +26,8 @@
           <option value="reset_points_user">reset_points_user</option>
           <option value="set_points_user">set_points_user</option>
           <option value="add_points_user">add_points_user</option>
+          <option value="set_mining_x2_today">set_mining_x2_today</option>
+          <option value="clear_mining_boost">clear_mining_boost</option>
         </select>
       </label>
       <label>
@@ -37,7 +39,7 @@
         <input id="target-amount" type="number" step="1" placeholder="정수 입력" />
       </label>
       <button id="run-command" type="button">명령 실행</button>
-      <p class="hint">예: 전체 초기화는 <code>reset_points_all</code>, 특정 유저 0 초기화는 <code>reset_points_user + UID</code></p>
+      <p class="hint">예: 전체 초기화 <code>reset_points_all</code>, 오늘 채굴2배 ON <code>set_mining_x2_today</code>, 이벤트 OFF <code>clear_mining_boost</code></p>
     </section>
 
     <section id="history-panel" class="history-panel" hidden>
@@ -50,6 +52,6 @@
 
   <script>window.APP_ROOT = "../../";</script>
   <script type="module" src="../../shared/auth-guard.js?v=20260224m"></script>
-  <script type="module" src="game.js?v=20260304a"></script>
+  <script type="module" src="game.js?v=20260304b"></script>
 </body>
 </html>

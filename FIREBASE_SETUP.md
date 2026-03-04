@@ -28,6 +28,13 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    match /runtime_events/{eventId} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null
+                            && request.auth.token.admin == true;
+      allow delete: if false;
+    }
+
     match /live_chat_messages/{msgId} {
       allow read: if request.auth != null;
       allow create: if request.auth != null
@@ -143,6 +150,14 @@ service cloud.firestore {
   - `finishedAt`: timestamp (optional)
   - `result`: map (optional)
   - `error`: string (optional)
+
+- `runtime_events/mining`
+  - `enabled`: boolean
+  - `multiplier`: number (e.g. `2`)
+  - `label`: string
+  - `startsAt`: timestamp
+  - `endsAt`: timestamp
+  - `updatedAt`: timestamp
 
 - `users/{uid}/transactions/{txId}`
   - `type`: `daily_check_in` | `spend` | `earn`

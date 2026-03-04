@@ -4,6 +4,7 @@ import {
   serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
 import { db } from "../../shared/firebase-app.js?v=20260224m";
+import { watchMiningBoost } from "../../shared/mining-boost.js?v=20260304a";
 
 const canvas = document.getElementById("mine");
 const ctx = canvas.getContext("2d");
@@ -56,6 +57,7 @@ let manualTickets = 0;
 let nextTicketAtMs = 0;
 let ticketBusy = false;
 let miningEnabled = false;
+let miningBoost = { active: false, multiplier: 1, label: "" };
 let inventory = {
   dirt: 0,
   stone: 0,
@@ -440,20 +442,27 @@ function sellInventory() {
     statusEl.textContent = "No items to sell.";
     return;
   }
+  const appliedMultiplier = miningBoost.active ? miningBoost.multiplier : 1;
+  const rewardedTotal = Math.floor(total * appliedMultiplier);
 
   if (!window.AccountWallet) {
     statusEl.textContent = "Wallet is not ready.";
     return;
   }
 
-  window.AccountWallet.earn(total, "dig_miner_sell", {
+  window.AccountWallet.earn(rewardedTotal, "dig_miner_sell", {
     game: "category-20-dig-miner",
-    soldAt: Date.now()
+    soldAt: Date.now(),
+    boostMultiplier: appliedMultiplier
   }).then(() => {
     INVENTORY_KEYS.forEach((k) => {
       inventory[k] = 0;
     });
-    statusEl.textContent = `Sold inventory for +${total.toLocaleString()} points.`;
+    statusEl.textContent = `Sold inventory for +${rewardedTotal.toLocaleString()} points.`;
+    if (appliedMultiplier > 1) {
+      const eventName = miningBoost.label || `Mining x${appliedMultiplier} boost`;
+      statusEl.textContent = `${statusEl.textContent} (${eventName})`;
+    }
     renderHud();
   }).catch((err) => {
     statusEl.textContent = `Sell failed: ${err.message}`;
@@ -505,6 +514,9 @@ function onKey(e) {
 
 function init() {
   buildWorld();
+  watchMiningBoost((state) => {
+    miningBoost = state;
+  });
   canvas.addEventListener("click", onCanvasClick);
   window.addEventListener("keydown", onKey);
   startBtn.addEventListener("click", () => {

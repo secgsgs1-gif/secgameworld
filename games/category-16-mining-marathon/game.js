@@ -14,6 +14,7 @@ import {
   updateDoc
 } from "https://www.gstatic.com/firebasejs/10.12.4/firebase-firestore.js";
 import { db } from "../../shared/firebase-app.js?v=20260224m";
+import { watchMiningBoost } from "../../shared/mining-boost.js?v=20260304a";
 
 const canvas = document.getElementById("track");
 const ctx = canvas.getContext("2d");
@@ -71,7 +72,9 @@ let earning = false;
 let hiddenStartedAt = 0;
 let rewardQueue = [];
 let profileUnsub = null;
+let miningBoostUnsub = null;
 let upgrading = false;
+let adminMiningBoost = { active: false, multiplier: 1, label: "" };
 
 function effectiveBaseSpeed() {
   return baseSpeed * (1 + speedLevel * 0.12);
@@ -121,17 +124,26 @@ function maybeTriggerBurst(now) {
 
 function rewardForLap() {
   const event = currentMarathonEvent();
+  const adminBoostMultiplier = adminMiningBoost.active ? adminMiningBoost.multiplier : 1;
   const multiplier = MARATHON_BASE_REWARD_MULTIPLIER
     * (event.active ? MARATHON_EVENT_MULTIPLIER : 1)
-    * MARATHON_GLOBAL_EARN_MULTIPLIER;
+    * MARATHON_GLOBAL_EARN_MULTIPLIER
+    * adminBoostMultiplier;
+  const labels = [];
+  if (event.active && event.label) labels.push(event.label);
+  if (adminMiningBoost.active) {
+    labels.push(adminMiningBoost.label || `관리자 채굴 ${adminMiningBoost.multiplier}배 이벤트`);
+  }
+  const mergedEventLabel = labels.join(" + ");
+  const mergedEventActive = labels.length > 0;
   const roll = Math.random();
   if (roll < 0.0001) {
     return {
       points: Math.floor(50000 * multiplier),
       jackpot: true,
       tier: "ultra",
-      eventActive: event.active,
-      eventLabel: event.label
+      eventActive: mergedEventActive,
+      eventLabel: mergedEventLabel
     };
   }
   if (roll < 0.0011) {
@@ -139,8 +151,8 @@ function rewardForLap() {
       points: Math.floor(10000 * multiplier),
       jackpot: true,
       tier: "mega",
-      eventActive: event.active,
-      eventLabel: event.label
+      eventActive: mergedEventActive,
+      eventLabel: mergedEventLabel
     };
   }
   if (roll < 0.0111) {
@@ -148,16 +160,16 @@ function rewardForLap() {
       points: Math.floor(1000 * multiplier),
       jackpot: true,
       tier: "bonus",
-      eventActive: event.active,
-      eventLabel: event.label
+      eventActive: mergedEventActive,
+      eventLabel: mergedEventLabel
     };
   }
   return {
     points: Math.floor((20 + Math.floor(Math.random() * 121)) * multiplier),
     jackpot: false,
     tier: "normal",
-    eventActive: event.active,
-    eventLabel: event.label
+    eventActive: mergedEventActive,
+    eventLabel: mergedEventLabel
   };
 }
 
@@ -467,6 +479,9 @@ function init() {
     speedLevel = clampSpeedLevel(profile.miningSpeedLevel);
     updateUpgradeUI();
   });
+  miningBoostUnsub = watchMiningBoost((state) => {
+    adminMiningBoost = state;
+  });
 
   upgradeBtn.addEventListener("click", () => {
     upgradeSpeedLevel().catch(() => {});
@@ -503,6 +518,7 @@ function init() {
     if (syncTimer) clearInterval(syncTimer);
     if (pollTimer) clearInterval(pollTimer);
     if (profileUnsub) profileUnsub();
+    if (miningBoostUnsub) miningBoostUnsub();
     updateDoc(doc(db, "miners", user.uid), {
       online: false,
       updatedAt: serverTimestamp()

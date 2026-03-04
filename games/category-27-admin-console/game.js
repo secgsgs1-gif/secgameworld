@@ -10,6 +10,7 @@ import {
   query,
   runTransaction,
   serverTimestamp,
+  setDoc,
   startAfter,
   updateDoc,
   writeBatch
@@ -33,6 +34,7 @@ let booted = false;
 let historyUnsub = null;
 
 const PAGE_SIZE = 300;
+const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
 
 function esc(v) {
   return String(v || "")
@@ -159,6 +161,54 @@ async function addPointsUser(uid, amount) {
   return { uid, points: next, delta: amount };
 }
 
+function endOfTodayKstDate(nowMs = Date.now()) {
+  const kstNow = new Date(nowMs + KST_OFFSET_MS);
+  const y = kstNow.getUTCFullYear();
+  const m = kstNow.getUTCMonth();
+  const d = kstNow.getUTCDate();
+  const tomorrowStartUtcMs = Date.UTC(y, m, d + 1, 0, 0, 0, 0) - KST_OFFSET_MS;
+  return new Date(tomorrowStartUtcMs - 1);
+}
+
+function formatKstEnd(dateObj) {
+  const ms = Number(dateObj?.getTime?.() || 0);
+  if (!ms) return "";
+  const kst = new Date(ms + KST_OFFSET_MS);
+  const yyyy = kst.getUTCFullYear();
+  const mm = String(kst.getUTCMonth() + 1).padStart(2, "0");
+  const dd = String(kst.getUTCDate()).padStart(2, "0");
+  const hh = String(kst.getUTCHours()).padStart(2, "0");
+  const mi = String(kst.getUTCMinutes()).padStart(2, "0");
+  return `${yyyy}-${mm}-${dd} ${hh}:${mi}:59 KST`;
+}
+
+async function setMiningX2Today() {
+  const endsAt = endOfTodayKstDate();
+  await setDoc(doc(db, "runtime_events", "mining"), {
+    enabled: true,
+    multiplier: 2,
+    label: "관리자: 오늘 채굴 2배 이벤트",
+    startsAt: new Date(),
+    endsAt,
+    updatedByUid: user?.uid || "",
+    updatedByEmail: user?.email || "",
+    updatedAt: serverTimestamp()
+  }, { merge: true });
+  return { enabled: true, multiplier: 2, endsAtKst: formatKstEnd(endsAt) };
+}
+
+async function clearMiningBoost() {
+  await setDoc(doc(db, "runtime_events", "mining"), {
+    enabled: false,
+    multiplier: 1,
+    label: "",
+    updatedByUid: user?.uid || "",
+    updatedByEmail: user?.email || "",
+    updatedAt: serverTimestamp()
+  }, { merge: true });
+  return { enabled: false, multiplier: 1 };
+}
+
 async function executeCommand(payload) {
   const command = payload.command;
   const uid = String(payload.args?.uid || "");
@@ -168,6 +218,8 @@ async function executeCommand(payload) {
   if (command === "reset_points_user") return resetPointsUser(uid);
   if (command === "set_points_user") return setPointsUser(uid, amount);
   if (command === "add_points_user") return addPointsUser(uid, amount);
+  if (command === "set_mining_x2_today") return setMiningX2Today();
+  if (command === "clear_mining_boost") return clearMiningBoost();
   throw new Error("지원하지 않는 명령어입니다.");
 }
 
