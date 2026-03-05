@@ -94,7 +94,7 @@
   ];
 
   const BASE_STATE = {
-    gold: 35000,
+    gold: 500000,
     pendingOfflineGold: 0,
     stage: 1,
     bestStage: 1,
