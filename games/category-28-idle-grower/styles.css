@@ -169,6 +169,27 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 .stats .stat-list strong { font-family: "JetBrains Mono", monospace; }
 .log { margin: 8px 0 0; color: #b4cef0; font-size: 0.88rem; }
 
+.rank-panel p {
+  margin: 0 0 6px;
+}
+
+.stage-rank-list {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 6px;
+  max-height: 300px;
+  overflow: auto;
+}
+
+.stage-rank-list li {
+  border: 1px solid rgba(135, 185, 255, 0.25);
+  border-radius: 8px;
+  padding: 7px 9px;
+  background: rgba(14, 29, 50, 0.8);
+  font-size: 0.86rem;
+}
+
 @media (max-width: 1040px) {
   .resource-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .bars-grid, .grid-2, .grid-3, .stats .stat-list { grid-template-columns: 1fr; }

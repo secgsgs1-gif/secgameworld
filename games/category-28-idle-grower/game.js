@@ -96,6 +96,7 @@
   const BASE_STATE = {
     gold: 35000,
     stage: 1,
+    bestStage: 1,
     wave: 1,
     farmStage: null,
     autoSkill: true,
@@ -156,7 +157,8 @@
     screenShake: 0,
     camX: 0,
     camY: 0,
-    summonResultRows: []
+    summonResultRows: [],
+    rankEmitTimer: 0
   };
 
   const canvas = document.getElementById("battle-canvas");
@@ -224,6 +226,7 @@
 
   requestAnimationFrame(drawFrame);
   render();
+  emitStageProgress(true);
 
   function bindEvents() {
     el.toggleAutoSkill.addEventListener("click", () => {
@@ -237,6 +240,7 @@
       log("보스 즉시 도전 시작");
       recoverForNextRound();
       spawnEnemy();
+      emitStageProgress(true);
       render();
     });
 
@@ -246,18 +250,25 @@
         log("사냥터 스테이지는 1 이상만 가능합니다");
         return;
       }
+      const maxStage = Math.max(1, Number(state.bestStage || state.stage || 1));
+      if (picked > maxStage) {
+        log(`최대 ${maxStage} 스테이지까지만 고정 가능합니다`);
+        return;
+      }
       state.farmStage = picked;
       state.stage = picked;
       state.wave = 1;
       recoverForNextRound();
       spawnEnemy();
       log(`사냥터 고정: Stage ${picked}`);
+      emitStageProgress(true);
       render();
     });
 
     el.clearFarmStageBtn.addEventListener("click", () => {
       state.farmStage = null;
       log("사냥터 고정 해제: 진행 모드");
+      emitStageProgress(true);
       render();
     });
 
@@ -348,6 +359,11 @@
     updateParticles(dt);
     updateFloatTexts(dt);
     updateCameraShake();
+    runtime.rankEmitTimer += dt;
+    if (runtime.rankEmitTimer >= 1) {
+      runtime.rankEmitTimer = 0;
+      emitStageProgress(false);
+    }
 
     render();
   }
@@ -604,6 +620,7 @@
         state.stage = state.farmStage;
       } else {
         state.stage += 1;
+        state.bestStage = Math.max(Number(state.bestStage || 1), state.stage);
       }
       state.wave = 1;
       runtime.statusMsg = `보스 처치! Stage ${state.stage}`;
@@ -618,6 +635,7 @@
 
     recoverForNextRound();
     spawnEnemy();
+    emitStageProgress(true);
   }
 
   function onBossTimeout() {
@@ -628,6 +646,7 @@
     burstParticles(780, 200, "#ff9cbc", 24);
     recoverForNextRound();
     spawnEnemy();
+    emitStageProgress(true);
   }
 
   function onHeroDefeated() {
@@ -636,6 +655,7 @@
     state.wave = Math.max(1, state.wave - 1);
     recoverForNextRound();
     spawnEnemy();
+    emitStageProgress(true);
   }
 
   function spawnEnemy() {
@@ -895,8 +915,32 @@
       state.farmStage = Number.isFinite(n) && n >= 1 ? n : null;
     }
 
+    if (!Number.isFinite(Number(state.bestStage))) {
+      state.bestStage = Math.max(1, Number(state.stage || 1));
+    } else {
+      state.bestStage = Math.max(1, Math.floor(Number(state.bestStage)));
+    }
+    state.bestStage = Math.max(state.bestStage, Math.floor(Number(state.stage || 1)));
+
     if (!state.heroHp || Number.isNaN(state.heroHp)) state.heroHp = getHeroMaxHp();
     state.heroHp = Math.min(state.heroHp, getHeroMaxHp());
+  }
+
+  function emitStageProgress(force) {
+    try {
+      const payload = {
+        stage: Number(state.stage || 1),
+        wave: Number(state.wave || 1),
+        bestStage: Number(state.bestStage || state.stage || 1),
+        kills: Number(state.kills || 0),
+        power: Math.floor(getTeamPower() * getAttackSpeed()),
+        force: Boolean(force),
+        ts: Date.now()
+      };
+      window.dispatchEvent(new CustomEvent("idle:stage-progress", { detail: payload }));
+    } catch (_) {
+      // Ignore dispatch failures in unsupported environments.
+    }
   }
 
   function save() {

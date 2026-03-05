@@ -231,6 +231,15 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // ====================
+    // Idle Stage Ranking
+    // ====================
+    match /idle_stage_rankings/{uid} {
+      allow read: if isSignedIn();
+      allow create, update: if isSelf(uid);
+      allow delete: if false;
+    }
+
     // Default deny
     match /{document=**} {
       allow read, write: if false;

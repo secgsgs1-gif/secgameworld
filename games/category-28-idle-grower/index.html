@@ -132,8 +132,18 @@
       <ul id="stat-list" class="stat-list"></ul>
       <p id="log" class="log">자동 전투 진행중...</p>
     </section>
+
+    <section class="panel rank-panel">
+      <h2>스테이지 랭킹</h2>
+      <p>내 랭크: <strong id="stage-rank-my-rank">-</strong> | 내 최고 스테이지: <strong id="stage-rank-my-best">-</strong></p>
+      <p id="stage-rank-updated" class="hint">랭킹 로딩중...</p>
+      <ol id="stage-rank-list" class="stage-rank-list"></ol>
+    </section>
   </main>
 
-  <script src="game.js?v=20260305g"></script>
+  <script>window.APP_ROOT = "../../";</script>
+  <script type="module" src="../../shared/auth-guard.js?v=20260224m"></script>
+  <script src="game.js?v=20260305h"></script>
+  <script type="module" src="ranking.js?v=20260305a"></script>
 </body>
 </html>
