@@ -188,6 +188,27 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 .slot-item strong { font-size: 0.8rem; }
 .slot-item.active { border-color: rgba(123, 239, 190, 0.65); box-shadow: 0 0 0 2px rgba(123, 239, 190, 0.2) inset; }
 .slot-item.empty strong { color: #8da8c8; }
+.star-tier {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.tier-num {
+  color: #d6e9ff;
+  font-family: "JetBrains Mono", monospace;
+  font-size: 0.76rem;
+}
+.tier-stars {
+  letter-spacing: 0.02em;
+  font-size: 0.79rem;
+}
+.tier-stars .fill {
+  color: #ff4b4b;
+  text-shadow: 0 0 8px rgba(255, 75, 75, 0.45);
+}
+.tier-stars .empty {
+  color: rgba(170, 196, 230, 0.65);
+}
 
 .collection-list { display: grid; gap: 6px; max-height: 280px; overflow: auto; padding-right: 2px; }
 .collection-item { padding: 8px; display: grid; gap: 5px; }
