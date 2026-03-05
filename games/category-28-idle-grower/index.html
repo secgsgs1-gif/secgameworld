@@ -3,11 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Idle Grower - Auto Battle</title>
+  <title>Idle Grower - Summon RPG</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Pretendard:wght@400;500;700&family=JetBrains+Mono:wght@600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=20260305c" />
+  <link rel="stylesheet" href="styles.css?v=20260305d" />
 </head>
 <body>
   <main class="shell">
@@ -15,7 +15,7 @@
       <section>
         <p class="tag">STANDALONE IDLE RPG</p>
         <h1>그림자 사냥꾼</h1>
-        <p class="desc">완전 분리 저장형 방치 전투. 캐릭터/몬스터 자동 전투 + 보스 제한시간</p>
+        <p class="desc">영웅/펫/스킬 뽑기로 성장하는 자동 전투 방치형</p>
       </section>
       <a class="home-link" href="../../index.html">Back to Home</a>
     </header>
@@ -29,13 +29,13 @@
 
     <section class="battle-panel">
       <header class="battle-head">
-        <p id="battle-status">탐험 시작</p>
+        <p id="battle-status">전투 시작</p>
         <p id="offline-reward">오프라인 보상: 0 Gold</p>
       </header>
 
       <section class="bars-grid">
         <article>
-          <p class="bar-label">Hunter HP</p>
+          <p id="hero-label" class="bar-label">영웅 HP</p>
           <div class="bar-track"><div id="hero-hp-fill" class="bar-fill hero"></div></div>
           <p id="hero-hp-text" class="bar-text">0 / 0</p>
         </article>
@@ -51,42 +51,59 @@
         <div class="bar-track"><div id="boss-time-fill" class="bar-fill timer"></div></div>
       </article>
 
-      <canvas id="battle-canvas" width="960" height="330" aria-label="Auto battle screen"></canvas>
+      <canvas id="battle-canvas" width="1024" height="360" aria-label="Auto battle screen"></canvas>
 
       <section class="combat-actions">
-        <button id="manual-hit" type="button">강타</button>
-        <button id="skill-btn" type="button">그림자 폭풍</button>
+        <button id="skill-btn" type="button">스킬 발동</button>
         <button id="toggle-auto-skill" type="button">자동 스킬: OFF</button>
-        <button id="next-stage" type="button">보스 즉시 도전</button>
+        <button id="boss-challenge" type="button">보스 즉시 도전</button>
       </section>
       <p id="skill-info" class="hint">스킬 쿨다운 0.0초</p>
     </section>
 
     <section class="grid-2">
       <article class="panel">
-        <h2>성장</h2>
-        <div class="btn-grid">
-          <button id="up-hero" type="button">영웅 훈련 <span id="cost-hero">0</span></button>
-          <button id="up-companion" type="button">동료 모집 <span id="cost-companion">0</span></button>
-          <button id="up-speed" type="button">공속 강화 <span id="cost-speed">0</span></button>
-          <button id="up-crit" type="button">치명 연구 <span id="cost-crit">0</span></button>
-          <button id="up-skill" type="button">스킬 증폭 <span id="cost-skill">0</span></button>
-          <button id="up-refine" type="button">장비 제련 <span id="cost-refine">0</span></button>
+        <h2>뽑기</h2>
+        <div class="btn-grid three">
+          <button id="summon-hero" type="button">영웅 뽑기 <span id="cost-summon-hero">0</span></button>
+          <button id="summon-pet" type="button">펫 뽑기 <span id="cost-summon-pet">0</span></button>
+          <button id="summon-skill" type="button">스킬 뽑기 <span id="cost-summon-skill">0</span></button>
+        </div>
+        <p id="summon-log" class="hint">뽑기 대기 중</p>
+
+        <h3>선택 장비 강화</h3>
+        <div class="btn-grid three">
+          <button id="enhance-hero" type="button">선택 영웅 강화 <span id="cost-enhance-hero">0</span></button>
+          <button id="enhance-pet" type="button">선택 펫 강화 <span id="cost-enhance-pet">0</span></button>
+          <button id="enhance-skill" type="button">선택 스킬 강화 <span id="cost-enhance-skill">0</span></button>
         </div>
       </article>
 
       <article class="panel">
-        <h2>상태</h2>
+        <h2>장착 상태</h2>
         <ul class="stat-list">
-          <li>영웅 레벨 <strong id="hero-lv">1</strong></li>
-          <li>동료 레벨 <strong id="companion-lv">1</strong></li>
-          <li>공격력 <strong id="atk">0</strong></li>
-          <li>공격속도 <strong id="atk-speed">1.00/s</strong></li>
-          <li>치명타 <strong id="crit">5.0% x 1.60</strong></li>
-          <li>스킬 배율 <strong id="skill-mul">x2.5</strong></li>
-          <li>장비 등급 <strong id="refine">+0</strong></li>
+          <li>영웅 <strong id="eq-hero">-</strong></li>
+          <li>펫 <strong id="eq-pet">-</strong></li>
+          <li>스킬 <strong id="eq-skill">-</strong></li>
+          <li>치명타 <strong id="crit">0%</strong></li>
+          <li>공격속도 <strong id="atk-speed">0/s</strong></li>
           <li>누적 처치 <strong id="kills">0</strong></li>
         </ul>
+      </article>
+    </section>
+
+    <section class="grid-3">
+      <article class="panel collection">
+        <h2>보유 영웅</h2>
+        <div id="hero-collection" class="collection-list"></div>
+      </article>
+      <article class="panel collection">
+        <h2>보유 펫</h2>
+        <div id="pet-collection" class="collection-list"></div>
+      </article>
+      <article class="panel collection">
+        <h2>보유 스킬</h2>
+        <div id="skill-collection" class="collection-list"></div>
       </article>
     </section>
 
@@ -97,6 +114,6 @@
     </section>
   </main>
 
-  <script src="game.js?v=20260305c"></script>
+  <script src="game.js?v=20260305d"></script>
 </body>
 </html>
