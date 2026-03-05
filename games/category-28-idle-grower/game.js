@@ -134,6 +134,7 @@
     enemyHp: 0,
     enemyAtk: 0,
     enemyAtkInterval: 1.7,
+    bossTimerMax: 30,
     enemyModel: BOSS_MODELS[0],
     enemyKind: "mob",
     isBoss: false,
@@ -747,17 +748,22 @@
 
     runtime.enemyName = `${bossModel.name} ${state.stage}-${state.wave}`;
     runtime.enemyKind = bossModel.key;
-    runtime.bossTimer = 30;
+    const timerBase = 30 - (state.wave - 1) * 0.85 - Math.floor(state.stage / 120);
+    runtime.bossTimerMax = Math.max(12, timerBase);
+    runtime.bossTimer = runtime.bossTimerMax;
 
-    const stagePow = Math.pow(state.stage, 1.62);
-    const waveMul = 1 + state.wave * 0.28;
-    const bossMul = 2.8 + state.wave * 0.16;
+    const stagePow = Math.pow(state.stage, 1.95);
+    const stageRamp = Math.pow(1.018, Math.max(0, state.stage - 1));
+    const waveRamp = Math.pow(1.22, Math.max(0, state.wave - 1));
+    const bossMul = 3.2 + state.wave * 0.22;
 
-    runtime.enemyMaxHp = Math.max(140, Math.floor((180 + stagePow * 26) * waveMul * bossMul));
+    runtime.enemyMaxHp = Math.max(260, Math.floor((240 + stagePow * 42) * stageRamp * waveRamp * bossMul));
     runtime.enemyHp = runtime.enemyMaxHp;
 
-    runtime.enemyAtk = Math.max(14, (16 + stagePow * 4.2) * (1.7 + state.wave * 0.1));
-    runtime.enemyAtkInterval = Math.max(1.05, 1.42 - state.wave * 0.02);
+    const atkStagePow = Math.pow(state.stage, 1.52);
+    const atkRamp = Math.pow(1.012, Math.max(0, state.stage - 1));
+    runtime.enemyAtk = Math.max(18, (22 + atkStagePow * 6.4) * atkRamp * (1.45 + state.wave * 0.18));
+    runtime.enemyAtkInterval = Math.max(0.82, 1.38 - state.wave * 0.03);
   }
 
   function recoverForNextRound() {
@@ -958,6 +964,7 @@
     runtime.attackTimer = 0;
     runtime.enemyAttackTimer = 0;
     runtime.skillCooldowns = [0, 0, 0, 0];
+    runtime.bossTimerMax = 30;
     runtime.particles = [];
     runtime.projectiles = [];
     runtime.floatTexts = [];
@@ -1682,9 +1689,10 @@
 
     el.bossTimerBox.hidden = !runtime.isBoss;
     if (runtime.isBoss) {
-      const r = Math.max(0, runtime.bossTimer / 30);
+      const maxTimer = Math.max(1, runtime.bossTimerMax || 30);
+      const r = Math.max(0, runtime.bossTimer / maxTimer);
       el.bossTimeFill.style.width = `${r * 100}%`;
-      el.bossTimerLabel.textContent = `보스 제한시간 ${runtime.bossTimer.toFixed(1)}초`;
+      el.bossTimerLabel.textContent = `보스 제한시간 ${runtime.bossTimer.toFixed(1)} / ${maxTimer.toFixed(1)}초`;
     }
 
     el.toggleAutoSkill.textContent = `자동 스킬: ${state.autoSkill ? "ON" : "OFF"}`;
