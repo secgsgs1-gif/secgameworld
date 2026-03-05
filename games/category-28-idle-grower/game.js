@@ -1,5 +1,6 @@
 (() => {
   const SAVE_KEY = "idleGrowerStandaloneV6";
+  const BATTLE_ONLY_KEY = "idleGrowerBattleOnlyModeV1";
   const TICK = 0.05;
   const MAX_OFFLINE_SECONDS = 60 * 60 * 8;
   const SLOT_COUNT = 4;
@@ -206,6 +207,7 @@
     setFarmStageBtn: document.getElementById("set-farm-stage"),
     clearFarmStageBtn: document.getElementById("clear-farm-stage"),
     farmModeText: document.getElementById("farm-mode-text"),
+    toggleBattleView: document.getElementById("toggle-battle-view"),
     saveBtn: document.getElementById("save-btn"),
     resetBtn: document.getElementById("reset-btn"),
     summonHero1: document.getElementById("summon-hero-1"),
@@ -249,6 +251,7 @@
 
   bindEvents();
   normalizeState();
+  applyBattleOnlyMode(localStorage.getItem(BATTLE_ONLY_KEY) === "1");
   spawnEnemy();
 
   const offline = applyOfflineReward();
@@ -347,6 +350,13 @@
       render();
     });
 
+    if (el.toggleBattleView) {
+      el.toggleBattleView.addEventListener("click", () => {
+        const next = !document.body.classList.contains("battle-only");
+        applyBattleOnlyMode(next);
+      });
+    }
+
     el.summonHero1.addEventListener("click", () => summon("heroes", 1));
     el.summonHero10.addEventListener("click", () => summon("heroes", 10));
     el.summonPet1.addEventListener("click", () => summon("pets", 1));
@@ -373,6 +383,15 @@
     }
     arr[slot] = id;
     runtime.inventoryUiDirty = true;
+  }
+
+  function applyBattleOnlyMode(enabled) {
+    const on = Boolean(enabled);
+    document.body.classList.toggle("battle-only", on);
+    localStorage.setItem(BATTLE_ONLY_KEY, on ? "1" : "0");
+    if (el.toggleBattleView) {
+      el.toggleBattleView.textContent = on ? "전체 보기" : "전투 화면만 보기";
+    }
   }
 
   function tick() {

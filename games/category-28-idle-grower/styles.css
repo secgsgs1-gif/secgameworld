@@ -73,6 +73,14 @@ body {
 h1 { margin: 3px 0 4px; font-family: "Black Han Sans", sans-serif; font-size: clamp(1.9rem, 6vw, 2.7rem); font-weight: 400; }
 .desc { margin: 0; color: var(--muted); font-size: 0.9rem; }
 .home-link { color: #96ffd8; text-decoration: none; font-weight: 700; }
+.top-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.top-actions button {
+  padding: 7px 10px;
+}
 
 .resource-grid {
   display: grid;
@@ -244,6 +252,18 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   padding: 7px 9px;
   background: rgba(14, 29, 50, 0.8);
   font-size: 0.86rem;
+}
+
+body.battle-only .resource-grid,
+body.battle-only .grid-2,
+body.battle-only .grid-3,
+body.battle-only .stats,
+body.battle-only .rank-panel {
+  display: none;
+}
+
+body.battle-only .shell {
+  width: min(1140px, 100%);
 }
 
 .dungeon-grid {
