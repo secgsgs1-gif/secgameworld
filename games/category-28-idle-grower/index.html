@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Pretendard:wght@400;500;700&family=JetBrains+Mono:wght@600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=20260305b" />
+  <link rel="stylesheet" href="styles.css?v=20260305c" />
 </head>
 <body>
   <main class="shell">
@@ -15,28 +15,16 @@
       <section>
         <p class="tag">STANDALONE IDLE RPG</p>
         <h1>그림자 사냥꾼</h1>
-        <p class="desc">기존 사이트 포인트와 무관한 독립 저장형 방치 RPG</p>
+        <p class="desc">완전 분리 저장형 방치 전투. 캐릭터/몬스터 자동 전투 + 보스 제한시간</p>
       </section>
       <a class="home-link" href="../../index.html">Back to Home</a>
     </header>
 
     <section class="resource-grid">
-      <article class="resource-card">
-        <p>Gold</p>
-        <strong id="gold">0</strong>
-      </article>
-      <article class="resource-card">
-        <p>Soul</p>
-        <strong id="soul">0</strong>
-      </article>
-      <article class="resource-card">
-        <p>Stage</p>
-        <strong id="stage">1-1</strong>
-      </article>
-      <article class="resource-card">
-        <p>Power</p>
-        <strong id="power">0</strong>
-      </article>
+      <article class="resource-card"><p>Gold</p><strong id="gold">0</strong></article>
+      <article class="resource-card"><p>Soul</p><strong id="soul">0</strong></article>
+      <article class="resource-card"><p>Stage</p><strong id="stage">1-1</strong></article>
+      <article class="resource-card"><p>Power</p><strong id="power">0</strong></article>
     </section>
 
     <section class="battle-panel">
@@ -45,28 +33,31 @@
         <p id="offline-reward">오프라인 보상: 0 Gold</p>
       </header>
 
-      <section class="lane">
-        <article class="unit hero-unit">
-          <p class="name">Hunter</p>
-          <div class="sprite">⚔️</div>
-          <p id="hero-dps">DPS 0</p>
+      <section class="bars-grid">
+        <article>
+          <p class="bar-label">Hunter HP</p>
+          <div class="bar-track"><div id="hero-hp-fill" class="bar-fill hero"></div></div>
+          <p id="hero-hp-text" class="bar-text">0 / 0</p>
         </article>
-
-        <article class="enemy-wrap">
-          <p id="enemy-name" class="name">고블린 정찰병</p>
-          <div class="hp-box">
-            <div class="hp-track"><div id="enemy-hp-fill" class="hp-fill"></div></div>
-            <p id="enemy-hp-text">0 / 0</p>
-          </div>
-          <div id="enemy-sprite" class="enemy-sprite">👹</div>
+        <article>
+          <p id="enemy-name" class="bar-label">Enemy</p>
+          <div class="bar-track"><div id="enemy-hp-fill" class="bar-fill enemy"></div></div>
+          <p id="enemy-hp-text" class="bar-text">0 / 0</p>
         </article>
       </section>
+
+      <article id="boss-timer-box" class="boss-timer-box" hidden>
+        <p id="boss-timer-label">보스 제한시간 30.0초</p>
+        <div class="bar-track"><div id="boss-time-fill" class="bar-fill timer"></div></div>
+      </article>
+
+      <canvas id="battle-canvas" width="960" height="330" aria-label="Auto battle screen"></canvas>
 
       <section class="combat-actions">
         <button id="manual-hit" type="button">강타</button>
         <button id="skill-btn" type="button">그림자 폭풍</button>
         <button id="toggle-auto-skill" type="button">자동 스킬: OFF</button>
-        <button id="next-stage" type="button">다음 스테이지 도전</button>
+        <button id="next-stage" type="button">보스 즉시 도전</button>
       </section>
       <p id="skill-info" class="hint">스킬 쿨다운 0.0초</p>
     </section>
@@ -75,24 +66,12 @@
       <article class="panel">
         <h2>성장</h2>
         <div class="btn-grid">
-          <button id="up-hero" type="button">영웅 훈련 (+공격)
-            <span id="cost-hero">0</span>
-          </button>
-          <button id="up-companion" type="button">동료 모집 (+보조딜)
-            <span id="cost-companion">0</span>
-          </button>
-          <button id="up-speed" type="button">공속 강화
-            <span id="cost-speed">0</span>
-          </button>
-          <button id="up-crit" type="button">치명 연구
-            <span id="cost-crit">0</span>
-          </button>
-          <button id="up-skill" type="button">스킬 증폭
-            <span id="cost-skill">0</span>
-          </button>
-          <button id="up-refine" type="button">장비 제련
-            <span id="cost-refine">0</span>
-          </button>
+          <button id="up-hero" type="button">영웅 훈련 <span id="cost-hero">0</span></button>
+          <button id="up-companion" type="button">동료 모집 <span id="cost-companion">0</span></button>
+          <button id="up-speed" type="button">공속 강화 <span id="cost-speed">0</span></button>
+          <button id="up-crit" type="button">치명 연구 <span id="cost-crit">0</span></button>
+          <button id="up-skill" type="button">스킬 증폭 <span id="cost-skill">0</span></button>
+          <button id="up-refine" type="button">장비 제련 <span id="cost-refine">0</span></button>
         </div>
       </article>
 
@@ -118,6 +97,6 @@
     </section>
   </main>
 
-  <script src="game.js?v=20260305b"></script>
+  <script src="game.js?v=20260305c"></script>
 </body>
 </html>

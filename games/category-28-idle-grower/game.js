@@ -1,5 +1,5 @@
 (() => {
-  const SAVE_KEY = "idleGrowerStandaloneV2";
+  const SAVE_KEY = "idleGrowerStandaloneV3";
   const MAX_OFFLINE_SECONDS = 60 * 60 * 8;
   const ATTACK_TICK = 0.05;
 
@@ -25,6 +25,7 @@
     refineLv: 0,
     autoSkill: false,
     kills: 0,
+    bossFailCount: 0,
     lastSave: Date.now()
   };
 
@@ -34,12 +35,23 @@
     enemyName: "",
     enemyMaxHp: 0,
     enemyHp: 0,
+    enemyAtk: 0,
+    enemyAtkInterval: 1.7,
     isBoss: false,
     attackTimer: 0,
+    enemyAttackTimer: 0,
     skillCd: 0,
+    bossTimer: 30,
     statusMsg: "전투 시작",
-    lastLog: "자동 전투 진행중..."
+    lastLog: "자동 전투 진행중...",
+    heroAttackFx: 0,
+    enemyAttackFx: 0,
+    hitFlash: 0,
+    floatTexts: []
   };
+
+  const canvas = byId("battle-canvas");
+  const ctx = canvas.getContext("2d");
 
   const el = {
     gold: byId("gold"),
@@ -48,11 +60,14 @@
     power: byId("power"),
     battleStatus: byId("battle-status"),
     offlineReward: byId("offline-reward"),
+    heroHpFill: byId("hero-hp-fill"),
+    heroHpText: byId("hero-hp-text"),
     enemyName: byId("enemy-name"),
     enemyHpFill: byId("enemy-hp-fill"),
     enemyHpText: byId("enemy-hp-text"),
-    enemySprite: byId("enemy-sprite"),
-    heroDps: byId("hero-dps"),
+    bossTimerBox: byId("boss-timer-box"),
+    bossTimerLabel: byId("boss-timer-label"),
+    bossTimeFill: byId("boss-time-fill"),
     manualHit: byId("manual-hit"),
     skillBtn: byId("skill-btn"),
     toggleAutoSkill: byId("toggle-auto-skill"),
@@ -90,22 +105,27 @@
   el.offlineReward.textContent = `오프라인 보상: ${fmt(offlineGold)} Gold`;
 
   setInterval(tick, ATTACK_TICK * 1000);
-  setInterval(() => save(false), 12000);
-  window.addEventListener("beforeunload", () => save(false));
+  setInterval(() => save(), 12000);
+  window.addEventListener("beforeunload", () => save());
+
+  requestAnimationFrame(drawFrame);
   render();
 
   function byId(id) {
     return document.getElementById(id);
   }
 
+  function createBaseState() {
+    return { ...base, lastSave: Date.now() };
+  }
+
   function bindEvents() {
     el.manualHit.addEventListener("click", () => {
-      dealDamage(getTapDamage(), "강타");
+      runtime.heroAttackFx = 0.22;
+      dealDamage(getTapDamage(), "강타", true);
     });
 
-    el.skillBtn.addEventListener("click", () => {
-      castSkill(false);
-    });
+    el.skillBtn.addEventListener("click", () => castSkill(false));
 
     el.toggleAutoSkill.addEventListener("click", () => {
       state.autoSkill = !state.autoSkill;
@@ -113,9 +133,9 @@
     });
 
     el.nextStage.addEventListener("click", () => {
-      state.stage += 1;
-      state.wave = 1;
-      runtime.statusMsg = `Stage ${state.stage} 진입`;
+      state.wave = 10;
+      runtime.statusMsg = `Stage ${state.stage} 보스 도전`;
+      log("보스 즉시 도전 시작");
       spawnEnemy();
       render();
     });
@@ -128,8 +148,9 @@
     el.upRefine.addEventListener("click", () => buyUpgrade("refine"));
 
     el.saveBtn.addEventListener("click", () => {
-      save(true);
+      save();
       log("수동 저장 완료");
+      render();
     });
 
     el.resetBtn.addEventListener("click", () => {
@@ -138,52 +159,96 @@
       Object.assign(state, createBaseState());
       runtime.skillCd = 0;
       runtime.attackTimer = 0;
-      state.wave = 1;
+      runtime.enemyAttackTimer = 0;
+      runtime.floatTexts = [];
       spawnEnemy();
-      save(false);
+      save();
       log("초기화 완료");
       render();
     });
   }
 
-  function createBaseState() {
-    return { ...base, lastSave: Date.now() };
-  }
-
   function tick() {
-    runtime.attackTimer += ATTACK_TICK;
-    runtime.skillCd = Math.max(0, runtime.skillCd - ATTACK_TICK);
+    const dt = ATTACK_TICK;
+    runtime.attackTimer += dt;
+    runtime.enemyAttackTimer += dt;
+    runtime.skillCd = Math.max(0, runtime.skillCd - dt);
+    runtime.heroAttackFx = Math.max(0, runtime.heroAttackFx - dt);
+    runtime.enemyAttackFx = Math.max(0, runtime.enemyAttackFx - dt);
+    runtime.hitFlash = Math.max(0, runtime.hitFlash - dt * 1.7);
 
-    const interval = 1 / Math.max(0.35, getAtkSpeed());
-    if (runtime.attackTimer >= interval) {
-      runtime.attackTimer -= interval;
-      dealDamage(getAutoAttackDamage(), "자동 공격");
+    const atkInterval = 1 / Math.max(0.35, getAtkSpeed());
+    if (runtime.attackTimer >= atkInterval) {
+      runtime.attackTimer -= atkInterval;
+      runtime.heroAttackFx = 0.19;
+      dealDamage(getAutoAttackDamage(), "자동 공격", false);
+    }
+
+    if (runtime.enemyAttackTimer >= runtime.enemyAtkInterval) {
+      runtime.enemyAttackTimer -= runtime.enemyAtkInterval;
+      enemyAttack();
+    }
+
+    if (runtime.isBoss) {
+      runtime.bossTimer = Math.max(0, runtime.bossTimer - dt);
+      if (runtime.bossTimer <= 0 && runtime.enemyHp > 0) {
+        onBossTimeout();
+      }
     }
 
     if (state.autoSkill && runtime.skillCd <= 0) {
       castSkill(true);
     }
 
+    updateFloatTexts(dt);
     render();
   }
 
   function castSkill(isAuto) {
     if (runtime.skillCd > 0) return;
+    runtime.heroAttackFx = 0.3;
     const dmg = getPower() * state.skillMul;
     runtime.skillCd = Math.max(2.4, 8 - state.skillLv * 0.32);
-    dealDamage(dmg, isAuto ? "자동 스킬" : "그림자 폭풍");
+    dealDamage(dmg, isAuto ? "자동 스킬" : "그림자 폭풍", true);
   }
 
-  function dealDamage(rawDamage, source) {
-    if (runtime.enemyHp <= 0) return;
+  function dealDamage(rawDamage, source, byHero) {
+    if (runtime.enemyHp <= 0 || getHeroHp() <= 0) return;
 
     const crit = Math.random() < state.critChance;
     const dmg = rawDamage * (crit ? state.critMul : 1);
     runtime.enemyHp = Math.max(0, runtime.enemyHp - dmg);
     runtime.statusMsg = crit ? `${source} 치명타!` : `${source} 적중`;
+    addFloatText(`-${fmt(dmg)}`, 690, 120, crit ? "#ffd46f" : "#d1f0ff");
+
+    if (byHero) {
+      runtime.hitFlash = 0.25;
+    }
 
     if (runtime.enemyHp <= 0) {
       onEnemyDefeated();
+    }
+  }
+
+  function enemyAttack() {
+    if (runtime.enemyHp <= 0) return;
+    runtime.enemyAttackFx = 0.22;
+
+    const dodgeChance = Math.min(0.22, state.companionLv * 0.003);
+    if (Math.random() < dodgeChance) {
+      runtime.statusMsg = "회피!";
+      addFloatText("DODGE", 235, 120, "#9ff5cf");
+      return;
+    }
+
+    const damage = runtime.enemyAtk * (0.85 + Math.random() * 0.3);
+    const hpAfter = Math.max(0, getHeroHp() - damage);
+    setHeroHp(hpAfter);
+    addFloatText(`-${fmt(damage)}`, 235, 120, "#ffb0b0");
+    runtime.statusMsg = "적의 공격";
+
+    if (hpAfter <= 0) {
+      onHeroDefeated();
     }
   }
 
@@ -201,14 +266,31 @@
       state.stage += 1;
       state.wave = 1;
       runtime.statusMsg = `보스 처치! Stage ${state.stage}`;
+      log("보스 토벌 성공! 다음 스테이지 진입");
     } else {
       state.wave += 1;
-      if (state.wave > 10) {
-        state.wave = 10;
-      }
+      if (state.wave > 10) state.wave = 10;
       runtime.statusMsg = `적 처치! Wave ${state.wave}`;
     }
 
+    healHero(0.15);
+    spawnEnemy();
+  }
+
+  function onBossTimeout() {
+    state.bossFailCount += 1;
+    state.wave = 9;
+    runtime.statusMsg = "보스 제한시간 초과";
+    log("보스 제한시간 실패: 스테이지 상승 실패");
+    healHero(1);
+    spawnEnemy();
+  }
+
+  function onHeroDefeated() {
+    runtime.statusMsg = "영웅이 쓰러졌습니다";
+    log("패배: 현재 스테이지에서 재정비");
+    state.wave = Math.max(1, state.wave - 1);
+    setHeroHp(getHeroMaxHp());
     spawnEnemy();
   }
 
@@ -217,15 +299,20 @@
 
     if (runtime.isBoss) {
       runtime.enemyName = BOSS_NAMES[(state.stage - 1) % BOSS_NAMES.length];
+      runtime.bossTimer = 30;
     } else {
       runtime.enemyName = `${ENEMIES[(state.wave + state.stage) % ENEMIES.length]} ${state.wave}`;
+      runtime.bossTimer = 0;
     }
 
-    const stagePow = Math.pow(state.stage, 1.48);
-    const waveMul = 1 + state.wave * 0.22;
-    const bossMul = runtime.isBoss ? 4.2 : 1;
-    runtime.enemyMaxHp = Math.max(25, Math.floor((28 + stagePow * 12) * waveMul * bossMul));
+    const stagePow = Math.pow(state.stage, 1.5);
+    const waveMul = 1 + state.wave * 0.24;
+    const bossMul = runtime.isBoss ? 4.4 : 1;
+
+    runtime.enemyMaxHp = Math.max(25, Math.floor((30 + stagePow * 12) * waveMul * bossMul));
     runtime.enemyHp = runtime.enemyMaxHp;
+    runtime.enemyAtk = Math.max(2, (2.8 + stagePow * 1.8) * (runtime.isBoss ? 2.1 : 1));
+    runtime.enemyAtkInterval = runtime.isBoss ? 1.45 : 1.9;
   }
 
   function buyUpgrade(type) {
@@ -242,7 +329,7 @@
       if (!spendGold(costs.companion)) return;
       state.companionLv += 1;
       state.companionAtk *= 1.2;
-      log("동료가 강해졌습니다");
+      log("동료 강화 완료");
     }
 
     if (type === "speed") {
@@ -268,7 +355,12 @@
     }
 
     if (type === "refine") {
-      if (!spendGold(costs.refineGold) || !spendSoul(costs.refineSoul)) return;
+      if (state.gold < costs.refineGold || state.soul < costs.refineSoul) {
+        log("Gold 또는 Soul 부족");
+        return;
+      }
+      state.gold -= costs.refineGold;
+      state.soul -= costs.refineSoul;
       const successRate = Math.max(0.28, 0.8 - state.refineLv * 0.05);
       if (Math.random() < successRate) {
         state.refineLv += 1;
@@ -316,12 +408,31 @@
     return (state.heroAtk + state.companionAtk) * refineBonus;
   }
 
+  function getHeroMaxHp() {
+    return 120 + state.heroLv * 26 + state.refineLv * 40;
+  }
+
+  function getHeroHp() {
+    if (typeof state.heroHp !== "number") {
+      state.heroHp = getHeroMaxHp();
+    }
+    return state.heroHp;
+  }
+
+  function setHeroHp(v) {
+    state.heroHp = Math.max(0, Math.min(getHeroMaxHp(), v));
+  }
+
+  function healHero(ratio) {
+    setHeroHp(getHeroHp() + getHeroMaxHp() * ratio);
+  }
+
   function getAutoAttackDamage() {
     return getPower();
   }
 
   function getTapDamage() {
-    return getPower() * 1.45;
+    return getPower() * 1.5;
   }
 
   function getAtkSpeed() {
@@ -332,26 +443,25 @@
     const now = Date.now();
     const elapsedSec = Math.max(0, Math.floor((now - Number(state.lastSave || now)) / 1000));
     const clamped = Math.min(MAX_OFFLINE_SECONDS, elapsedSec);
-    const offlineDps = getPower() * getAtkSpeed() * 0.55;
+    const offlineDps = getPower() * getAtkSpeed() * 0.52;
     const reward = offlineDps * clamped;
     state.gold += reward;
     state.lastSave = now;
+    setHeroHp(getHeroMaxHp());
     return reward;
   }
 
-  function save(forceStamp) {
-    if (forceStamp) {
-      state.lastSave = Date.now();
-    } else {
-      state.lastSave = Date.now();
-    }
+  function save() {
+    state.lastSave = Date.now();
     localStorage.setItem(SAVE_KEY, JSON.stringify(state));
   }
 
   function load() {
     try {
       const raw = localStorage.getItem(SAVE_KEY);
-      if (!raw) return createBaseState();
+      if (!raw) {
+        return createBaseState();
+      }
       const data = JSON.parse(raw);
       return {
         ...createBaseState(),
@@ -362,9 +472,158 @@
     }
   }
 
+  function addFloatText(text, x, y, color) {
+    runtime.floatTexts.push({ text, x, y, vy: 24, life: 0.8, color });
+    if (runtime.floatTexts.length > 18) runtime.floatTexts.shift();
+  }
+
+  function updateFloatTexts(dt) {
+    runtime.floatTexts = runtime.floatTexts
+      .map((f) => ({ ...f, y: f.y - f.vy * dt, life: f.life - dt }))
+      .filter((f) => f.life > 0);
+  }
+
+  function drawFrame(ts) {
+    drawScene(ts / 1000);
+    requestAnimationFrame(drawFrame);
+  }
+
+  function drawScene(t) {
+    const w = canvas.width;
+    const h = canvas.height;
+
+    ctx.clearRect(0, 0, w, h);
+
+    const sky = ctx.createLinearGradient(0, 0, 0, h);
+    sky.addColorStop(0, "#304d7a");
+    sky.addColorStop(1, "#1a243d");
+    ctx.fillStyle = sky;
+    ctx.fillRect(0, 0, w, h);
+
+    ctx.fillStyle = "rgba(33, 71, 52, 0.7)";
+    ctx.fillRect(0, h - 95, w, 95);
+
+    drawMountains(t, w, h);
+
+    const heroX = 230 + (runtime.heroAttackFx > 0 ? 36 * (runtime.heroAttackFx / 0.22) : 0);
+    const heroY = h - 110 + Math.sin(t * 5.2) * 2;
+    const enemyX = 730 - (runtime.enemyAttackFx > 0 ? 24 * (runtime.enemyAttackFx / 0.22) : 0);
+    const enemyY = h - 112 + Math.sin(t * 4.3 + 0.7) * 2;
+
+    drawHero(heroX, heroY, runtime.heroAttackFx > 0);
+    drawEnemy(enemyX, enemyY, runtime.isBoss, runtime.enemyAttackFx > 0);
+
+    if (runtime.heroAttackFx > 0) drawSlash(heroX + 52, heroY - 35, "#d2fbff");
+    if (runtime.enemyAttackFx > 0) drawSlash(enemyX - 45, enemyY - 35, "#ffb3c7");
+
+    if (runtime.hitFlash > 0) {
+      ctx.fillStyle = `rgba(255, 242, 196, ${runtime.hitFlash * 0.2})`;
+      ctx.fillRect(0, 0, w, h);
+    }
+
+    drawFloatTexts();
+  }
+
+  function drawMountains(t, w, h) {
+    ctx.fillStyle = "rgba(145, 177, 230, 0.25)";
+    for (let i = 0; i < 6; i += 1) {
+      const x = ((i * 190) + t * 8) % (w + 220) - 220;
+      ctx.beginPath();
+      ctx.moveTo(x, h - 95);
+      ctx.lineTo(x + 90, h - 230);
+      ctx.lineTo(x + 180, h - 95);
+      ctx.closePath();
+      ctx.fill();
+    }
+  }
+
+  function drawHero(x, y, attacking) {
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.fillStyle = "#6bc5ff";
+    ctx.beginPath();
+    ctx.arc(0, -50, 17, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = "#203b63";
+    ctx.fillRect(-13, -35, 26, 45);
+
+    ctx.strokeStyle = "#d8f6ff";
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.moveTo(4, -22);
+    ctx.lineTo(attacking ? 48 : 25, attacking ? -58 : -38);
+    ctx.stroke();
+
+    ctx.strokeStyle = "#34587f";
+    ctx.beginPath();
+    ctx.moveTo(-10, 10);
+    ctx.lineTo(-18, 42);
+    ctx.moveTo(10, 10);
+    ctx.lineTo(18, 42);
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  function drawEnemy(x, y, boss, attacking) {
+    ctx.save();
+    ctx.translate(x, y);
+
+    ctx.fillStyle = boss ? "#cf5f90" : "#a87967";
+    ctx.beginPath();
+    ctx.arc(0, -54, boss ? 24 : 18, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = boss ? "#6f2949" : "#4f352d";
+    ctx.fillRect(boss ? -23 : -16, -34, boss ? 46 : 32, boss ? 55 : 42);
+
+    ctx.strokeStyle = boss ? "#f8bfd0" : "#ffd0bf";
+    ctx.lineWidth = boss ? 7 : 5;
+    ctx.beginPath();
+    ctx.moveTo(-8, -12);
+    ctx.lineTo(attacking ? -52 : -28, attacking ? -46 : -26);
+    ctx.stroke();
+
+    ctx.strokeStyle = "#41242d";
+    ctx.lineWidth = 6;
+    ctx.beginPath();
+    ctx.moveTo(-10, 20);
+    ctx.lineTo(-20, 50);
+    ctx.moveTo(10, 20);
+    ctx.lineTo(20, 50);
+    ctx.stroke();
+
+    ctx.restore();
+  }
+
+  function drawSlash(x, y, color) {
+    ctx.save();
+    ctx.strokeStyle = color;
+    ctx.lineWidth = 5;
+    ctx.globalAlpha = 0.78;
+    ctx.beginPath();
+    ctx.arc(x, y, 24, Math.PI * 0.15, Math.PI * 0.92);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  function drawFloatTexts() {
+    runtime.floatTexts.forEach((f) => {
+      ctx.save();
+      ctx.globalAlpha = Math.max(0, Math.min(1, f.life / 0.8));
+      ctx.fillStyle = f.color;
+      ctx.font = "bold 20px 'JetBrains Mono'";
+      ctx.fillText(f.text, f.x, f.y);
+      ctx.restore();
+    });
+  }
+
   function render() {
     const costs = getCosts();
     const hpRatio = runtime.enemyMaxHp > 0 ? runtime.enemyHp / runtime.enemyMaxHp : 0;
+    const heroHp = getHeroHp();
+    const heroMaxHp = getHeroMaxHp();
 
     el.gold.textContent = fmt(state.gold);
     el.soul.textContent = fmt(state.soul);
@@ -373,17 +632,23 @@
 
     el.battleStatus.textContent = runtime.statusMsg;
     el.enemyName.textContent = runtime.isBoss ? `[BOSS] ${runtime.enemyName}` : runtime.enemyName;
+
+    el.heroHpFill.style.width = `${(heroHp / heroMaxHp) * 100}%`;
+    el.heroHpText.textContent = `${fmt(heroHp)} / ${fmt(heroMaxHp)}`;
+
     el.enemyHpFill.style.width = `${Math.max(0, Math.min(1, hpRatio)) * 100}%`;
     el.enemyHpText.textContent = `${fmt(runtime.enemyHp)} / ${fmt(runtime.enemyMaxHp)}`;
-    el.enemySprite.classList.toggle("boss", runtime.isBoss);
-    el.enemySprite.textContent = runtime.isBoss ? "😈" : "👹";
-    el.heroDps.textContent = `DPS ${fmt(getPower() * getAtkSpeed())}`;
+
+    el.bossTimerBox.hidden = !runtime.isBoss;
+    if (runtime.isBoss) {
+      const ratio = Math.max(0, runtime.bossTimer / 30);
+      el.bossTimeFill.style.width = `${ratio * 100}%`;
+      el.bossTimerLabel.textContent = `보스 제한시간 ${runtime.bossTimer.toFixed(1)}초`;
+    }
 
     el.skillBtn.classList.toggle("ready", runtime.skillCd <= 0.05);
     el.skillBtn.disabled = runtime.skillCd > 0.05;
-    el.skillInfo.textContent = runtime.skillCd > 0
-      ? `스킬 쿨다운 ${runtime.skillCd.toFixed(1)}초`
-      : "스킬 준비 완료";
+    el.skillInfo.textContent = runtime.skillCd > 0 ? `스킬 쿨다운 ${runtime.skillCd.toFixed(1)}초` : "스킬 준비 완료";
 
     el.toggleAutoSkill.textContent = `자동 스킬: ${state.autoSkill ? "ON" : "OFF"}`;
 
