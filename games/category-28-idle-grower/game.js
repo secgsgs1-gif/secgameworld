@@ -1708,9 +1708,9 @@
     el.summonPet10.disabled = state.gold < petCosts.ten;
     el.summonSkill1.disabled = state.gold < skillCosts.one;
     el.summonSkill10.disabled = state.gold < skillCosts.ten;
-    el.summonHeroMeta.textContent = summonMetaText("heroes");
-    el.summonPetMeta.textContent = summonMetaText("pets");
-    el.summonSkillMeta.textContent = summonMetaText("skills");
+    if (el.summonHeroMeta) el.summonHeroMeta.textContent = summonMetaText("heroes");
+    if (el.summonPetMeta) el.summonPetMeta.textContent = summonMetaText("pets");
+    if (el.summonSkillMeta) el.summonSkillMeta.textContent = summonMetaText("skills");
 
     el.skillSlotList.innerHTML = state.equipped.skills.map((id, i) => {
       if (!id) {
