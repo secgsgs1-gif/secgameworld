@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Idle Grower</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css?v=20260305a" />
+</head>
+<body>
+  <main class="shell">
+    <header class="hero">
+      <p class="eyebrow">SEPARATE MODE</p>
+      <h1>Idle Grower</h1>
+      <p>기존 포인트와 완전 분리된 개인 방치형 게임입니다. 저장은 이 브라우저에만 보관됩니다.</p>
+    </header>
+
+    <section class="stats-grid">
+      <article class="stat-box">
+        <h2>Gold</h2>
+        <p id="gold" class="big">0</p>
+      </article>
+      <article class="stat-box">
+        <h2>Level</h2>
+        <p id="level" class="big">1</p>
+      </article>
+      <article class="stat-box">
+        <h2>EXP</h2>
+        <p id="exp" class="big">0 / 10</p>
+      </article>
+      <article class="stat-box">
+        <h2>DPS</h2>
+        <p id="dps" class="big">1</p>
+      </article>
+    </section>
+
+    <section class="panel tap-panel">
+      <h2>Tap Hunt</h2>
+      <p id="tap-log">탭해서 골드를 획득하세요.</p>
+      <button id="tap-btn" class="tap-btn" type="button">HUNT (+1)</button>
+    </section>
+
+    <section class="panel upgrade-panel">
+      <h2>Upgrades</h2>
+      <div class="upgrade-list">
+        <button id="upgrade-tap" type="button">Tap Power +1 (<span id="cost-tap">15</span>G)</button>
+        <button id="upgrade-auto" type="button">Auto DPS +1 (<span id="cost-auto">25</span>G)</button>
+        <button id="upgrade-crit" type="button">Crit +2% (<span id="cost-crit">40</span>G)</button>
+      </div>
+      <p id="upgrade-info">탭 파워: <strong id="tap-power">1</strong> | 치명타: <strong id="crit">5%</strong></p>
+    </section>
+
+    <section class="panel footer-panel">
+      <p>오프라인 보상: <strong id="offline-reward">0</strong>G</p>
+      <div class="footer-actions">
+        <button id="save-btn" type="button">수동 저장</button>
+        <button id="reset-btn" type="button" class="danger">초기화</button>
+      </div>
+      <a href="../../index.html">Back to Home</a>
+    </section>
+  </main>
+
+  <script src="game.js?v=20260305a"></script>
+</body>
+</html>
