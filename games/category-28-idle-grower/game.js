@@ -397,6 +397,7 @@
     if (runtime.enemyShieldTimer <= 0) runtime.enemyShield = 0;
 
     runtime.skillCooldowns = runtime.skillCooldowns.map((v) => Math.max(0, v - dt));
+    healHero(getHpRegenPerSec() * dt);
 
     if (runtime.roundTransition > 0) {
       runtime.roundTransition = Math.max(0, runtime.roundTransition - dt);
@@ -1054,7 +1055,7 @@
       const inv = state.inventories.heroes[id];
       if (!hero || !inv) return;
       const rarity = rarityByKey(hero.rarity).mult;
-      defensePower += hero.baseHp * 0.065 * rarity * (1 + (inv.level - 1) * 0.05) * (1 + (inv.star - 1) * 0.11);
+      defensePower += hero.baseHp * 0.14 * rarity * (1 + (inv.level - 1) * 0.09) * (1 + (inv.star - 1) * 0.18);
     });
 
     pets.forEach((id) => {
@@ -1062,18 +1063,28 @@
       const inv = state.inventories.pets[id];
       if (!pet || !inv) return;
       const rarity = rarityByKey(pet.rarity).mult;
-      defensePower += (pet.spdAmp * 430 + pet.critAmp * 520) * rarity * (1 + (inv.level - 1) * 0.04) * (1 + (inv.star - 1) * 0.06);
+      defensePower += (pet.spdAmp * 860 + pet.critAmp * 1020) * rarity * (1 + (inv.level - 1) * 0.08) * (1 + (inv.star - 1) * 0.12);
     });
 
     skills.forEach((id) => {
       const inv = state.inventories.skills[id];
       if (!inv) return;
-      defensePower += 16 * inv.level + 28 * (inv.star - 1);
+      defensePower += 30 * inv.level + 52 * (inv.star - 1);
     });
 
     defensePower *= 1 + (state.accountLv - 1) * 0.02;
-    const mitigation = defensePower / (defensePower + runtime.enemyAtk * 3.4 + 260);
-    return Math.max(0, Math.min(0.75, mitigation));
+    const mitigation = defensePower / (defensePower + runtime.enemyAtk * 2.05 + 120);
+    return Math.max(0, Math.min(0.88, mitigation));
+  }
+
+  function getHpRegenPerSec() {
+    const heroCount = state.equipped.heroes.filter(Boolean).length;
+    const petCount = state.equipped.pets.filter(Boolean).length;
+    const skillCount = state.equipped.skills.filter(Boolean).length;
+    const base = 0.008;
+    const byParty = heroCount * 0.0012 + petCount * 0.0022 + skillCount * 0.0014;
+    const byAccount = Math.max(0, state.accountLv - 1) * 0.00035;
+    return Math.min(0.03, base + byParty + byAccount);
   }
 
   function getCritMul() {
@@ -1097,10 +1108,10 @@
       const inv = state.inventories.heroes[id];
       if (!hero || !inv) return;
       const rarity = rarityByKey(hero.rarity).mult;
-      hp += hero.baseHp * rarity * (1 + (inv.level - 1) * 0.09) * (1 + (inv.star - 1) * 0.14);
+      hp += hero.baseHp * rarity * (1 + (inv.level - 1) * 0.13) * (1 + (inv.star - 1) * 0.24);
     });
 
-    return hp * (1 + (state.accountLv - 1) * 0.025);
+    return hp * (1 + (state.accountLv - 1) * 0.045);
   }
 
   function getHeroHp() {
@@ -1988,6 +1999,7 @@
       `파티 구성 <strong>H${heroes}/P${pets}/S${skills}</strong>`,
       `공격속도 <strong>${getAttackSpeed().toFixed(2)}/s</strong>`,
       `방어율 <strong>${(getDefenseRate() * 100).toFixed(2)}%</strong>`,
+      `HP재생 <strong>${(getHpRegenPerSec() * 100).toFixed(2)}%/s</strong>`,
       `치명타 <strong>${(getCritChance() * 100).toFixed(2)}%</strong>`,
       `치명 배율 <strong>x${getCritMul().toFixed(2)}</strong>`,
       `누적 처치 <strong>${fmt(state.kills)}</strong>`,
