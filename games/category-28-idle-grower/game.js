@@ -99,6 +99,7 @@
     stage: 1,
     bestStage: 1,
     wave: 1,
+    climbMode: true,
     farmStage: null,
     autoSkill: true,
     kills: 0,
@@ -249,9 +250,16 @@
     });
 
     el.bossChallenge.addEventListener("click", () => {
-      state.wave = 10;
-      runtime.statusMsg = `Stage ${state.stage} 보스 도전`;
-      log("보스 즉시 도전 시작");
+      if (state.farmStage) state.farmStage = null;
+      state.climbMode = true;
+      if (state.wave >= 10) {
+        state.stage += 1;
+        state.wave = 1;
+      } else {
+        state.wave += 1;
+      }
+      runtime.statusMsg = `${state.stage}-${state.wave} 보스 등반 도전`;
+      log(`등반 재개: ${state.stage}-${state.wave}`);
       recoverForNextRound();
       spawnEnemy();
       emitStageProgress(true);
@@ -272,6 +280,7 @@
       state.farmStage = picked;
       state.stage = picked;
       state.wave = 1;
+      state.climbMode = false;
       recoverForNextRound();
       spawnEnemy();
       log(`사냥터 고정: Stage ${picked}`);
@@ -281,6 +290,7 @@
 
     el.clearFarmStageBtn.addEventListener("click", () => {
       state.farmStage = null;
+      state.climbMode = true;
       log("사냥터 고정 해제: 진행 모드");
       emitStageProgress(true);
       render();
@@ -659,30 +669,30 @@
   function onEnemyDefeated() {
     state.kills += 1;
 
-    const reward = runtime.enemyMaxHp * 0.15 * (runtime.isBoss ? 2.5 : 1) * (1 + state.stage * 0.02);
+    const reward = runtime.enemyMaxHp * 0.15 * 2.5 * (1 + state.stage * 0.02);
     state.gold += reward;
 
-    gainExp(runtime.isBoss ? 18 : 5);
+    gainExp(18);
 
-    if (runtime.isBoss) {
-      if (state.farmStage) {
-        state.stage = state.farmStage;
-      } else {
+    if (state.climbMode) {
+      if (state.wave >= 10) {
         state.stage += 1;
+        state.wave = 1;
         state.bestStage = Math.max(Number(state.bestStage || 1), state.stage);
+        runtime.roundBanner = `STAGE ${state.stage} 진입`;
+      } else {
+        state.wave += 1;
+        runtime.roundBanner = `${state.stage}-${state.wave} 도달`;
       }
-      state.wave = 1;
-      runtime.statusMsg = `보스 처치! Stage ${state.stage}`;
-      runtime.roundBanner = `STAGE ${state.stage} 진입`;
       runtime.roundBannerTimer = 1.8;
       runtime.stagePulse = 1;
-      log("보스 토벌 성공: 다음 스테이지 진입");
+      runtime.statusMsg = `보스 처치! ${state.stage}-${state.wave}`;
+      log(`등반 성공: ${state.stage}-${state.wave}`);
       burstParticles(790, 200, "#ffe59b", 34);
       shake(0.24);
     } else {
-      state.wave += 1;
-      if (state.wave > 10) state.wave = 10;
-      runtime.statusMsg = `Wave ${state.wave}`;
+      runtime.statusMsg = `${state.stage}-${state.wave} 반복 사냥`;
+      log(`반복 사냥: ${state.stage}-${state.wave}`);
     }
 
     recoverForNextRound();
@@ -692,11 +702,12 @@
 
   function onBossTimeout() {
     state.bossFailCount += 1;
-    state.wave = 9;
+    state.climbMode = false;
+    state.wave = Math.max(1, state.wave - 1);
     runtime.statusMsg = "보스 제한시간 초과";
-    runtime.roundBanner = "BOSS FAIL - 9웨이브 복귀";
+    runtime.roundBanner = `BOSS FAIL - ${state.stage}-${state.wave} 복귀`;
     runtime.roundBannerTimer = 1.5;
-    log("보스 제한시간 실패: 스테이지 상승 실패");
+    log(`보스 제한시간 실패: ${state.stage}-${state.wave} 반복 사냥`);
     burstParticles(780, 200, "#ff9cbc", 24);
     recoverForNextRound();
     spawnEnemy();
@@ -707,21 +718,16 @@
     runtime.statusMsg = "파티 전멸";
     runtime.roundBanner = "DEFEAT - 재정비";
     runtime.roundBannerTimer = 1.5;
-    if (runtime.isBoss || state.wave >= 10) {
-      // Boss defeat loop: always return to x-9 farming wave.
-      state.wave = 9;
-      log("보스전 패배: 해당 스테이지 9웨이브로 복귀");
-    } else {
-      log("패배: 웨이브 후퇴");
-      state.wave = Math.max(1, state.wave - 1);
-    }
+    state.climbMode = false;
+    state.wave = Math.max(1, state.wave - 1);
+    log(`패배: ${state.stage}-${state.wave}로 후퇴, 반복 사냥`);
     recoverForNextRound();
     spawnEnemy();
     emitStageProgress(true);
   }
 
   function spawnEnemy() {
-    if (state.farmStage) {
+    if (state.farmStage && !state.climbMode) {
       state.stage = state.farmStage;
     }
 
@@ -734,32 +740,24 @@
     runtime.dotTick = 0;
     runtime.stagePulse = Math.max(runtime.stagePulse, 0.52);
 
-    runtime.isBoss = state.wave >= 10;
+    runtime.isBoss = true;
 
-    const bossModel = BOSS_MODELS[(state.stage - 1) % BOSS_MODELS.length];
+    const bossModel = BOSS_MODELS[(state.stage + state.wave - 2) % BOSS_MODELS.length];
     runtime.enemyModel = bossModel;
 
-    if (runtime.isBoss) {
-      runtime.enemyName = bossModel.name;
-      runtime.enemyKind = bossModel.key;
-      runtime.bossTimer = 30;
-    } else {
-      const mobs = ["숲 도적", "황야 늑대", "암흑 사제", "해골 전사", "독성 곤충"];
-      const idx = (state.stage + state.wave) % mobs.length;
-      runtime.enemyName = `${mobs[idx]} ${state.wave}`;
-      runtime.enemyKind = "mob";
-      runtime.bossTimer = 0;
-    }
+    runtime.enemyName = `${bossModel.name} ${state.stage}-${state.wave}`;
+    runtime.enemyKind = bossModel.key;
+    runtime.bossTimer = 30;
 
     const stagePow = Math.pow(state.stage, 1.62);
     const waveMul = 1 + state.wave * 0.28;
-    const bossMul = runtime.isBoss ? 5.4 : 1;
+    const bossMul = 2.8 + state.wave * 0.16;
 
     runtime.enemyMaxHp = Math.max(140, Math.floor((180 + stagePow * 26) * waveMul * bossMul));
     runtime.enemyHp = runtime.enemyMaxHp;
 
-    runtime.enemyAtk = Math.max(14, (16 + stagePow * 4.2) * (runtime.isBoss ? 2.55 : 1));
-    runtime.enemyAtkInterval = runtime.isBoss ? 1.3 : 1.75;
+    runtime.enemyAtk = Math.max(14, (16 + stagePow * 4.2) * (1.7 + state.wave * 0.1));
+    runtime.enemyAtkInterval = Math.max(1.05, 1.42 - state.wave * 0.02);
   }
 
   function recoverForNextRound() {
@@ -998,6 +996,8 @@
       const n = Math.floor(Number(state.farmStage));
       state.farmStage = Number.isFinite(n) && n >= 1 ? n : null;
     }
+    if (typeof state.climbMode !== "boolean") state.climbMode = true;
+    state.wave = Math.max(1, Math.min(10, Math.floor(Number(state.wave || 1))));
 
     if (!Number.isFinite(Number(state.bestStage))) {
       state.bestStage = Math.max(1, Number(state.stage || 1));
@@ -1685,9 +1685,12 @@
     }
 
     el.toggleAutoSkill.textContent = `자동 스킬: ${state.autoSkill ? "ON" : "OFF"}`;
-    el.farmModeText.textContent = state.farmStage
-      ? `현재 모드: Stage ${state.farmStage} 고정 반복 사냥`
-      : "현재 모드: 진행 모드";
+    el.bossChallenge.textContent = state.climbMode ? "다음 보스 도전" : "보스 등반 재개";
+    if (state.farmStage) {
+      el.farmModeText.textContent = `현재 모드: Stage ${state.farmStage} 고정 반복 사냥 (${state.climbMode ? "등반" : "반복"})`;
+    } else {
+      el.farmModeText.textContent = `현재 모드: ${state.climbMode ? "등반 모드" : "반복 사냥 모드"}`;
+    }
     if (document.activeElement !== el.farmStageInput) {
       el.farmStageInput.value = state.farmStage ? String(state.farmStage) : "";
     }
