@@ -254,16 +254,8 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   font-size: 0.86rem;
 }
 
-body.battle-only .resource-grid,
-body.battle-only .grid-2,
-body.battle-only .grid-3,
-body.battle-only .stats,
-body.battle-only .rank-panel {
+body.hide-battle .battle-panel {
   display: none;
-}
-
-body.battle-only .shell {
-  width: min(1140px, 100%);
 }
 
 .dungeon-grid {

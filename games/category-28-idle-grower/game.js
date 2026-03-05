@@ -1,6 +1,6 @@
 (() => {
   const SAVE_KEY = "idleGrowerStandaloneV6";
-  const BATTLE_ONLY_KEY = "idleGrowerBattleOnlyModeV1";
+  const HIDE_BATTLE_KEY = "idleGrowerHideBattleModeV1";
   const TICK = 0.05;
   const MAX_OFFLINE_SECONDS = 60 * 60 * 8;
   const SLOT_COUNT = 4;
@@ -251,7 +251,7 @@
 
   bindEvents();
   normalizeState();
-  applyBattleOnlyMode(localStorage.getItem(BATTLE_ONLY_KEY) === "1");
+  applyBattleHiddenMode(localStorage.getItem(HIDE_BATTLE_KEY) === "1");
   spawnEnemy();
 
   const offline = applyOfflineReward();
@@ -352,8 +352,8 @@
 
     if (el.toggleBattleView) {
       el.toggleBattleView.addEventListener("click", () => {
-        const next = !document.body.classList.contains("battle-only");
-        applyBattleOnlyMode(next);
+        const next = !document.body.classList.contains("hide-battle");
+        applyBattleHiddenMode(next);
       });
     }
 
@@ -385,12 +385,12 @@
     runtime.inventoryUiDirty = true;
   }
 
-  function applyBattleOnlyMode(enabled) {
+  function applyBattleHiddenMode(enabled) {
     const on = Boolean(enabled);
-    document.body.classList.toggle("battle-only", on);
-    localStorage.setItem(BATTLE_ONLY_KEY, on ? "1" : "0");
+    document.body.classList.toggle("hide-battle", on);
+    localStorage.setItem(HIDE_BATTLE_KEY, on ? "1" : "0");
     if (el.toggleBattleView) {
-      el.toggleBattleView.textContent = on ? "전체 보기" : "전투 화면만 보기";
+      el.toggleBattleView.textContent = on ? "전투화면 보이기" : "전투화면 숨기기";
     }
   }
 
