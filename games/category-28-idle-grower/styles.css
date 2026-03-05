@@ -170,6 +170,12 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 .summon-row { display: grid; grid-template-columns: 110px 1fr; gap: 8px; align-items: center; margin-bottom: 8px; }
 .summon-row p { margin: 0; color: #c7defb; font-size: 0.9rem; }
 .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.summon-meta {
+  margin: -3px 0 9px;
+  color: #9dc5ec;
+  font-size: 0.78rem;
+  font-family: "JetBrains Mono", monospace;
+}
 .hint { margin: 8px 0 0; color: #9dc5ec; font-size: 0.85rem; }
 
 .summon-results { display: grid; gap: 6px; max-height: 220px; overflow: auto; }

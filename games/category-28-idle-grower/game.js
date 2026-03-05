@@ -200,10 +200,13 @@
     resetBtn: document.getElementById("reset-btn"),
     summonHero1: document.getElementById("summon-hero-1"),
     summonHero10: document.getElementById("summon-hero-10"),
+    summonHeroMeta: document.getElementById("summon-hero-meta"),
     summonPet1: document.getElementById("summon-pet-1"),
     summonPet10: document.getElementById("summon-pet-10"),
+    summonPetMeta: document.getElementById("summon-pet-meta"),
     summonSkill1: document.getElementById("summon-skill-1"),
     summonSkill10: document.getElementById("summon-skill-10"),
+    summonSkillMeta: document.getElementById("summon-skill-meta"),
     costHero1: document.getElementById("cost-hero-1"),
     costHero10: document.getElementById("cost-hero-10"),
     costPet1: document.getElementById("cost-pet-1"),
@@ -506,14 +509,19 @@
     return Math.max(1, Math.min(10, 1 + Math.floor(draws / 100)));
   }
 
-  function rollRarityByLevel(level) {
+  function getRarityRatesByLevel(level) {
     const t = (Math.max(1, Math.min(10, level)) - 1) / 9;
     const myth = lerp(0.00002, 0.001, t);
     const legend = lerp(0.0018, 0.006, t);
     const unique = lerp(0.02, 0.042, t);
     const epic = lerp(0.11, 0.185, t);
     const rare = lerp(0.33, 0.405, t);
-    const common = 1 - (myth + legend + unique + epic + rare);
+    const common = Math.max(0, 1 - (myth + legend + unique + epic + rare));
+    return { common, rare, epic, unique, legend, myth };
+  }
+
+  function rollRarityByLevel(level) {
+    const { myth, legend, unique, epic, rare, common } = getRarityRatesByLevel(level);
 
     const r = Math.random();
     if (r < myth) return "myth";
@@ -930,7 +938,22 @@
   }
 
   function getOfflineIncomePerSec() {
-    return getTeamPower() * getAttackSpeed() * 0.28;
+    return getTeamPower() * getAttackSpeed() * 0.28 * getOfflineStageMultiplier();
+  }
+
+  function getOfflineStageMultiplier() {
+    const stage = Math.max(1, Math.floor(Number(state.stage || 1)));
+    const wave = Math.max(1, Math.floor(Number(state.wave || 1)));
+    return 1 + (stage - 1) * 0.18 + Math.floor((stage - 1) / 10) * 0.6 + (wave - 1) * 0.03;
+  }
+
+  function summonMetaText(type) {
+    const s = state.summon[type];
+    const lvl = Math.max(1, Math.min(10, Number(s.level || 1)));
+    const draws = Math.max(0, Number(s.draws || 0));
+    const nextNeed = lvl >= 10 ? 0 : (lvl * 100) - draws;
+    const rates = getRarityRatesByLevel(lvl);
+    return `Lv.${lvl} | 누적 ${draws}회 | ${lvl >= 10 ? "MAX" : `다음 Lv까지 ${Math.max(0, nextNeed)}회`} | 신화 ${(rates.myth * 100).toFixed(3)}% · 전설 ${(rates.legend * 100).toFixed(2)}% · 유니크 ${(rates.unique * 100).toFixed(2)}%`;
   }
 
   function resetRuntime() {
@@ -1645,7 +1668,7 @@
     el.summonLevels.textContent = `H${state.summon.heroes.level}/P${state.summon.pets.level}/S${state.summon.skills.level}`;
 
     el.battleStatus.textContent = runtime.statusMsg;
-    el.offlineReward.textContent = `오프라인 보상: ${fmt(state.pendingOfflineGold)} Gold`;
+    el.offlineReward.textContent = `오프라인 보상: ${fmt(state.pendingOfflineGold)} Gold (+${fmt(getOfflineIncomePerSec())}/s, x${getOfflineStageMultiplier().toFixed(2)})`;
     el.heroLabel.textContent = "파티 HP";
     el.enemyName.textContent = runtime.isBoss ? `[BOSS] ${runtime.enemyName}` : runtime.enemyName;
 
@@ -1682,6 +1705,9 @@
     el.summonPet10.disabled = state.gold < petCosts.ten;
     el.summonSkill1.disabled = state.gold < skillCosts.one;
     el.summonSkill10.disabled = state.gold < skillCosts.ten;
+    el.summonHeroMeta.textContent = summonMetaText("heroes");
+    el.summonPetMeta.textContent = summonMetaText("pets");
+    el.summonSkillMeta.textContent = summonMetaText("skills");
 
     el.skillSlotList.innerHTML = state.equipped.skills.map((id, i) => {
       if (!id) {
@@ -1723,8 +1749,12 @@
       `치명 배율 <strong>x${getCritMul().toFixed(2)}</strong>`,
       `누적 처치 <strong>${fmt(state.kills)}</strong>`,
       `계정 레벨 <strong>Lv.${state.accountLv}</strong>`,
+      `뽑기 레벨 <strong>H${state.summon.heroes.level}/P${state.summon.pets.level}/S${state.summon.skills.level}</strong>`,
       `뽑기횟수(영웅) <strong>${state.summon.heroes.draws}</strong>`,
-      `뽑기횟수(스킬) <strong>${state.summon.skills.draws}</strong>`
+      `뽑기횟수(펫) <strong>${state.summon.pets.draws}</strong>`,
+      `뽑기횟수(스킬) <strong>${state.summon.skills.draws}</strong>`,
+      `오프라인/s <strong>${fmt(getOfflineIncomePerSec())}</strong>`,
+      `오프라인 배율 <strong>x${getOfflineStageMultiplier().toFixed(2)}</strong>`
     ].map((x) => `<li>${x}</li>`).join("");
 
     el.log.textContent = runtime.lastLog;
