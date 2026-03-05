@@ -3,65 +3,121 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Idle Grower</title>
+  <title>Idle Grower - Auto Battle</title>
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=20260305a" />
+  <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Pretendard:wght@400;500;700&family=JetBrains+Mono:wght@600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css?v=20260305b" />
 </head>
 <body>
   <main class="shell">
-    <header class="hero">
-      <p class="eyebrow">SEPARATE MODE</p>
-      <h1>Idle Grower</h1>
-      <p>기존 포인트와 완전 분리된 개인 방치형 게임입니다. 저장은 이 브라우저에만 보관됩니다.</p>
+    <header class="topbar">
+      <section>
+        <p class="tag">STANDALONE IDLE RPG</p>
+        <h1>그림자 사냥꾼</h1>
+        <p class="desc">기존 사이트 포인트와 무관한 독립 저장형 방치 RPG</p>
+      </section>
+      <a class="home-link" href="../../index.html">Back to Home</a>
     </header>
 
-    <section class="stats-grid">
-      <article class="stat-box">
-        <h2>Gold</h2>
-        <p id="gold" class="big">0</p>
+    <section class="resource-grid">
+      <article class="resource-card">
+        <p>Gold</p>
+        <strong id="gold">0</strong>
       </article>
-      <article class="stat-box">
-        <h2>Level</h2>
-        <p id="level" class="big">1</p>
+      <article class="resource-card">
+        <p>Soul</p>
+        <strong id="soul">0</strong>
       </article>
-      <article class="stat-box">
-        <h2>EXP</h2>
-        <p id="exp" class="big">0 / 10</p>
+      <article class="resource-card">
+        <p>Stage</p>
+        <strong id="stage">1-1</strong>
       </article>
-      <article class="stat-box">
-        <h2>DPS</h2>
-        <p id="dps" class="big">1</p>
+      <article class="resource-card">
+        <p>Power</p>
+        <strong id="power">0</strong>
       </article>
     </section>
 
-    <section class="panel tap-panel">
-      <h2>Tap Hunt</h2>
-      <p id="tap-log">탭해서 골드를 획득하세요.</p>
-      <button id="tap-btn" class="tap-btn" type="button">HUNT (+1)</button>
+    <section class="battle-panel">
+      <header class="battle-head">
+        <p id="battle-status">탐험 시작</p>
+        <p id="offline-reward">오프라인 보상: 0 Gold</p>
+      </header>
+
+      <section class="lane">
+        <article class="unit hero-unit">
+          <p class="name">Hunter</p>
+          <div class="sprite">⚔️</div>
+          <p id="hero-dps">DPS 0</p>
+        </article>
+
+        <article class="enemy-wrap">
+          <p id="enemy-name" class="name">고블린 정찰병</p>
+          <div class="hp-box">
+            <div class="hp-track"><div id="enemy-hp-fill" class="hp-fill"></div></div>
+            <p id="enemy-hp-text">0 / 0</p>
+          </div>
+          <div id="enemy-sprite" class="enemy-sprite">👹</div>
+        </article>
+      </section>
+
+      <section class="combat-actions">
+        <button id="manual-hit" type="button">강타</button>
+        <button id="skill-btn" type="button">그림자 폭풍</button>
+        <button id="toggle-auto-skill" type="button">자동 스킬: OFF</button>
+        <button id="next-stage" type="button">다음 스테이지 도전</button>
+      </section>
+      <p id="skill-info" class="hint">스킬 쿨다운 0.0초</p>
     </section>
 
-    <section class="panel upgrade-panel">
-      <h2>Upgrades</h2>
-      <div class="upgrade-list">
-        <button id="upgrade-tap" type="button">Tap Power +1 (<span id="cost-tap">15</span>G)</button>
-        <button id="upgrade-auto" type="button">Auto DPS +1 (<span id="cost-auto">25</span>G)</button>
-        <button id="upgrade-crit" type="button">Crit +2% (<span id="cost-crit">40</span>G)</button>
-      </div>
-      <p id="upgrade-info">탭 파워: <strong id="tap-power">1</strong> | 치명타: <strong id="crit">5%</strong></p>
+    <section class="grid-2">
+      <article class="panel">
+        <h2>성장</h2>
+        <div class="btn-grid">
+          <button id="up-hero" type="button">영웅 훈련 (+공격)
+            <span id="cost-hero">0</span>
+          </button>
+          <button id="up-companion" type="button">동료 모집 (+보조딜)
+            <span id="cost-companion">0</span>
+          </button>
+          <button id="up-speed" type="button">공속 강화
+            <span id="cost-speed">0</span>
+          </button>
+          <button id="up-crit" type="button">치명 연구
+            <span id="cost-crit">0</span>
+          </button>
+          <button id="up-skill" type="button">스킬 증폭
+            <span id="cost-skill">0</span>
+          </button>
+          <button id="up-refine" type="button">장비 제련
+            <span id="cost-refine">0</span>
+          </button>
+        </div>
+      </article>
+
+      <article class="panel">
+        <h2>상태</h2>
+        <ul class="stat-list">
+          <li>영웅 레벨 <strong id="hero-lv">1</strong></li>
+          <li>동료 레벨 <strong id="companion-lv">1</strong></li>
+          <li>공격력 <strong id="atk">0</strong></li>
+          <li>공격속도 <strong id="atk-speed">1.00/s</strong></li>
+          <li>치명타 <strong id="crit">5.0% x 1.60</strong></li>
+          <li>스킬 배율 <strong id="skill-mul">x2.5</strong></li>
+          <li>장비 등급 <strong id="refine">+0</strong></li>
+          <li>누적 처치 <strong id="kills">0</strong></li>
+        </ul>
+      </article>
     </section>
 
-    <section class="panel footer-panel">
-      <p>오프라인 보상: <strong id="offline-reward">0</strong>G</p>
-      <div class="footer-actions">
-        <button id="save-btn" type="button">수동 저장</button>
-        <button id="reset-btn" type="button" class="danger">초기화</button>
-      </div>
-      <a href="../../index.html">Back to Home</a>
+    <section class="bottom-actions">
+      <button id="save-btn" type="button">수동 저장</button>
+      <button id="reset-btn" type="button" class="danger">게임 초기화</button>
+      <p id="log" class="log">자동 전투 진행중...</p>
     </section>
   </main>
 
-  <script src="game.js?v=20260305a"></script>
+  <script src="game.js?v=20260305b"></script>
 </body>
 </html>
