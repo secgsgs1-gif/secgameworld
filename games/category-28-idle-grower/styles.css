@@ -264,6 +264,18 @@ body.hide-battle .battle-panel {
   gap: 8px;
 }
 
+.attendance-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 8px;
+  flex-wrap: wrap;
+}
+
+.attendance-row .hint {
+  margin: 0;
+}
+
 .dungeon-card {
   border: 1px solid rgba(140, 190, 255, 0.28);
   border-radius: 10px;

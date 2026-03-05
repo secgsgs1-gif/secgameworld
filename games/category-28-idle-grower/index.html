@@ -141,6 +141,10 @@
 
     <section class="panel">
       <h2>일일 던전</h2>
+      <div class="attendance-row">
+        <button id="daily-attendance-claim" type="button">일일출석체크보상 받기</button>
+        <p id="daily-attendance-status" class="hint">오늘 보상 미수령</p>
+      </div>
       <p id="daily-reset-text" class="hint">일일 입장 초기화: 매일 00:00 (KST)</p>
       <div class="dungeon-grid">
         <article class="dungeon-card">
@@ -182,7 +186,7 @@
 
   <script>window.APP_ROOT = "../../";</script>
   <script type="module" src="../../shared/auth-guard.js?v=20260224m"></script>
-  <script src="game.js?v=20260305ad"></script>
+  <script src="game.js?v=20260305ae"></script>
   <script type="module" src="ranking.js?v=20260305a"></script>
 </body>
 </html>

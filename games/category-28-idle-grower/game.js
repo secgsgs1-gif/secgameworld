@@ -123,7 +123,8 @@
       pets: { level: 1, draws: 0 },
       skills: { level: 1, draws: 0 }
     },
-    tickets: { heroes: 0, pets: 0, skills: 0 },
+    tickets: { heroes: 100, pets: 100, skills: 100 },
+    attendance: { lastClaimDay: "" },
     dungeons: {
       lastResetDay: "",
       entries: { gold: 2, heroes: 2, pets: 2, skills: 2 }
@@ -231,6 +232,8 @@
     dungeonHeroMeta: document.getElementById("dungeon-heroes-meta"),
     dungeonPetMeta: document.getElementById("dungeon-pets-meta"),
     dungeonSkillMeta: document.getElementById("dungeon-skills-meta"),
+    dailyAttendanceBtn: document.getElementById("daily-attendance-claim"),
+    dailyAttendanceStatus: document.getElementById("daily-attendance-status"),
     costHero1: document.getElementById("cost-hero-1"),
     costHero10: document.getElementById("cost-hero-10"),
     costPet1: document.getElementById("cost-pet-1"),
@@ -367,6 +370,7 @@
     if (el.dungeonHeroBtn) el.dungeonHeroBtn.addEventListener("click", () => runDailyDungeon("heroes"));
     if (el.dungeonPetBtn) el.dungeonPetBtn.addEventListener("click", () => runDailyDungeon("pets"));
     if (el.dungeonSkillBtn) el.dungeonSkillBtn.addEventListener("click", () => runDailyDungeon("skills"));
+    if (el.dailyAttendanceBtn) el.dailyAttendanceBtn.addEventListener("click", claimDailyAttendance);
 
   }
 
@@ -634,6 +638,24 @@
 
   function todayKeyKST() {
     return new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Seoul" }).format(new Date());
+  }
+
+  function claimDailyAttendance() {
+    const day = todayKeyKST();
+    if (!state.attendance) state.attendance = { lastClaimDay: "" };
+    if (state.attendance.lastClaimDay === day) {
+      log("오늘 일일출석체크보상은 이미 수령했습니다");
+      render();
+      return;
+    }
+    state.attendance.lastClaimDay = day;
+    state.tickets.heroes += 100;
+    state.tickets.pets += 100;
+    state.tickets.skills += 100;
+    log("일일출석체크보상 수령: 영웅/펫/스킬 티켓 +100");
+    runtime.roundBanner = "출석 보상 수령!";
+    runtime.roundBannerTimer = 1.3;
+    render();
   }
 
   function resetDailyDungeonsIfNeeded() {
@@ -1229,6 +1251,7 @@
     if (!state.selectedSlots) state.selectedSlots = cloneBase().selectedSlots;
     if (!state.summon) state.summon = cloneBase().summon;
     if (!state.tickets) state.tickets = { heroes: 0, pets: 0, skills: 0 };
+    if (!state.attendance) state.attendance = { lastClaimDay: "" };
     if (!state.dungeons) {
       state.dungeons = { lastResetDay: "", entries: { gold: 2, heroes: 2, pets: 2, skills: 2 } };
     }
@@ -1987,6 +2010,14 @@
     if (el.dungeonHeroBtn) el.dungeonHeroBtn.disabled = state.dungeons.entries.heroes <= 0;
     if (el.dungeonPetBtn) el.dungeonPetBtn.disabled = state.dungeons.entries.pets <= 0;
     if (el.dungeonSkillBtn) el.dungeonSkillBtn.disabled = state.dungeons.entries.skills <= 0;
+    if (el.dailyAttendanceBtn && el.dailyAttendanceStatus) {
+      const day = todayKeyKST();
+      const claimed = state.attendance && state.attendance.lastClaimDay === day;
+      el.dailyAttendanceBtn.disabled = claimed;
+      el.dailyAttendanceStatus.textContent = claimed
+        ? `오늘 보상 수령 완료 (${day})`
+        : `오늘 보상 미수령 (${day})`;
+    }
 
     el.skillSlotList.innerHTML = state.equipped.skills.map((id, i) => {
       if (!id) {
