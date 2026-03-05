@@ -1,31 +1,90 @@
 (() => {
-  const SAVE_KEY = "idleGrowerStandaloneV5";
-  const ATTACK_TICK = 0.05;
+  const SAVE_KEY = "idleGrowerStandaloneV6";
+  const TICK = 0.05;
   const MAX_OFFLINE_SECONDS = 60 * 60 * 8;
+  const SLOT_COUNT = 4;
 
-  const HERO_POOL = [
-    { id: "hero_knight", name: "은빛 기사", rarity: 1, baseAtk: 14, baseSpd: 1.0, hp: 190, color: "#9ec4ff", accent: "#dce9ff", weapon: "blade" },
-    { id: "hero_assassin", name: "야영 추적자", rarity: 2, baseAtk: 17, baseSpd: 1.13, hp: 175, color: "#72ffd3", accent: "#c8fff0", weapon: "dagger" },
-    { id: "hero_mage", name: "별빛 마도사", rarity: 3, baseAtk: 22, baseSpd: 0.95, hp: 168, color: "#9b8dff", accent: "#eee6ff", weapon: "staff" },
-    { id: "hero_warlord", name: "붉은 군주", rarity: 4, baseAtk: 30, baseSpd: 1.05, hp: 220, color: "#ff8ea2", accent: "#ffdce3", weapon: "greatsword" },
-    { id: "hero_angel", name: "여명 성기사", rarity: 5, baseAtk: 39, baseSpd: 1.15, hp: 250, color: "#ffd98b", accent: "#fff0d2", weapon: "spear" }
+  const RARITIES = [
+    { key: "common", name: "커먼", color: "#d3def0", mult: 1.0 },
+    { key: "rare", name: "레어", color: "#6ac0ff", mult: 1.22 },
+    { key: "epic", name: "에픽", color: "#b087ff", mult: 1.58 },
+    { key: "unique", name: "유니크", color: "#ffb661", mult: 2.1 },
+    { key: "legend", name: "레전드", color: "#ff7fa4", mult: 2.85 },
+    { key: "myth", name: "신화", color: "#ffef8a", mult: 3.75 }
   ];
 
-  const PET_POOL = [
-    { id: "pet_slime", name: "루미 슬라임", rarity: 1, atkAmp: 0.08, speedAmp: 0.02, crit: 0.01, color: "#74f0ff" },
-    { id: "pet_wolf", name: "문페이드 울프", rarity: 2, atkAmp: 0.11, speedAmp: 0.03, crit: 0.02, color: "#9be2ff" },
-    { id: "pet_spirit", name: "바람 정령", rarity: 3, atkAmp: 0.15, speedAmp: 0.05, crit: 0.03, color: "#9fffca" },
-    { id: "pet_phoenix", name: "피닉스 새끼", rarity: 4, atkAmp: 0.2, speedAmp: 0.06, crit: 0.05, color: "#ffbd86" },
-    { id: "pet_dragon", name: "심연 드래곤", rarity: 5, atkAmp: 0.28, speedAmp: 0.09, crit: 0.07, color: "#c5a1ff" }
+  const HERO_TEMPLATES = [
+    { rarity: "common", baseAtk: 15, baseSpd: 0.94, baseHp: 230, color: "#9ec4ff", accent: "#e4efff", weapon: "blade" },
+    { rarity: "rare", baseAtk: 18, baseSpd: 1.06, baseHp: 214, color: "#78ffe5", accent: "#d7fff5", weapon: "dagger" },
+    { rarity: "epic", baseAtk: 24, baseSpd: 0.92, baseHp: 205, color: "#9f91ff", accent: "#f0ebff", weapon: "staff" },
+    { rarity: "unique", baseAtk: 31, baseSpd: 1.0, baseHp: 252, color: "#ff95a8", accent: "#ffe0e7", weapon: "greatsword" },
+    { rarity: "legend", baseAtk: 40, baseSpd: 1.08, baseHp: 290, color: "#ffd98b", accent: "#fff2d2", weapon: "spear" },
+    { rarity: "myth", baseAtk: 58, baseSpd: 1.15, baseHp: 340, color: "#fff2a4", accent: "#ffffff", weapon: "halberd" }
+  ];
+  const PET_TEMPLATES = [
+    { rarity: "common", atkAmp: 0.07, spdAmp: 0.02, critAmp: 0.01, color: "#75f2ff" },
+    { rarity: "rare", atkAmp: 0.1, spdAmp: 0.03, critAmp: 0.015, color: "#9be5ff" },
+    { rarity: "epic", atkAmp: 0.14, spdAmp: 0.045, critAmp: 0.022, color: "#9fffcf" },
+    { rarity: "unique", atkAmp: 0.19, spdAmp: 0.058, critAmp: 0.033, color: "#ffbe8a" },
+    { rarity: "legend", atkAmp: 0.26, spdAmp: 0.076, critAmp: 0.052, color: "#c5a1ff" },
+    { rarity: "myth", atkAmp: 0.36, spdAmp: 0.096, critAmp: 0.07, color: "#fff2a7" }
+  ];
+  const SKILL_TEMPLATES = [
+    { rarity: "common", burst: 2.2, cooldown: 10.2, color: "#9edbff" },
+    { rarity: "rare", burst: 2.6, cooldown: 9.7, color: "#ffcb96" },
+    { rarity: "epic", burst: 3.05, cooldown: 9.1, color: "#b990ff" },
+    { rarity: "unique", burst: 3.55, cooldown: 8.6, color: "#a4ecff" },
+    { rarity: "legend", burst: 4.25, cooldown: 8.0, color: "#ffc2f2" },
+    { rarity: "myth", burst: 5.2, cooldown: 7.4, color: "#fff2a9" }
   ];
 
-  const SKILL_POOL = [
-    { id: "skill_slash", name: "월광 연참", rarity: 1, burstMul: 2.4, cd: 8.6, color: "#9dd9ff" },
-    { id: "skill_flare", name: "성염 파동", rarity: 2, burstMul: 2.8, cd: 8.1, color: "#ffc98a" },
-    { id: "skill_storm", name: "그림자 폭풍", rarity: 3, burstMul: 3.3, cd: 7.6, color: "#b794ff" },
-    { id: "skill_blizzard", name: "빙뢰 낙하", rarity: 4, burstMul: 3.8, cd: 7.1, color: "#9cf2ff" },
-    { id: "skill_nova", name: "심연 노바", rarity: 5, burstMul: 4.5, cd: 6.6, color: "#ffd0ff" }
+  const HERO_NAMES = [
+    "실버 나이트", "윈드 레인저", "아스트라 메이지", "블러드 워로드", "황혼 팔라딘", "천공 집행관",
+    "유성 창기사", "흑월 암살자", "폭풍 검사", "유리 방패병", "심연 주문사", "백야 수호자",
+    "서릿발 사수", "붉은 창도사", "신념의 수도사", "고독한 추격자", "광휘 집행자", "룬 해방자",
+    "청룡 기수", "황금 심판관", "빙하 전투마법사", "그림자 파멸자", "강철 수호기사", "천뢰 전쟁군주"
   ];
+  const PET_NAMES = [
+    "루미 슬라임", "문 울프", "스카이 스피릿", "레드 피닉스", "아비셜 드래곤", "세라프 큐브",
+    "네온 캣", "서리 여우", "바람 까마귀", "암영 팬더", "태양 거북", "기계 펭귄",
+    "화염 도마뱀", "성운 토끼", "유령 올빼미", "번개 다람쥐", "블루 하운드", "카오스 벌",
+    "보석 골렘", "나이트 베어", "천공 박쥐", "마나 폭스", "루나 리자드", "디바인 사슴"
+  ];
+  const SKILL_NAMES = [
+    "월광 연참", "화염 파동", "그림자 폭풍", "빙뢰 낙하", "심연 노바", "천벌 제네시스",
+    "유성 폭락", "룬 폭발", "혼돈 참격", "광휘 포화", "바람 포식", "서리 절단",
+    "지옥 섬광", "환영 난무", "청천 낙뢰", "무한 창격", "사신의 낫", "결계 붕괴",
+    "별빛 심판", "태초 충격", "성역 방출", "영혼 파쇄", "혈월 추적", "신격 강림"
+  ];
+
+  const HERO_POOL = buildPool("h", HERO_NAMES, HERO_TEMPLATES, (idx, name, t) => ({
+    id: `h_${idx + 1}`,
+    name,
+    rarity: t.rarity,
+    baseAtk: Math.round(t.baseAtk * (1 + Math.floor(idx / 6) * 0.045)),
+    baseSpd: Number((t.baseSpd * (1 + Math.floor(idx / 6) * 0.01)).toFixed(2)),
+    baseHp: Math.round(t.baseHp * (1 + Math.floor(idx / 6) * 0.05)),
+    color: t.color,
+    accent: t.accent,
+    weapon: t.weapon
+  }));
+  const PET_POOL = buildPool("p", PET_NAMES, PET_TEMPLATES, (idx, name, t) => ({
+    id: `p_${idx + 1}`,
+    name,
+    rarity: t.rarity,
+    atkAmp: Number((t.atkAmp * (1 + Math.floor(idx / 6) * 0.05)).toFixed(3)),
+    spdAmp: Number((t.spdAmp * (1 + Math.floor(idx / 6) * 0.05)).toFixed(3)),
+    critAmp: Number((t.critAmp * (1 + Math.floor(idx / 6) * 0.05)).toFixed(3)),
+    color: t.color
+  }));
+  const SKILL_POOL = buildPool("s", SKILL_NAMES, SKILL_TEMPLATES, (idx, name, t) => ({
+    id: `s_${idx + 1}`,
+    name,
+    rarity: t.rarity,
+    burst: Number((t.burst * (1 + Math.floor(idx / 6) * 0.06)).toFixed(2)),
+    cooldown: Number((t.cooldown * (1 - Math.min(0.12, Math.floor(idx / 6) * 0.03))).toFixed(2)),
+    color: t.color
+  }));
 
   const BOSS_MODELS = [
     { key: "ogre", name: "절벽 오우거", hue: 22 },
@@ -34,23 +93,32 @@
     { key: "wyrm", name: "심연 웜", hue: 330 }
   ];
 
-  const base = {
-    gold: 200,
-    soul: 40,
+  const BASE_STATE = {
+    gold: 35000,
     stage: 1,
     wave: 1,
-    autoSkill: false,
+    autoSkill: true,
     kills: 0,
     bossFailCount: 0,
     exp: 0,
     accountLv: 1,
-    selectedHero: "hero_knight",
-    selectedPet: "pet_slime",
-    selectedSkill: "skill_slash",
-    heroes: { hero_knight: { copies: 1, level: 1 } },
-    pets: { pet_slime: { copies: 1, level: 1 } },
-    skills: { skill_slash: { copies: 1, level: 1 } },
-    heroHp: 190,
+    inventories: {
+      heroes: { h_1: { level: 1, star: 1, shards: 0, total: 1 } },
+      pets: { p_1: { level: 1, star: 1, shards: 0, total: 1 } },
+      skills: { s_1: { level: 1, star: 1, shards: 0, total: 1 } }
+    },
+    equipped: {
+      heroes: ["h_1", null, null, null],
+      pets: ["p_1", null, null, null],
+      skills: ["s_1", null, null, null]
+    },
+    selectedSlots: { heroes: 0, pets: 0, skills: 0 },
+    summon: {
+      heroes: { level: 1, draws: 0 },
+      pets: { level: 1, draws: 0 },
+      skills: { level: 1, draws: 0 }
+    },
+    heroHp: 280,
     lastSave: Date.now()
   };
 
@@ -61,117 +129,98 @@
     enemyMaxHp: 0,
     enemyHp: 0,
     enemyAtk: 0,
-    enemyAtkInterval: 1.8,
-    enemyKind: "mob",
+    enemyAtkInterval: 1.7,
     enemyModel: BOSS_MODELS[0],
+    enemyKind: "mob",
     isBoss: false,
     attackTimer: 0,
     enemyAttackTimer: 0,
-    skillCd: 0,
+    skillCooldowns: [0, 0, 0, 0],
     bossTimer: 30,
-    statusMsg: "자동 사냥 시작",
+    statusMsg: "전투 시작",
     lastLog: "자동 전투 진행중...",
     heroAttackFx: 0,
     enemyAttackFx: 0,
-    hitFlash: 0,
     skillFx: 0,
-    skillColor: "#b794ff",
-    floatTexts: [],
+    skillColor: "#b990ff",
+    hitFlash: 0,
     particles: [],
     projectiles: [],
+    floatTexts: [],
     enemyShield: 0,
     enemyShieldTimer: 0,
-    bossPatternTimer: 0,
+    patternTimer: 0,
     dotTimer: 0,
-    dotTickTimer: 0,
+    dotTick: 0,
     screenShake: 0,
-    cameraX: 0,
-    cameraY: 0
+    camX: 0,
+    camY: 0,
+    summonResultRows: []
   };
 
-  const canvas = byId("battle-canvas");
+  const canvas = document.getElementById("battle-canvas");
   const ctx = canvas.getContext("2d");
 
   const el = {
-    gold: byId("gold"),
-    soul: byId("soul"),
-    stage: byId("stage"),
-    power: byId("power"),
-    battleStatus: byId("battle-status"),
-    offlineReward: byId("offline-reward"),
-    heroLabel: byId("hero-label"),
-    heroHpFill: byId("hero-hp-fill"),
-    heroHpText: byId("hero-hp-text"),
-    enemyName: byId("enemy-name"),
-    enemyHpFill: byId("enemy-hp-fill"),
-    enemyHpText: byId("enemy-hp-text"),
-    bossTimerBox: byId("boss-timer-box"),
-    bossTimerLabel: byId("boss-timer-label"),
-    bossTimeFill: byId("boss-time-fill"),
-    skillBtn: byId("skill-btn"),
-    toggleAutoSkill: byId("toggle-auto-skill"),
-    bossChallenge: byId("boss-challenge"),
-    skillInfo: byId("skill-info"),
-    summonHero: byId("summon-hero"),
-    summonPet: byId("summon-pet"),
-    summonSkill: byId("summon-skill"),
-    enhanceHero: byId("enhance-hero"),
-    enhancePet: byId("enhance-pet"),
-    enhanceSkill: byId("enhance-skill"),
-    costSummonHero: byId("cost-summon-hero"),
-    costSummonPet: byId("cost-summon-pet"),
-    costSummonSkill: byId("cost-summon-skill"),
-    costEnhanceHero: byId("cost-enhance-hero"),
-    costEnhancePet: byId("cost-enhance-pet"),
-    costEnhanceSkill: byId("cost-enhance-skill"),
-    summonLog: byId("summon-log"),
-    eqHero: byId("eq-hero"),
-    eqPet: byId("eq-pet"),
-    eqSkill: byId("eq-skill"),
-    crit: byId("crit"),
-    atkSpeed: byId("atk-speed"),
-    kills: byId("kills"),
-    heroCollection: byId("hero-collection"),
-    petCollection: byId("pet-collection"),
-    skillCollection: byId("skill-collection"),
-    saveBtn: byId("save-btn"),
-    resetBtn: byId("reset-btn"),
-    log: byId("log")
+    gold: document.getElementById("gold"),
+    stage: document.getElementById("stage"),
+    power: document.getElementById("power"),
+    summonLevels: document.getElementById("summon-levels"),
+    battleStatus: document.getElementById("battle-status"),
+    offlineReward: document.getElementById("offline-reward"),
+    heroLabel: document.getElementById("hero-label"),
+    heroHpFill: document.getElementById("hero-hp-fill"),
+    heroHpText: document.getElementById("hero-hp-text"),
+    enemyName: document.getElementById("enemy-name"),
+    enemyHpFill: document.getElementById("enemy-hp-fill"),
+    enemyHpText: document.getElementById("enemy-hp-text"),
+    bossTimerBox: document.getElementById("boss-timer-box"),
+    bossTimerLabel: document.getElementById("boss-timer-label"),
+    bossTimeFill: document.getElementById("boss-time-fill"),
+    skillSlotList: document.getElementById("skill-slot-list"),
+    toggleAutoSkill: document.getElementById("toggle-auto-skill"),
+    bossChallenge: document.getElementById("boss-challenge"),
+    saveBtn: document.getElementById("save-btn"),
+    resetBtn: document.getElementById("reset-btn"),
+    summonHero1: document.getElementById("summon-hero-1"),
+    summonHero10: document.getElementById("summon-hero-10"),
+    summonPet1: document.getElementById("summon-pet-1"),
+    summonPet10: document.getElementById("summon-pet-10"),
+    summonSkill1: document.getElementById("summon-skill-1"),
+    summonSkill10: document.getElementById("summon-skill-10"),
+    costHero1: document.getElementById("cost-hero-1"),
+    costHero10: document.getElementById("cost-hero-10"),
+    costPet1: document.getElementById("cost-pet-1"),
+    costPet10: document.getElementById("cost-pet-10"),
+    costSkill1: document.getElementById("cost-skill-1"),
+    costSkill10: document.getElementById("cost-skill-10"),
+    summonLog: document.getElementById("summon-log"),
+    summonResults: document.getElementById("summon-results"),
+    heroSlots: document.getElementById("hero-slots"),
+    petSlots: document.getElementById("pet-slots"),
+    skillSlots: document.getElementById("skill-slots"),
+    heroCollection: document.getElementById("hero-collection"),
+    petCollection: document.getElementById("pet-collection"),
+    skillCollection: document.getElementById("skill-collection"),
+    statList: document.getElementById("stat-list"),
+    log: document.getElementById("log")
   };
 
   bindEvents();
   normalizeState();
   spawnEnemy();
 
-  const offlineGold = applyOfflineReward();
-  el.offlineReward.textContent = `오프라인 보상: ${fmt(offlineGold)} Gold`;
+  const offline = applyOfflineReward();
+  el.offlineReward.textContent = `오프라인 보상: ${fmt(offline)} Gold`;
 
-  setInterval(tick, ATTACK_TICK * 1000);
+  setInterval(tick, TICK * 1000);
   setInterval(save, 12000);
   window.addEventListener("beforeunload", save);
 
   requestAnimationFrame(drawFrame);
   render();
 
-  function byId(id) {
-    return document.getElementById(id);
-  }
-
-  function createBaseState() {
-    return JSON.parse(JSON.stringify({ ...base, lastSave: Date.now() }));
-  }
-
-  function normalizeState() {
-    if (!state.heroes[state.selectedHero]) state.selectedHero = Object.keys(state.heroes)[0];
-    if (!state.pets[state.selectedPet]) state.selectedPet = Object.keys(state.pets)[0];
-    if (!state.skills[state.selectedSkill]) state.selectedSkill = Object.keys(state.skills)[0];
-    if (!state.heroHp || Number.isNaN(state.heroHp)) state.heroHp = getHeroMaxHp();
-    state.heroHp = Math.min(state.heroHp, getHeroMaxHp());
-  }
-
   function bindEvents() {
-    el.skillBtn.addEventListener("click", () => castSkill(false));
-
     el.toggleAutoSkill.addEventListener("click", () => {
       state.autoSkill = !state.autoSkill;
       render();
@@ -185,14 +234,6 @@
       render();
     });
 
-    el.summonHero.addEventListener("click", () => summon("hero"));
-    el.summonPet.addEventListener("click", () => summon("pet"));
-    el.summonSkill.addEventListener("click", () => summon("skill"));
-
-    el.enhanceHero.addEventListener("click", () => enhanceSelected("hero"));
-    el.enhancePet.addEventListener("click", () => enhanceSelected("pet"));
-    el.enhanceSkill.addEventListener("click", () => enhanceSelected("skill"));
-
     el.saveBtn.addEventListener("click", () => {
       save();
       log("수동 저장 완료");
@@ -202,66 +243,85 @@
     el.resetBtn.addEventListener("click", () => {
       if (!window.confirm("정말 초기화할까요?")) return;
       localStorage.removeItem(SAVE_KEY);
-      Object.assign(state, createBaseState());
-      runtime.attackTimer = 0;
-      runtime.enemyAttackTimer = 0;
-      runtime.skillCd = 0;
-      runtime.floatTexts = [];
-      runtime.particles = [];
-      runtime.projectiles = [];
+      Object.assign(state, cloneBase());
+      resetRuntime();
       spawnEnemy();
-      log("초기화 완료");
       save();
       render();
     });
 
-    el.heroCollection.addEventListener("click", (e) => {
-      const btn = e.target.closest("button[data-equip-hero]");
-      if (!btn) return;
-      state.selectedHero = btn.getAttribute("data-equip-hero");
-      state.heroHp = Math.min(state.heroHp, getHeroMaxHp());
-      log(`영웅 변경: ${findById(HERO_POOL, state.selectedHero).name}`);
-      render();
+    el.summonHero1.addEventListener("click", () => summon("heroes", 1));
+    el.summonHero10.addEventListener("click", () => summon("heroes", 10));
+    el.summonPet1.addEventListener("click", () => summon("pets", 1));
+    el.summonPet10.addEventListener("click", () => summon("pets", 10));
+    el.summonSkill1.addEventListener("click", () => summon("skills", 1));
+    el.summonSkill10.addEventListener("click", () => summon("skills", 10));
+
+    bindSlotEvents("heroes", el.heroSlots, el.heroCollection);
+    bindSlotEvents("pets", el.petSlots, el.petCollection);
+    bindSlotEvents("skills", el.skillSlots, el.skillCollection);
+  }
+
+  function bindSlotEvents(type, slotHost, collectionHost) {
+    slotHost.addEventListener("click", (e) => {
+      const pick = e.target.closest("button[data-pick-slot]");
+      if (pick) {
+        state.selectedSlots[type] = Number(pick.getAttribute("data-pick-slot"));
+        render();
+        return;
+      }
+      const clear = e.target.closest("button[data-clear-slot]");
+      if (clear) {
+        const idx = Number(clear.getAttribute("data-clear-slot"));
+        state.equipped[type][idx] = null;
+        render();
+      }
     });
 
-    el.petCollection.addEventListener("click", (e) => {
-      const btn = e.target.closest("button[data-equip-pet]");
+    collectionHost.addEventListener("click", (e) => {
+      const btn = e.target.closest("button[data-equip-id]");
       if (!btn) return;
-      state.selectedPet = btn.getAttribute("data-equip-pet");
-      log(`펫 변경: ${findById(PET_POOL, state.selectedPet).name}`);
-      render();
-    });
-
-    el.skillCollection.addEventListener("click", (e) => {
-      const btn = e.target.closest("button[data-equip-skill]");
-      if (!btn) return;
-      state.selectedSkill = btn.getAttribute("data-equip-skill");
-      runtime.skillCd = 0;
-      log(`스킬 변경: ${findById(SKILL_POOL, state.selectedSkill).name}`);
+      const id = btn.getAttribute("data-equip-id");
+      equipToSelectedSlot(type, id);
       render();
     });
   }
 
+  function equipToSelectedSlot(type, id) {
+    const arr = state.equipped[type];
+    const slot = state.selectedSlots[type] || 0;
+    const prevIdx = arr.indexOf(id);
+    if (prevIdx >= 0) {
+      const t = arr[slot];
+      arr[slot] = id;
+      arr[prevIdx] = t;
+      return;
+    }
+    arr[slot] = id;
+  }
+
   function tick() {
-    const dt = ATTACK_TICK;
+    const dt = TICK;
 
     runtime.attackTimer += dt;
     runtime.enemyAttackTimer += dt;
-    runtime.skillCd = Math.max(0, runtime.skillCd - dt);
     runtime.heroAttackFx = Math.max(0, runtime.heroAttackFx - dt);
     runtime.enemyAttackFx = Math.max(0, runtime.enemyAttackFx - dt);
+    runtime.skillFx = Math.max(0, runtime.skillFx - dt * 1.4);
     runtime.hitFlash = Math.max(0, runtime.hitFlash - dt * 1.7);
-    runtime.skillFx = Math.max(0, runtime.skillFx - dt * 1.3);
     runtime.enemyShieldTimer = Math.max(0, runtime.enemyShieldTimer - dt);
-    if (runtime.enemyShieldTimer <= 0) runtime.enemyShield = 0;
-    runtime.screenShake = Math.max(0, runtime.screenShake - dt * 1.8);
+    runtime.screenShake = Math.max(0, runtime.screenShake - dt * 1.9);
 
-    const atkInterval = 1 / Math.max(0.35, getAtkSpeed());
+    if (runtime.enemyShieldTimer <= 0) runtime.enemyShield = 0;
+
+    runtime.skillCooldowns = runtime.skillCooldowns.map((v) => Math.max(0, v - dt));
+
+    const atkInterval = 1 / Math.max(0.3, getAttackSpeed());
     if (runtime.attackTimer >= atkInterval) {
       runtime.attackTimer -= atkInterval;
       runtime.heroAttackFx = 0.2;
-      dealDamage(getAutoAttackDamage(), "자동 공격", true);
-      emitArcParticles(340, 240, currentHero().accent, 5);
+      dealDamage(getAutoAttackDamage(), "파티 공격", true);
+      burstParticles(370, 250, currentHeroAccent(), 8);
     }
 
     if (runtime.enemyAttackTimer >= runtime.enemyAtkInterval) {
@@ -278,49 +338,186 @@
       if (runtime.bossTimer <= 0 && runtime.enemyHp > 0) onBossTimeout();
     }
 
-    if (state.autoSkill && runtime.skillCd <= 0) castSkill(true);
+    if (state.autoSkill) {
+      for (let i = 0; i < SLOT_COUNT; i += 1) {
+        const skillId = state.equipped.skills[i];
+        if (!skillId) continue;
+        if (runtime.skillCooldowns[i] <= 0) castSkill(i);
+      }
+    }
 
-    updateFloatTexts(dt);
     updateParticles(dt);
+    updateFloatTexts(dt);
     updateCameraShake();
+
     render();
+  }
+
+  function castSkill(slotIndex) {
+    const skillId = state.equipped.skills[slotIndex];
+    if (!skillId) return;
+    if (runtime.skillCooldowns[slotIndex] > 0) return;
+
+    const skill = findById(SKILL_POOL, skillId);
+    const inv = state.inventories.skills[skillId];
+    if (!inv) return;
+
+    const rarityMult = rarityByKey(skill.rarity).mult;
+    const burst = getTeamPower() * skill.burst * rarityMult * (1 + (inv.level - 1) * 0.08) * (1 + (inv.star - 1) * 0.16);
+    const cd = Math.max(2.4, skill.cooldown - inv.level * 0.05 - inv.star * 0.04);
+
+    runtime.skillCooldowns[slotIndex] = cd;
+    runtime.skillFx = 0.58;
+    runtime.skillColor = rarityByKey(skill.rarity).color;
+    runtime.heroAttackFx = 0.26;
+
+    dealDamage(burst, `${slotIndex + 1}번 ${skill.name}`, true);
+    burstParticles(705, 205, runtime.skillColor, 22);
+    shake(0.12);
+  }
+
+  function summon(type, count) {
+    const costs = getSummonCosts(type);
+    const price = count === 10 ? costs.ten : costs.one;
+
+    if (state.gold < price) {
+      el.summonLog.textContent = "Gold 부족";
+      log("Gold 부족");
+      return;
+    }
+
+    state.gold -= price;
+
+    const pool = getPool(type);
+    const rows = [];
+
+    for (let i = 0; i < count; i += 1) {
+      const rarityKey = rollRarityByLevel(state.summon[type].level);
+      let candidates = pool.filter((p) => p.rarity === rarityKey);
+      if (!candidates.length) {
+        candidates = pool.filter((p) => p.rarity === "legend");
+      }
+      if (!candidates.length) {
+        candidates = pool;
+      }
+
+      const item = candidates[Math.floor(Math.random() * candidates.length)];
+      const result = obtainItem(type, item.id);
+      rows.push({ item, result });
+    }
+
+    state.summon[type].draws += count;
+    state.summon[type].level = calcSummonLevel(state.summon[type].draws);
+
+    autoFillEmptySlots(type, rows.map((r) => r.item.id));
+
+    runtime.summonResultRows = rows.map((r) => ({
+      name: r.item.name,
+      rarity: r.item.rarity,
+      text: `${rarityByKey(r.item.rarity).name} ${r.item.name} ${r.result.promoted ? `-> ${r.result.star}성` : ""}`
+    }));
+
+    el.summonLog.textContent = `${categoryName(type)} ${count}회 뽑기 완료`;
+    log(`${categoryName(type)} ${count}회 뽑기`);
+    render();
+  }
+
+  function obtainItem(type, id) {
+    const inv = state.inventories[type];
+    if (!inv[id]) {
+      inv[id] = { level: 1, star: 1, shards: 0, total: 1 };
+      return { promoted: false, star: 1 };
+    }
+
+    inv[id].total += 1;
+    inv[id].shards += 1;
+
+    let promoted = false;
+    while (inv[id].star < 10) {
+      const need = inv[id].star + 1;
+      if (inv[id].shards < need) break;
+      inv[id].shards -= need;
+      inv[id].star += 1;
+      promoted = true;
+    }
+
+    return { promoted, star: inv[id].star };
+  }
+
+  function autoFillEmptySlots(type, ids) {
+    const slots = state.equipped[type];
+    ids.forEach((id) => {
+      if (slots.includes(id)) return;
+      const empty = slots.findIndex((v) => !v);
+      if (empty >= 0) slots[empty] = id;
+    });
+  }
+
+  function calcSummonLevel(draws) {
+    return Math.max(1, Math.min(10, 1 + Math.floor(draws / 100)));
+  }
+
+  function rollRarityByLevel(level) {
+    const t = (Math.max(1, Math.min(10, level)) - 1) / 9;
+    const myth = lerp(0.00002, 0.001, t);
+    const legend = lerp(0.0018, 0.006, t);
+    const unique = lerp(0.02, 0.042, t);
+    const epic = lerp(0.11, 0.185, t);
+    const rare = lerp(0.33, 0.405, t);
+    const common = 1 - (myth + legend + unique + epic + rare);
+
+    const r = Math.random();
+    if (r < myth) return "myth";
+    if (r < myth + legend) return "legend";
+    if (r < myth + legend + unique) return "unique";
+    if (r < myth + legend + unique + epic) return "epic";
+    if (r < myth + legend + unique + epic + rare) return "rare";
+    return common > 0 ? "common" : "rare";
   }
 
   function processBossPattern(dt) {
     if (!runtime.isBoss || runtime.enemyHp <= 0) return;
 
-    runtime.bossPatternTimer += dt;
-    const k = runtime.enemyKind;
+    runtime.patternTimer += dt;
 
-    if (k === "ogre" && runtime.bossPatternTimer >= 5.8) {
-      runtime.bossPatternTimer = 0;
-      runtime.enemyShield = 0;
-      heavySmash();
+    if (runtime.enemyKind === "ogre" && runtime.patternTimer >= 5.8) {
+      runtime.patternTimer = 0;
+      heroTakeDamage(runtime.enemyAtk * 1.55, "지면 강타");
+      runtime.enemyAttackFx = 0.32;
+      runtime.attackTimer = Math.max(0, runtime.attackTimer - 0.25);
+      burstParticles(320, 260, "#ffb995", 18);
+      shake(0.22);
+      log("보스 패턴: 지면 강타");
     }
 
-    if (k === "lich" && runtime.bossPatternTimer >= 4.9) {
-      runtime.bossPatternTimer = 0;
-      spawnLichVolley();
+    if (runtime.enemyKind === "lich" && runtime.patternTimer >= 4.9) {
+      runtime.patternTimer = 0;
+      for (let i = 0; i < 3; i += 1) {
+        const angle = (Math.PI * (151 + i * 15)) / 180;
+        const speed = 190 + i * 28;
+        runtime.projectiles.push({ x: 790, y: 205, vx: Math.cos(angle) * speed, vy: Math.sin(angle) * speed, life: 3.2, damage: runtime.enemyAtk * 0.52, color: "#d0a9ff" });
+      }
+      burstParticles(765, 205, "#d0a9ff", 16);
+      shake(0.13);
+      log("보스 패턴: 영혼 탄막");
     }
 
-    if (k === "golem" && runtime.bossPatternTimer >= 6.8) {
-      runtime.bossPatternTimer = 0;
+    if (runtime.enemyKind === "golem" && runtime.patternTimer >= 6.8) {
+      runtime.patternTimer = 0;
       runtime.enemyShield = 0.45;
-      runtime.enemyShieldTimer = 3.3;
-      runtime.statusMsg = "균열 골렘: 암석 장벽";
-      log("보스 패턴: 실드 전개");
-      emitArcParticles(740, 205, "#9cf2ff", 16);
-      shake(0.14);
+      runtime.enemyShieldTimer = 3.4;
+      burstParticles(760, 210, "#9cecff", 18);
+      shake(0.15);
+      log("보스 패턴: 암석 장벽");
     }
 
-    if (k === "wyrm" && runtime.bossPatternTimer >= 6.2) {
-      runtime.bossPatternTimer = 0;
+    if (runtime.enemyKind === "wyrm" && runtime.patternTimer >= 6.3) {
+      runtime.patternTimer = 0;
       runtime.dotTimer = 3.2;
-      runtime.dotTickTimer = 0;
-      runtime.statusMsg = "심연 웜: 독룡 브레스";
-      log("보스 패턴: 브레스 지속 피해");
-      emitArcParticles(610, 215, "#ff8ec6", 18);
-      shake(0.16);
+      runtime.dotTick = 0;
+      burstParticles(640, 220, "#ff8fc8", 20);
+      shake(0.14);
+      log("보스 패턴: 독룡 브레스");
     }
   }
 
@@ -331,12 +528,12 @@
 
     for (let i = runtime.projectiles.length - 1; i >= 0; i -= 1) {
       const p = runtime.projectiles[i];
-      const dx = p.x - 255;
-      const dy = p.y - 215;
-      if (dx * dx + dy * dy < 32 * 32) {
+      const dx = p.x - 240;
+      const dy = p.y - 220;
+      if (dx * dx + dy * dy <= 35 * 35) {
         runtime.projectiles.splice(i, 1);
-        heroTakeDamage(p.damage, "암흑 탄막");
-        emitArcParticles(255, 215, "#c49cff", 10);
+        heroTakeDamage(p.damage, "영혼탄 피격");
+        burstParticles(245, 220, p.color, 10);
       }
     }
   }
@@ -344,232 +541,79 @@
   function processDot(dt) {
     if (runtime.dotTimer <= 0) return;
     runtime.dotTimer -= dt;
-    runtime.dotTickTimer += dt;
-    if (runtime.dotTickTimer >= 0.5) {
-      runtime.dotTickTimer = 0;
-      heroTakeDamage(runtime.enemyAtk * 0.32, "독룡 브레스");
-      emitArcParticles(275, 225, "#ff9dc8", 8);
+    runtime.dotTick += dt;
+    if (runtime.dotTick >= 0.5) {
+      runtime.dotTick = 0;
+      heroTakeDamage(runtime.enemyAtk * 0.34, "브레스 도트");
+      burstParticles(260, 220, "#ff9fcf", 8);
     }
-  }
-
-  function heavySmash() {
-    runtime.enemyAttackFx = 0.34;
-    runtime.statusMsg = "절벽 오우거: 지면 강타";
-    log("보스 패턴: 강타");
-    heroTakeDamage(runtime.enemyAtk * 1.45, "지면 강타");
-    runtime.attackTimer = Math.max(0, runtime.attackTimer - 0.25);
-    emitArcParticles(310, 245, "#ffb995", 16);
-    shake(0.22);
-  }
-
-  function spawnLichVolley() {
-    runtime.statusMsg = "망령 군주: 영혼 탄막";
-    log("보스 패턴: 3연 영혼탄");
-    for (let i = 0; i < 3; i += 1) {
-      const angle = (Math.PI * (150 + i * 16)) / 180;
-      const speed = 180 + i * 28;
-      runtime.projectiles.push({
-        x: 760,
-        y: 205,
-        vx: Math.cos(angle) * speed,
-        vy: Math.sin(angle) * speed,
-        life: 3,
-        color: "#d6a8ff",
-        damage: runtime.enemyAtk * 0.54
-      });
-    }
-    emitArcParticles(730, 200, "#d6a8ff", 14);
-    shake(0.13);
-  }
-
-  function summon(type) {
-    const costs = getCosts();
-
-    if (type === "hero") {
-      if (state.gold < costs.summonHero) return failResource("Gold 부족");
-      state.gold -= costs.summonHero;
-      const item = rollUnit(HERO_POOL);
-      obtain(state.heroes, item.id);
-      if (starOf(state.heroes[item.id].copies) >= starOf(state.heroes[state.selectedHero].copies)) state.selectedHero = item.id;
-      el.summonLog.textContent = `영웅 획득: ${rarityText(item.rarity)} ${item.name}`;
-      log(`영웅 뽑기: ${item.name}`);
-    }
-
-    if (type === "pet") {
-      if (state.gold < costs.summonPet) return failResource("Gold 부족");
-      state.gold -= costs.summonPet;
-      const item = rollUnit(PET_POOL);
-      obtain(state.pets, item.id);
-      if (starOf(state.pets[item.id].copies) >= starOf(state.pets[state.selectedPet].copies)) state.selectedPet = item.id;
-      el.summonLog.textContent = `펫 획득: ${rarityText(item.rarity)} ${item.name}`;
-      log(`펫 뽑기: ${item.name}`);
-    }
-
-    if (type === "skill") {
-      if (state.soul < costs.summonSkill) return failResource("Soul 부족");
-      state.soul -= costs.summonSkill;
-      const item = rollUnit(SKILL_POOL);
-      obtain(state.skills, item.id);
-      if (starOf(state.skills[item.id].copies) >= starOf(state.skills[state.selectedSkill].copies)) state.selectedSkill = item.id;
-      el.summonLog.textContent = `스킬 획득: ${rarityText(item.rarity)} ${item.name}`;
-      log(`스킬 뽑기: ${item.name}`);
-    }
-
-    render();
-  }
-
-  function enhanceSelected(type) {
-    const costs = getCosts();
-
-    if (type === "hero") {
-      if (state.gold < costs.enhanceHero) return failResource("Gold 부족");
-      state.gold -= costs.enhanceHero;
-      state.heroes[state.selectedHero].level += 1;
-      log("선택 영웅 강화 성공");
-    }
-
-    if (type === "pet") {
-      if (state.gold < costs.enhancePet) return failResource("Gold 부족");
-      state.gold -= costs.enhancePet;
-      state.pets[state.selectedPet].level += 1;
-      log("선택 펫 강화 성공");
-    }
-
-    if (type === "skill") {
-      if (state.soul < costs.enhanceSkill) return failResource("Soul 부족");
-      state.soul -= costs.enhanceSkill;
-      state.skills[state.selectedSkill].level += 1;
-      log("선택 스킬 강화 성공");
-    }
-
-    render();
-  }
-
-  function failResource(msg) {
-    el.summonLog.textContent = msg;
-    log(msg);
-    return false;
-  }
-
-  function obtain(store, id) {
-    if (!store[id]) store[id] = { copies: 0, level: 1 };
-    store[id].copies += 1;
-  }
-
-  function rollUnit(pool) {
-    const rarity = rollRarity();
-    const candidates = pool.filter((p) => p.rarity === rarity);
-    return candidates.length ? candidates[Math.floor(Math.random() * candidates.length)] : pool[Math.floor(Math.random() * pool.length)];
-  }
-
-  function rollRarity() {
-    const r = Math.random();
-    if (r < 0.52) return 1;
-    if (r < 0.78) return 2;
-    if (r < 0.92) return 3;
-    if (r < 0.985) return 4;
-    return 5;
-  }
-
-  function rarityText(rarity) {
-    return `${"★".repeat(rarity)}(${rarity}성)`;
-  }
-
-  function starOf(copies) {
-    if (copies >= 14) return 5;
-    if (copies >= 9) return 4;
-    if (copies >= 5) return 3;
-    if (copies >= 2) return 2;
-    return 1;
-  }
-
-  function castSkill(isAuto) {
-    const skill = currentSkill();
-    const info = state.skills[state.selectedSkill];
-    if (runtime.skillCd > 0) return;
-
-    const skillLvScale = 1 + (info.level - 1) * 0.06;
-    const starScale = 1 + (starOf(info.copies) - 1) * 0.2;
-    const cd = Math.max(2.2, skill.cd - info.level * 0.03 - starOf(info.copies) * 0.08);
-
-    runtime.skillCd = cd;
-    runtime.heroAttackFx = 0.32;
-    runtime.skillFx = 0.6;
-    runtime.skillColor = skill.color;
-
-    const burst = getPower() * skill.burstMul * skillLvScale * starScale;
-    dealDamage(burst, isAuto ? "자동 스킬" : skill.name, true);
-    emitArcParticles(620, 215, skill.color, 24);
-    shake(0.12);
-  }
-
-  function dealDamage(rawDamage, source, byHero) {
-    if (runtime.enemyHp <= 0 || getHeroHp() <= 0) return;
-
-    const crit = Math.random() < getCritChance();
-    let damage = rawDamage * (crit ? getCritMul() : 1);
-
-    if (runtime.enemyShield > 0) {
-      damage *= 1 - runtime.enemyShield;
-      addFloatText("SHIELD", 735, 100, "#a4e8ff");
-    }
-
-    runtime.enemyHp = Math.max(0, runtime.enemyHp - damage);
-    runtime.statusMsg = crit ? `${source} 치명타` : `${source} 적중`;
-
-    addFloatText(`-${fmt(damage)}`, 760, 125, crit ? "#ffe48f" : "#dcf5ff");
-    if (byHero) runtime.hitFlash = 0.2;
-
-    if (runtime.enemyHp <= 0) onEnemyDefeated();
   }
 
   function enemyAttack() {
     if (runtime.enemyHp <= 0) return;
     runtime.enemyAttackFx = 0.22;
 
-    const dodgeChance = Math.min(0.2, currentPet().speedAmp * 1.3);
-    if (Math.random() < dodgeChance) {
+    const dodge = Math.min(0.24, getPetBuff().spd * 0.8);
+    if (Math.random() < dodge) {
       runtime.statusMsg = "회피";
-      addFloatText("DODGE", 235, 120, "#96ffd8");
+      floatText("DODGE", 240, 120, "#9bffd9");
       return;
     }
 
-    heroTakeDamage(runtime.enemyAtk * (0.85 + Math.random() * 0.3), "적의 반격");
+    heroTakeDamage(runtime.enemyAtk * (0.86 + Math.random() * 0.33), "적의 반격");
   }
 
-  function heroTakeDamage(dmg, label) {
-    setHeroHp(getHeroHp() - dmg);
+  function heroTakeDamage(damage, label) {
+    setHeroHp(getHeroHp() - damage);
     runtime.statusMsg = label;
-    addFloatText(`-${fmt(dmg)}`, 235, 120, "#ffb7b7");
-    emitArcParticles(260, 220, "#ffb7b7", 10);
-    shake(0.14);
+    floatText(`-${fmt(damage)}`, 240, 120, "#ffb4b4");
+    burstParticles(250, 220, "#ffb4b4", 10);
+    shake(0.12);
     if (getHeroHp() <= 0) onHeroDefeated();
+  }
+
+  function dealDamage(raw, source, byHero) {
+    if (runtime.enemyHp <= 0 || getHeroHp() <= 0) return;
+
+    const crit = Math.random() < getCritChance();
+    let damage = raw * (crit ? getCritMul() : 1);
+
+    if (runtime.enemyShield > 0) {
+      damage *= 1 - runtime.enemyShield;
+      floatText("SHIELD", 760, 100, "#a4eaff");
+    }
+
+    runtime.enemyHp = Math.max(0, runtime.enemyHp - damage);
+    runtime.statusMsg = crit ? `${source} 치명타` : `${source} 적중`;
+    floatText(`-${fmt(damage)}`, 780, 125, crit ? "#ffe690" : "#dcf7ff");
+
+    if (byHero) runtime.hitFlash = 0.2;
+
+    if (runtime.enemyHp <= 0) onEnemyDefeated();
   }
 
   function onEnemyDefeated() {
     state.kills += 1;
 
-    const goldGain = runtime.enemyMaxHp * (runtime.isBoss ? 2.8 : 1.05) * (1 + state.stage * 0.03);
-    const soulGain = runtime.enemyMaxHp * (runtime.isBoss ? 0.14 : 0.04);
+    const reward = runtime.enemyMaxHp * 0.15 * (runtime.isBoss ? 2.5 : 1) * (1 + state.stage * 0.02);
+    state.gold += reward;
 
-    state.gold += goldGain;
-    state.soul += soulGain;
-    gainExp(runtime.isBoss ? 15 : 4);
+    gainExp(runtime.isBoss ? 18 : 5);
 
     if (runtime.isBoss) {
       state.stage += 1;
       state.wave = 1;
       runtime.statusMsg = `보스 처치! Stage ${state.stage}`;
       log("보스 토벌 성공: 다음 스테이지 진입");
-      emitArcParticles(760, 200, "#ffe59b", 32);
-      shake(0.25);
+      burstParticles(790, 200, "#ffe59b", 34);
+      shake(0.24);
     } else {
       state.wave += 1;
       if (state.wave > 10) state.wave = 10;
       runtime.statusMsg = `Wave ${state.wave}`;
     }
 
-    healHero(0.22);
+    healHero(0.2);
     spawnEnemy();
   }
 
@@ -578,28 +622,29 @@
     state.wave = 9;
     runtime.statusMsg = "보스 제한시간 초과";
     log("보스 제한시간 실패: 스테이지 상승 실패");
+    burstParticles(780, 200, "#ff9cbc", 24);
     healHero(1);
-    emitArcParticles(760, 200, "#ff8ea9", 26);
-    shake(0.2);
     spawnEnemy();
   }
 
   function onHeroDefeated() {
-    runtime.statusMsg = "영웅 전투불능";
-    log("패배: 파티 재정비 후 재도전");
+    runtime.statusMsg = "파티 전멸";
+    log("패배: 웨이브 후퇴");
     state.wave = Math.max(1, state.wave - 1);
     state.heroHp = getHeroMaxHp();
-    emitArcParticles(255, 210, "#ffc0c0", 20);
     spawnEnemy();
   }
 
   function spawnEnemy() {
-    runtime.isBoss = state.wave >= 10;
+    runtime.projectiles = [];
+    runtime.particles = [];
     runtime.enemyShield = 0;
     runtime.enemyShieldTimer = 0;
-    runtime.bossPatternTimer = 0;
+    runtime.patternTimer = 0;
     runtime.dotTimer = 0;
-    runtime.projectiles = [];
+    runtime.dotTick = 0;
+
+    runtime.isBoss = state.wave >= 10;
 
     const bossModel = BOSS_MODELS[(state.stage - 1) % BOSS_MODELS.length];
     runtime.enemyModel = bossModel;
@@ -609,108 +654,162 @@
       runtime.enemyKind = bossModel.key;
       runtime.bossTimer = 30;
     } else {
-      const names = ["숲 도적", "황야 늑대", "암흑 사제", "해골 전사", "독성 곤충"];
-      const mobNo = (state.wave + state.stage) % names.length;
-      runtime.enemyName = `${names[mobNo]} ${state.wave}`;
+      const mobs = ["숲 도적", "황야 늑대", "암흑 사제", "해골 전사", "독성 곤충"];
+      const idx = (state.stage + state.wave) % mobs.length;
+      runtime.enemyName = `${mobs[idx]} ${state.wave}`;
       runtime.enemyKind = "mob";
       runtime.bossTimer = 0;
     }
 
-    const stagePow = Math.pow(state.stage, 1.48);
-    const waveMul = 1 + state.wave * 0.23;
-    const bossMul = runtime.isBoss ? 4.6 : 1;
+    const stagePow = Math.pow(state.stage, 1.62);
+    const waveMul = 1 + state.wave * 0.28;
+    const bossMul = runtime.isBoss ? 5.4 : 1;
 
-    runtime.enemyMaxHp = Math.max(40, Math.floor((40 + stagePow * 13) * waveMul * bossMul));
+    runtime.enemyMaxHp = Math.max(140, Math.floor((180 + stagePow * 26) * waveMul * bossMul));
     runtime.enemyHp = runtime.enemyMaxHp;
 
-    runtime.enemyAtk = Math.max(4, (3 + stagePow * 1.85) * (runtime.isBoss ? 2.3 : 1));
-    runtime.enemyAtkInterval = runtime.isBoss ? 1.35 : 1.85;
+    runtime.enemyAtk = Math.max(14, (16 + stagePow * 4.2) * (runtime.isBoss ? 2.55 : 1));
+    runtime.enemyAtkInterval = runtime.isBoss ? 1.3 : 1.75;
   }
 
   function gainExp(v) {
     state.exp += v;
-    const need = 18 + state.accountLv * 6;
+    const need = 26 + state.accountLv * 8;
     if (state.exp >= need) {
       state.exp -= need;
       state.accountLv += 1;
-      log(`계정 레벨 업: Lv.${state.accountLv}`);
+      log(`계정 레벨업 Lv.${state.accountLv}`);
     }
   }
 
-  function getCosts() {
-    const heroLv = state.heroes[state.selectedHero]?.level || 1;
-    const petLv = state.pets[state.selectedPet]?.level || 1;
-    const skillLv = state.skills[state.selectedSkill]?.level || 1;
-
-    return {
-      summonHero: Math.floor(180 * Math.pow(1.05, state.accountLv - 1)),
-      summonPet: Math.floor(220 * Math.pow(1.05, state.accountLv - 1)),
-      summonSkill: Math.floor(14 * Math.pow(1.04, state.accountLv - 1)),
-      enhanceHero: Math.floor(90 * Math.pow(1.23, heroLv - 1)),
-      enhancePet: Math.floor(110 * Math.pow(1.22, petLv - 1)),
-      enhanceSkill: Math.floor(9 * Math.pow(1.2, skillLv - 1))
-    };
+  function getSummonCosts(type) {
+    const level = state.summon[type].level;
+    const base = type === "heroes" ? 7000 : type === "pets" ? 8500 : 10000;
+    const one = Math.floor(base * Math.pow(1.08, level - 1));
+    const ten = Math.floor(one * 10 * 0.94);
+    return { one, ten };
   }
 
-  function currentHero() {
-    return findById(HERO_POOL, state.selectedHero);
+  function getEnhanceCost(type, id) {
+    const inv = state.inventories[type][id];
+    if (!inv) return 0;
+    const base = type === "heroes" ? 2200 : type === "pets" ? 2600 : 3000;
+    return Math.floor(base * Math.pow(1.32, inv.level - 1));
   }
 
-  function currentPet() {
-    return findById(PET_POOL, state.selectedPet);
+  function tryEnhance(type, id) {
+    const cost = getEnhanceCost(type, id);
+    if (cost <= 0) return;
+    if (state.gold < cost) {
+      log("강화 Gold 부족");
+      return;
+    }
+    state.gold -= cost;
+    state.inventories[type][id].level += 1;
+    log("강화 성공");
   }
 
-  function currentSkill() {
-    return findById(SKILL_POOL, state.selectedSkill);
+  function getPool(type) {
+    if (type === "heroes") return HERO_POOL;
+    if (type === "pets") return PET_POOL;
+    return SKILL_POOL;
   }
 
-  function getPower() {
-    const hero = currentHero();
-    const pet = currentPet();
-    const heroData = state.heroes[state.selectedHero];
-    const petData = state.pets[state.selectedPet];
-
-    const heroStar = starOf(heroData.copies);
-    const petStar = starOf(petData.copies);
-
-    const heroAtk = hero.baseAtk * (1 + (heroData.level - 1) * 0.15) * (1 + (heroStar - 1) * 0.34);
-    const petAtk = heroAtk * (pet.atkAmp + (petData.level - 1) * 0.008 + (petStar - 1) * 0.02);
-    const accountBonus = 1 + (state.accountLv - 1) * 0.03;
-
-    return (heroAtk + petAtk) * accountBonus;
+  function categoryName(type) {
+    if (type === "heroes") return "영웅";
+    if (type === "pets") return "펫";
+    return "스킬";
   }
 
-  function getAtkSpeed() {
-    const hero = currentHero();
-    const pet = currentPet();
-    const heroData = state.heroes[state.selectedHero];
-    const petData = state.pets[state.selectedPet];
-    const skillData = state.skills[state.selectedSkill];
+  function getEquipped(type) {
+    return state.equipped[type]
+      .map((id) => (id ? findById(getPool(type), id) : null));
+  }
 
-    const petStar = starOf(petData.copies);
-    const skillStar = starOf(skillData.copies);
+  function getPetBuff() {
+    const equipped = state.equipped.pets.filter(Boolean);
+    let atk = 0;
+    let spd = 0;
+    let crit = 0;
 
-    return hero.baseSpd * (1 + pet.speedAmp + (petData.level - 1) * 0.004 + (petStar - 1) * 0.015) * (1 + (skillStar - 1) * 0.01);
+    equipped.forEach((id) => {
+      const pet = findById(PET_POOL, id);
+      const inv = state.inventories.pets[id];
+      if (!pet || !inv) return;
+      const rarity = rarityByKey(pet.rarity).mult;
+      atk += pet.atkAmp * rarity * (1 + (inv.level - 1) * 0.02) * (1 + (inv.star - 1) * 0.08);
+      spd += pet.spdAmp * rarity * (1 + (inv.level - 1) * 0.015);
+      crit += pet.critAmp * rarity * (1 + (inv.star - 1) * 0.04);
+    });
+
+    return { atk, spd, crit };
+  }
+
+  function getTeamPower() {
+    const heroes = state.equipped.heroes.filter(Boolean);
+    const petBuff = getPetBuff();
+
+    let heroPower = 0;
+    heroes.forEach((id) => {
+      const hero = findById(HERO_POOL, id);
+      const inv = state.inventories.heroes[id];
+      if (!hero || !inv) return;
+      const rarity = rarityByKey(hero.rarity).mult;
+      const p = hero.baseAtk * rarity * (1 + (inv.level - 1) * 0.17) * (1 + (inv.star - 1) * 0.33);
+      heroPower += p;
+    });
+
+    const account = 1 + (state.accountLv - 1) * 0.04;
+    return heroPower * (1 + petBuff.atk) * account;
+  }
+
+  function getAttackSpeed() {
+    const heroes = state.equipped.heroes.filter(Boolean);
+    if (!heroes.length) return 0.4;
+
+    let speed = 0;
+    heroes.forEach((id) => {
+      const hero = findById(HERO_POOL, id);
+      const inv = state.inventories.heroes[id];
+      if (!hero || !inv) return;
+      const rarity = rarityByKey(hero.rarity).mult;
+      speed += hero.baseSpd * (1 + (inv.level - 1) * 0.02) * (1 + (inv.star - 1) * 0.04) * Math.sqrt(rarity);
+    });
+
+    const avg = speed / heroes.length;
+    return avg * (1 + getPetBuff().spd);
   }
 
   function getCritChance() {
-    const pet = currentPet();
-    const heroData = state.heroes[state.selectedHero];
-    const petData = state.pets[state.selectedPet];
-    return Math.min(0.72, 0.05 + pet.crit + (heroData.level - 1) * 0.001 + (petData.level - 1) * 0.0015);
+    const pet = getPetBuff();
+    return Math.min(0.75, 0.05 + pet.crit);
   }
 
   function getCritMul() {
-    const skillData = state.skills[state.selectedSkill];
-    const star = starOf(skillData.copies);
-    return 1.6 + (skillData.level - 1) * 0.015 + (star - 1) * 0.08;
+    const skillIds = state.equipped.skills.filter(Boolean);
+    let bonus = 0;
+    skillIds.forEach((id) => {
+      const inv = state.inventories.skills[id];
+      if (!inv) return;
+      bonus += (inv.level - 1) * 0.006 + (inv.star - 1) * 0.04;
+    });
+    return 1.65 + bonus;
   }
 
   function getHeroMaxHp() {
-    const hero = currentHero();
-    const heroData = state.heroes[state.selectedHero];
-    const star = starOf(heroData.copies);
-    return hero.hp * (1 + (heroData.level - 1) * 0.08 + (star - 1) * 0.18) * (1 + (state.accountLv - 1) * 0.015);
+    const heroes = state.equipped.heroes.filter(Boolean);
+    if (!heroes.length) return 200;
+
+    let hp = 0;
+    heroes.forEach((id) => {
+      const hero = findById(HERO_POOL, id);
+      const inv = state.inventories.heroes[id];
+      if (!hero || !inv) return;
+      const rarity = rarityByKey(hero.rarity).mult;
+      hp += hero.baseHp * rarity * (1 + (inv.level - 1) * 0.09) * (1 + (inv.star - 1) * 0.14);
+    });
+
+    return hp * (1 + (state.accountLv - 1) * 0.025);
   }
 
   function getHeroHp() {
@@ -726,18 +825,59 @@
   }
 
   function getAutoAttackDamage() {
-    return getPower();
+    return getTeamPower() * 0.62;
   }
 
   function applyOfflineReward() {
     const now = Date.now();
     const elapsed = Math.max(0, Math.floor((now - Number(state.lastSave || now)) / 1000));
     const clamped = Math.min(MAX_OFFLINE_SECONDS, elapsed);
-    const reward = getPower() * getAtkSpeed() * 0.52 * clamped;
+    const reward = getTeamPower() * getAttackSpeed() * 0.28 * clamped;
     state.gold += reward;
     state.lastSave = now;
     state.heroHp = getHeroMaxHp();
     return reward;
+  }
+
+  function resetRuntime() {
+    runtime.attackTimer = 0;
+    runtime.enemyAttackTimer = 0;
+    runtime.skillCooldowns = [0, 0, 0, 0];
+    runtime.particles = [];
+    runtime.projectiles = [];
+    runtime.floatTexts = [];
+    runtime.summonResultRows = [];
+  }
+
+  function cloneBase() {
+    return JSON.parse(JSON.stringify({ ...BASE_STATE, lastSave: Date.now() }));
+  }
+
+  function buildPool(prefix, names, templates, mapper) {
+    return names.map((name, idx) => {
+      const tpl = templates[idx % templates.length];
+      return mapper(idx, name, tpl, prefix);
+    });
+  }
+
+  function normalizeState() {
+    if (!state.inventories) state.inventories = cloneBase().inventories;
+    if (!state.equipped) state.equipped = cloneBase().equipped;
+    if (!state.selectedSlots) state.selectedSlots = cloneBase().selectedSlots;
+    if (!state.summon) state.summon = cloneBase().summon;
+
+    ["heroes", "pets", "skills"].forEach((t) => {
+      if (!Array.isArray(state.equipped[t])) state.equipped[t] = new Array(SLOT_COUNT).fill(null);
+      if (state.equipped[t].length < SLOT_COUNT) {
+        state.equipped[t] = [...state.equipped[t], ...new Array(SLOT_COUNT - state.equipped[t].length).fill(null)];
+      }
+      if (typeof state.selectedSlots[t] !== "number") state.selectedSlots[t] = 0;
+      if (!state.inventories[t]) state.inventories[t] = {};
+      if (!state.summon[t]) state.summon[t] = { level: 1, draws: 0 };
+    });
+
+    if (!state.heroHp || Number.isNaN(state.heroHp)) state.heroHp = getHeroMaxHp();
+    state.heroHp = Math.min(state.heroHp, getHeroMaxHp());
   }
 
   function save() {
@@ -748,46 +888,73 @@
   function load() {
     try {
       const raw = localStorage.getItem(SAVE_KEY);
-      if (!raw) return createBaseState();
+      if (!raw) return cloneBase();
       const parsed = JSON.parse(raw);
       return {
-        ...createBaseState(),
-        ...parsed,
-        heroes: { ...createBaseState().heroes, ...(parsed.heroes || {}) },
-        pets: { ...createBaseState().pets, ...(parsed.pets || {}) },
-        skills: { ...createBaseState().skills, ...(parsed.skills || {}) }
+        ...cloneBase(),
+        ...parsed
       };
     } catch {
-      return createBaseState();
+      return cloneBase();
     }
   }
 
-  function emitArcParticles(x, y, color, count) {
+  function lerp(a, b, t) {
+    return a + (b - a) * t;
+  }
+
+  function rarityByKey(key) {
+    return RARITIES.find((r) => r.key === key) || RARITIES[0];
+  }
+
+  function findById(pool, id) {
+    return pool.find((x) => x.id === id) || pool[0];
+  }
+
+  function starText(star) {
+    return "★".repeat(Math.min(10, star));
+  }
+
+  function shadeColor(hex, percent) {
+    const n = String(hex || "#ffffff").replace("#", "");
+    const c = n.length === 3 ? n.split("").map((ch) => ch + ch).join("") : n;
+    const r = parseInt(c.slice(0, 2), 16);
+    const g = parseInt(c.slice(2, 4), 16);
+    const b = parseInt(c.slice(4, 6), 16);
+    const p = percent / 100;
+    const nr = Math.max(0, Math.min(255, Math.round(r + (p >= 0 ? (255 - r) * p : r * p))));
+    const ng = Math.max(0, Math.min(255, Math.round(g + (p >= 0 ? (255 - g) * p : g * p))));
+    const nb = Math.max(0, Math.min(255, Math.round(b + (p >= 0 ? (255 - b) * p : b * p))));
+    return `rgb(${nr}, ${ng}, ${nb})`;
+  }
+
+  function hexToRgba(hex, alpha) {
+    const n = String(hex || "#ffffff").replace("#", "");
+    const c = n.length === 3 ? n.split("").map((ch) => ch + ch).join("") : n.padEnd(6, "f");
+    const r = parseInt(c.slice(0, 2), 16);
+    const g = parseInt(c.slice(2, 4), 16);
+    const b = parseInt(c.slice(4, 6), 16);
+    return `rgba(${r}, ${g}, ${b}, ${Math.max(0, Math.min(1, alpha))})`;
+  }
+
+  function burstParticles(x, y, color, count) {
     for (let i = 0; i < count; i += 1) {
       const a = Math.random() * Math.PI * 2;
-      const speed = 24 + Math.random() * 120;
-      runtime.particles.push({
-        x,
-        y,
-        vx: Math.cos(a) * speed,
-        vy: Math.sin(a) * speed,
-        life: 0.45 + Math.random() * 0.45,
-        size: 1.5 + Math.random() * 2.8,
-        color
-      });
+      const s = 25 + Math.random() * 130;
+      runtime.particles.push({ x, y, vx: Math.cos(a) * s, vy: Math.sin(a) * s, life: 0.45 + Math.random() * 0.45, size: 1.5 + Math.random() * 2.8, color });
     }
-    if (runtime.particles.length > 240) runtime.particles.splice(0, runtime.particles.length - 240);
+    if (runtime.particles.length > 280) runtime.particles.splice(0, runtime.particles.length - 280);
+  }
+
+  function floatText(text, x, y, color) {
+    runtime.floatTexts.push({ text, x, y, life: 0.9, vy: 26, color });
+    if (runtime.floatTexts.length > 30) runtime.floatTexts.shift();
   }
 
   function updateParticles(dt) {
     runtime.particles = runtime.particles
       .map((p) => ({ ...p, x: p.x + p.vx * dt, y: p.y + p.vy * dt, vy: p.vy + 70 * dt, life: p.life - dt }))
       .filter((p) => p.life > 0);
-  }
-
-  function addFloatText(text, x, y, color) {
-    runtime.floatTexts.push({ text, x, y, vy: 26, life: 0.9, color });
-    if (runtime.floatTexts.length > 24) runtime.floatTexts.shift();
   }
 
   function updateFloatTexts(dt) {
@@ -802,13 +969,13 @@
 
   function updateCameraShake() {
     if (runtime.screenShake <= 0) {
-      runtime.cameraX = 0;
-      runtime.cameraY = 0;
+      runtime.camX = 0;
+      runtime.camY = 0;
       return;
     }
-    const amp = 8 * runtime.screenShake;
-    runtime.cameraX = (Math.random() - 0.5) * amp;
-    runtime.cameraY = (Math.random() - 0.5) * amp;
+    const amp = runtime.screenShake * 10;
+    runtime.camX = (Math.random() - 0.5) * amp;
+    runtime.camY = (Math.random() - 0.5) * amp;
   }
 
   function drawFrame(ts) {
@@ -822,28 +989,34 @@
 
     ctx.clearRect(0, 0, w, h);
     ctx.save();
-    ctx.translate(runtime.cameraX, runtime.cameraY);
+    ctx.translate(runtime.camX, runtime.camY);
 
-    drawBackground(t, w, h);
+    drawBackground(w, h, t);
 
-    const hero = currentHero();
-    const pet = currentPet();
+    const heroIds = state.equipped.heroes;
+    const petIds = state.equipped.pets;
+    const heroXs = [170, 245, 320, 395];
 
-    const heroX = 250 + (runtime.heroAttackFx > 0 ? 42 * (runtime.heroAttackFx / 0.2) : 0);
-    const heroY = h - 120 + Math.sin(t * 5.8) * 2;
-    const petX = 190 + Math.cos(t * 2.4) * 8;
-    const petY = h - 180 + Math.sin(t * 3.8) * 6;
+    heroIds.forEach((id, idx) => {
+      if (!id) return;
+      const hero = findById(HERO_POOL, id);
+      const x = heroXs[idx] + (runtime.heroAttackFx > 0 ? 32 * (runtime.heroAttackFx / 0.2) : 0);
+      const y = h - 124 + Math.sin(t * 5.4 + idx * 0.8) * 2;
+      drawHero(x, y, hero, runtime.heroAttackFx > 0);
 
-    const enemyX = 770 - (runtime.enemyAttackFx > 0 ? 28 * (runtime.enemyAttackFx / 0.22) : 0);
-    const enemyY = h - 118 + Math.sin(t * 4.4 + 0.7) * 2;
+      const petId = petIds[idx];
+      if (petId) {
+        const pet = findById(PET_POOL, petId);
+        drawPet(x - 42 + Math.cos(t * 2.8 + idx) * 6, y - 66 + Math.sin(t * 3.6 + idx) * 5, pet);
+      }
+    });
 
-    drawHero(heroX, heroY, hero, runtime.heroAttackFx > 0);
-    drawPet(petX, petY, pet);
+    const enemyX = 805 - (runtime.enemyAttackFx > 0 ? 34 * (runtime.enemyAttackFx / 0.22) : 0);
+    const enemyY = h - 122 + Math.sin(t * 4.2) * 2;
     drawEnemy(enemyX, enemyY, runtime.enemyModel, runtime.enemyAttackFx > 0, runtime.isBoss, runtime.enemyShield > 0);
 
-    if (runtime.heroAttackFx > 0) drawSlash(heroX + 66, heroY - 38, hero.accent);
-    if (runtime.enemyAttackFx > 0) drawSlash(enemyX - 56, enemyY - 36, "#ffb9cf");
-
+    if (runtime.heroAttackFx > 0) drawSlash(495, h - 170, currentHeroAccent());
+    if (runtime.enemyAttackFx > 0) drawSlash(650, h - 170, "#ffb6cc");
     if (runtime.skillFx > 0) drawSkillEffect(w, h, runtime.skillColor, runtime.skillFx);
 
     drawProjectiles();
@@ -851,45 +1024,45 @@
     drawFloatTexts();
 
     if (runtime.hitFlash > 0) {
-      ctx.fillStyle = `rgba(255, 242, 196, ${runtime.hitFlash * 0.23})`;
+      ctx.fillStyle = `rgba(255, 242, 196, ${runtime.hitFlash * 0.22})`;
       ctx.fillRect(0, 0, w, h);
     }
 
     ctx.restore();
   }
 
-  function drawBackground(t, w, h) {
+  function drawBackground(w, h, t) {
     const sky = ctx.createLinearGradient(0, 0, 0, h);
     sky.addColorStop(0, "#2b4f83");
     sky.addColorStop(1, "#131d35");
     ctx.fillStyle = sky;
     ctx.fillRect(0, 0, w, h);
 
-    for (let i = 0; i < 20; i += 1) {
-      const x = (i * 70 + t * 14) % (w + 40) - 20;
-      const y = 36 + Math.sin((i + t) * 0.8) * 7;
+    for (let i = 0; i < 22; i += 1) {
+      const x = (i * 62 + t * 14) % (w + 30) - 15;
+      const y = 34 + Math.sin((i + t) * 0.82) * 7;
       ctx.fillStyle = "rgba(198, 230, 255, 0.45)";
       ctx.beginPath();
       ctx.arc(x, y, 1.4, 0, Math.PI * 2);
       ctx.fill();
     }
 
-    for (let i = 0; i < 7; i += 1) {
-      const x = ((i * 180) + t * 6) % (w + 220) - 220;
+    for (let i = 0; i < 8; i += 1) {
+      const x = ((i * 170) + t * 6) % (w + 220) - 220;
       ctx.fillStyle = "rgba(151, 190, 242, 0.24)";
       ctx.beginPath();
-      ctx.moveTo(x, h - 100);
-      ctx.lineTo(x + 95, h - 240);
-      ctx.lineTo(x + 190, h - 100);
+      ctx.moveTo(x, h - 108);
+      ctx.lineTo(x + 90, h - 245);
+      ctx.lineTo(x + 180, h - 108);
       ctx.closePath();
       ctx.fill();
     }
 
-    const ground = ctx.createLinearGradient(0, h - 110, 0, h);
+    const ground = ctx.createLinearGradient(0, h - 112, 0, h);
     ground.addColorStop(0, "#1f4f46");
     ground.addColorStop(1, "#0f2f2b");
     ctx.fillStyle = ground;
-    ctx.fillRect(0, h - 110, w, 110);
+    ctx.fillRect(0, h - 112, w, 112);
   }
 
   function drawHero(x, y, hero, attacking) {
@@ -898,49 +1071,37 @@
 
     ctx.fillStyle = hero.accent;
     ctx.beginPath();
-    ctx.arc(0, -56, 16, 0, Math.PI * 2);
+    ctx.arc(0, -56, 14, 0, Math.PI * 2);
     ctx.fill();
 
-    const bodyGrad = ctx.createLinearGradient(-20, -36, 20, 12);
+    const bodyGrad = ctx.createLinearGradient(-18, -36, 18, 12);
     bodyGrad.addColorStop(0, hero.color);
     bodyGrad.addColorStop(1, shadeColor(hero.color, -30));
     ctx.fillStyle = bodyGrad;
     ctx.beginPath();
-    ctx.moveTo(-16, -36);
-    ctx.lineTo(16, -36);
-    ctx.lineTo(22, 12);
-    ctx.lineTo(-22, 12);
+    ctx.moveTo(-15, -34);
+    ctx.lineTo(15, -34);
+    ctx.lineTo(20, 12);
+    ctx.lineTo(-20, 12);
     ctx.closePath();
     ctx.fill();
-
-    ctx.fillStyle = "rgba(14, 25, 47, 0.45)";
-    ctx.fillRect(-17, -10, 34, 20);
 
     ctx.strokeStyle = hero.accent;
     ctx.lineWidth = 5;
     ctx.beginPath();
-    if (hero.weapon === "staff") {
-      ctx.moveTo(11, -26);
-      ctx.lineTo(attacking ? 58 : 42, attacking ? -84 : -62);
-    } else if (hero.weapon === "spear") {
-      ctx.moveTo(7, -20);
-      ctx.lineTo(attacking ? 82 : 56, attacking ? -48 : -33);
-    } else if (hero.weapon === "greatsword") {
-      ctx.moveTo(8, -20);
-      ctx.lineTo(attacking ? 65 : 40, attacking ? -66 : -42);
-    } else {
-      ctx.moveTo(8, -22);
-      ctx.lineTo(attacking ? 52 : 33, attacking ? -60 : -37);
-    }
+    const ex = attacking ? 58 : 38;
+    const ey = attacking ? -68 : -45;
+    ctx.moveTo(8, -22);
+    ctx.lineTo(ex, ey);
     ctx.stroke();
 
     ctx.strokeStyle = "#243c60";
     ctx.lineWidth = 6;
     ctx.beginPath();
-    ctx.moveTo(-10, 11);
-    ctx.lineTo(-18, 42);
-    ctx.moveTo(10, 11);
-    ctx.lineTo(18, 42);
+    ctx.moveTo(-10, 10);
+    ctx.lineTo(-17, 40);
+    ctx.moveTo(10, 10);
+    ctx.lineTo(17, 40);
     ctx.stroke();
 
     ctx.restore();
@@ -950,12 +1111,12 @@
     ctx.save();
     ctx.translate(x, y);
 
-    const glow = ctx.createRadialGradient(0, 0, 3, 0, 0, 28);
+    const glow = ctx.createRadialGradient(0, 0, 3, 0, 0, 26);
     glow.addColorStop(0, hexToRgba(pet.color, 0.95));
     glow.addColorStop(1, "rgba(0,0,0,0)");
     ctx.fillStyle = glow;
     ctx.beginPath();
-    ctx.arc(0, 0, 28, 0, Math.PI * 2);
+    ctx.arc(0, 0, 26, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.fillStyle = pet.color;
@@ -965,70 +1126,39 @@
 
     ctx.fillStyle = "#fff";
     ctx.beginPath();
-    ctx.arc(-3, -2, 1.3, 0, Math.PI * 2);
-    ctx.arc(3, -2, 1.3, 0, Math.PI * 2);
+    ctx.arc(-3, -2, 1.2, 0, Math.PI * 2);
+    ctx.arc(3, -2, 1.2, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.restore();
   }
 
-  function drawEnemy(x, y, bossModel, attacking, isBoss, shieldOn) {
+  function drawEnemy(x, y, model, attacking, isBoss, shieldOn) {
     ctx.save();
     ctx.translate(x, y);
 
     if (!isBoss) {
       ctx.fillStyle = "#b58c6f";
       ctx.beginPath();
-      ctx.arc(0, -54, 18, 0, Math.PI * 2);
+      ctx.arc(0, -56, 20, 0, Math.PI * 2);
       ctx.fill();
-
       ctx.fillStyle = "#5c3a32";
-      ctx.fillRect(-17, -34, 34, 46);
-      ctx.fillStyle = "#ffd2b4";
-      ctx.fillRect(-8, -60, 16, 8);
+      ctx.fillRect(-19, -35, 38, 50);
     } else {
-      const hue = bossModel.hue;
+      const hue = model.hue;
       ctx.fillStyle = `hsl(${hue} 58% 56%)`;
       ctx.beginPath();
-      ctx.arc(0, -58, 26, 0, Math.PI * 2);
+      ctx.arc(0, -60, 28, 0, Math.PI * 2);
       ctx.fill();
-
       ctx.fillStyle = `hsl(${hue} 54% 30%)`;
-      ctx.fillRect(-28, -33, 56, 62);
-
-      if (bossModel.key === "ogre") {
-        ctx.fillStyle = `hsl(${hue} 70% 70%)`;
-        ctx.fillRect(-24, -72, 8, 16);
-        ctx.fillRect(16, -72, 8, 16);
-      }
-      if (bossModel.key === "lich") {
-        ctx.fillStyle = "#cba6ff";
-        ctx.beginPath();
-        ctx.arc(0, -72, 8, 0, Math.PI * 2);
-        ctx.fill();
-      }
-      if (bossModel.key === "golem") {
-        ctx.strokeStyle = "#98e7ff";
-        ctx.lineWidth = 3;
-        ctx.strokeRect(-24, -28, 48, 52);
-      }
-      if (bossModel.key === "wyrm") {
-        ctx.fillStyle = "#ffb0dc";
-        ctx.beginPath();
-        ctx.moveTo(0, -38);
-        ctx.lineTo(18, -8);
-        ctx.lineTo(0, 10);
-        ctx.lineTo(-18, -8);
-        ctx.closePath();
-        ctx.fill();
-      }
+      ctx.fillRect(-31, -35, 62, 66);
     }
 
     if (shieldOn) {
       ctx.strokeStyle = "rgba(143, 229, 255, 0.9)";
       ctx.lineWidth = 4;
       ctx.beginPath();
-      ctx.arc(0, -24, 54, 0, Math.PI * 2);
+      ctx.arc(0, -24, 58, 0, Math.PI * 2);
       ctx.stroke();
     }
 
@@ -1036,16 +1166,16 @@
     ctx.lineWidth = isBoss ? 7 : 5;
     ctx.beginPath();
     ctx.moveTo(-8, -12);
-    ctx.lineTo(attacking ? -54 : -28, attacking ? -48 : -28);
+    ctx.lineTo(attacking ? -58 : -31, attacking ? -49 : -28);
     ctx.stroke();
 
     ctx.strokeStyle = isBoss ? "#4c2438" : "#41242d";
     ctx.lineWidth = 6;
     ctx.beginPath();
-    ctx.moveTo(-10, 26);
-    ctx.lineTo(-20, 54);
-    ctx.moveTo(10, 26);
-    ctx.lineTo(20, 54);
+    ctx.moveTo(-10, 28);
+    ctx.lineTo(-20, 56);
+    ctx.moveTo(10, 28);
+    ctx.lineTo(20, 56);
     ctx.stroke();
 
     ctx.restore();
@@ -1057,7 +1187,7 @@
     ctx.lineWidth = 5;
     ctx.globalAlpha = 0.8;
     ctx.beginPath();
-    ctx.arc(x, y, 25, Math.PI * 0.12, Math.PI * 0.92);
+    ctx.arc(x, y, 26, Math.PI * 0.1, Math.PI * 0.92);
     ctx.stroke();
     ctx.restore();
   }
@@ -1066,16 +1196,17 @@
     ctx.save();
     ctx.fillStyle = hexToRgba(color, Math.min(0.22, power * 0.3));
     ctx.beginPath();
-    ctx.arc(w * 0.73, h * 0.44, 180 * power, 0, Math.PI * 2);
+    ctx.arc(w * 0.72, h * 0.43, 190 * power, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.strokeStyle = hexToRgba(color, 0.9);
     ctx.lineWidth = 4;
     for (let i = 0; i < 3; i += 1) {
       ctx.beginPath();
-      ctx.arc(w * 0.73, h * 0.44, (110 + i * 38) * power, 0, Math.PI * 2);
+      ctx.arc(w * 0.72, h * 0.43, (110 + i * 40) * power, 0, Math.PI * 2);
       ctx.stroke();
     }
+
     ctx.restore();
   }
 
@@ -1112,133 +1243,168 @@
     });
   }
 
-  function render() {
-    const costs = getCosts();
-    const hero = currentHero();
-    const pet = currentPet();
-    const skill = currentSkill();
+  function currentHeroAccent() {
+    const first = state.equipped.heroes.find(Boolean);
+    if (!first) return "#d4ebff";
+    return findById(HERO_POOL, first).accent;
+  }
 
-    const heroData = state.heroes[state.selectedHero];
-    const petData = state.pets[state.selectedPet];
-    const skillData = state.skills[state.selectedSkill];
+  function render() {
+    const heroCosts = getSummonCosts("heroes");
+    const petCosts = getSummonCosts("pets");
+    const skillCosts = getSummonCosts("skills");
 
     const heroHp = getHeroHp();
     const heroMaxHp = getHeroMaxHp();
-    const hpRatio = runtime.enemyMaxHp > 0 ? runtime.enemyHp / runtime.enemyMaxHp : 0;
+    const enemyRatio = runtime.enemyMaxHp > 0 ? runtime.enemyHp / runtime.enemyMaxHp : 0;
 
     el.gold.textContent = fmt(state.gold);
-    el.soul.textContent = fmt(state.soul);
     el.stage.textContent = `${state.stage}-${state.wave}`;
-    el.power.textContent = fmt(getPower() * getAtkSpeed());
+    el.power.textContent = fmt(getTeamPower() * getAttackSpeed());
+    el.summonLevels.textContent = `H${state.summon.heroes.level}/P${state.summon.pets.level}/S${state.summon.skills.level}`;
 
     el.battleStatus.textContent = runtime.statusMsg;
-    el.heroLabel.textContent = `${hero.name} HP`;
+    el.heroLabel.textContent = "파티 HP";
     el.enemyName.textContent = runtime.isBoss ? `[BOSS] ${runtime.enemyName}` : runtime.enemyName;
 
     el.heroHpFill.style.width = `${(heroHp / heroMaxHp) * 100}%`;
     el.heroHpText.textContent = `${fmt(heroHp)} / ${fmt(heroMaxHp)}`;
-
-    el.enemyHpFill.style.width = `${Math.max(0, Math.min(1, hpRatio)) * 100}%`;
+    el.enemyHpFill.style.width = `${Math.max(0, Math.min(1, enemyRatio)) * 100}%`;
     el.enemyHpText.textContent = `${fmt(runtime.enemyHp)} / ${fmt(runtime.enemyMaxHp)}`;
 
     el.bossTimerBox.hidden = !runtime.isBoss;
     if (runtime.isBoss) {
-      const ratio = Math.max(0, runtime.bossTimer / 30);
-      el.bossTimeFill.style.width = `${ratio * 100}%`;
+      const r = Math.max(0, runtime.bossTimer / 30);
+      el.bossTimeFill.style.width = `${r * 100}%`;
       el.bossTimerLabel.textContent = `보스 제한시간 ${runtime.bossTimer.toFixed(1)}초`;
     }
 
-    el.skillBtn.classList.toggle("ready", runtime.skillCd <= 0.05);
-    el.skillBtn.disabled = runtime.skillCd > 0.05;
-    el.skillInfo.textContent = runtime.skillCd > 0 ? `스킬 쿨다운 ${runtime.skillCd.toFixed(1)}초` : `${skill.name} 준비 완료`;
     el.toggleAutoSkill.textContent = `자동 스킬: ${state.autoSkill ? "ON" : "OFF"}`;
 
-    el.costSummonHero.textContent = `${fmt(costs.summonHero)} G`;
-    el.costSummonPet.textContent = `${fmt(costs.summonPet)} G`;
-    el.costSummonSkill.textContent = `${fmt(costs.summonSkill)} S`;
-    el.costEnhanceHero.textContent = `${fmt(costs.enhanceHero)} G`;
-    el.costEnhancePet.textContent = `${fmt(costs.enhancePet)} G`;
-    el.costEnhanceSkill.textContent = `${fmt(costs.enhanceSkill)} S`;
+    el.costHero1.textContent = `${fmt(heroCosts.one)} G`;
+    el.costHero10.textContent = `${fmt(heroCosts.ten)} G`;
+    el.costPet1.textContent = `${fmt(petCosts.one)} G`;
+    el.costPet10.textContent = `${fmt(petCosts.ten)} G`;
+    el.costSkill1.textContent = `${fmt(skillCosts.one)} G`;
+    el.costSkill10.textContent = `${fmt(skillCosts.ten)} G`;
 
-    el.summonHero.disabled = state.gold < costs.summonHero;
-    el.summonPet.disabled = state.gold < costs.summonPet;
-    el.summonSkill.disabled = state.soul < costs.summonSkill;
-    el.enhanceHero.disabled = state.gold < costs.enhanceHero;
-    el.enhancePet.disabled = state.gold < costs.enhancePet;
-    el.enhanceSkill.disabled = state.soul < costs.enhanceSkill;
+    el.summonHero1.disabled = state.gold < heroCosts.one;
+    el.summonHero10.disabled = state.gold < heroCosts.ten;
+    el.summonPet1.disabled = state.gold < petCosts.one;
+    el.summonPet10.disabled = state.gold < petCosts.ten;
+    el.summonSkill1.disabled = state.gold < skillCosts.one;
+    el.summonSkill10.disabled = state.gold < skillCosts.ten;
 
-    el.eqHero.textContent = `${hero.name} ${starString(starOf(heroData.copies))} Lv.${heroData.level}`;
-    el.eqPet.textContent = `${pet.name} ${starString(starOf(petData.copies))} Lv.${petData.level}`;
-    el.eqSkill.textContent = `${skill.name} ${starString(starOf(skillData.copies))} Lv.${skillData.level}`;
+    el.skillSlotList.innerHTML = state.equipped.skills.map((id, i) => {
+      if (!id) {
+        return `<article class="skill-cd-item"><p>${i + 1}번 슬롯</p><strong>비어있음</strong></article>`;
+      }
+      const s = findById(SKILL_POOL, id);
+      const cd = runtime.skillCooldowns[i];
+      return `<article class="skill-cd-item"><p>${i + 1}. ${s.name}</p><strong>${cd > 0 ? `${cd.toFixed(1)}s` : "READY"}</strong></article>`;
+    }).join("");
 
-    el.crit.textContent = `${(getCritChance() * 100).toFixed(1)}% x ${getCritMul().toFixed(2)}`;
-    el.atkSpeed.textContent = `${getAtkSpeed().toFixed(2)}/s`;
-    el.kills.textContent = fmt(state.kills);
+    renderSlots("heroes", el.heroSlots);
+    renderSlots("pets", el.petSlots);
+    renderSlots("skills", el.skillSlots);
 
-    el.heroCollection.innerHTML = renderCollection(HERO_POOL, state.heroes, state.selectedHero, "hero");
-    el.petCollection.innerHTML = renderCollection(PET_POOL, state.pets, state.selectedPet, "pet");
-    el.skillCollection.innerHTML = renderCollection(SKILL_POOL, state.skills, state.selectedSkill, "skill");
+    renderCollection("heroes", el.heroCollection);
+    renderCollection("pets", el.petCollection);
+    renderCollection("skills", el.skillCollection);
+
+    if (!runtime.summonResultRows.length) {
+      el.summonResults.innerHTML = '<article class="result-item">최근 결과 없음</article>';
+    } else {
+      el.summonResults.innerHTML = runtime.summonResultRows.map((r) => {
+        const rar = rarityByKey(r.rarity);
+        return `<article class="result-item"><span class="rare" style="color:${rar.color}">[${rar.name}]</span> ${r.text}</article>`;
+      }).join("");
+    }
+
+    const heroes = state.equipped.heroes.filter(Boolean).length;
+    const pets = state.equipped.pets.filter(Boolean).length;
+    const skills = state.equipped.skills.filter(Boolean).length;
+
+    el.statList.innerHTML = [
+      `파티 구성 <strong>H${heroes}/P${pets}/S${skills}</strong>`,
+      `공격속도 <strong>${getAttackSpeed().toFixed(2)}/s</strong>`,
+      `치명타 <strong>${(getCritChance() * 100).toFixed(2)}%</strong>`,
+      `치명 배율 <strong>x${getCritMul().toFixed(2)}</strong>`,
+      `누적 처치 <strong>${fmt(state.kills)}</strong>`,
+      `계정 레벨 <strong>Lv.${state.accountLv}</strong>`,
+      `뽑기횟수(영웅) <strong>${state.summon.heroes.draws}</strong>`,
+      `뽑기횟수(스킬) <strong>${state.summon.skills.draws}</strong>`
+    ].map((x) => `<li>${x}</li>`).join("");
 
     el.log.textContent = runtime.lastLog;
   }
 
-  function renderCollection(pool, store, selectedId, type) {
-    const rows = pool
-      .filter((item) => store[item.id])
-      .sort((a, b) => b.rarity - a.rarity)
-      .map((item) => {
-        const data = store[item.id];
-        const star = starOf(data.copies);
-        const active = item.id === selectedId ? "active" : "";
-        const attr = type === "hero" ? "data-equip-hero" : type === "pet" ? "data-equip-pet" : "data-equip-skill";
+  function renderSlots(type, host) {
+    const pool = getPool(type);
+    const slots = state.equipped[type];
+    const selected = state.selectedSlots[type];
+
+    host.innerHTML = slots.map((id, idx) => {
+      const active = idx === selected ? "active" : "";
+      if (!id) {
+        return `<article class="slot-item empty ${active}"><p>${idx + 1}번 슬롯</p><strong>비어있음</strong><button data-pick-slot="${idx}">선택</button></article>`;
+      }
+      const item = findById(pool, id);
+      const inv = state.inventories[type][id];
+      const cost = getEnhanceCost(type, id);
+      const r = rarityByKey(item.rarity);
+      return `
+        <article class="slot-item ${active}">
+          <p>${idx + 1}번 슬롯</p>
+          <strong style="color:${r.color}">${item.name}</strong>
+          <p>${starText(inv.star)} Lv.${inv.level}</p>
+          <button data-pick-slot="${idx}">선택</button>
+          <button data-enhance="${type}|${id}">강화 (${fmt(cost)}G)</button>
+          <button data-clear-slot="${idx}">해제</button>
+        </article>
+      `;
+    }).join("");
+
+    host.querySelectorAll("button[data-enhance]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const [t, id] = btn.getAttribute("data-enhance").split("|");
+        tryEnhance(t, id);
+        render();
+      });
+    });
+  }
+
+  function renderCollection(type, host) {
+    const pool = getPool(type);
+    const invMap = state.inventories[type];
+
+    const rows = Object.keys(invMap)
+      .map((id) => {
+        const item = findById(pool, id);
+        const inv = invMap[id];
+        return { item, inv };
+      })
+      .sort((a, b) => rarityByKey(b.item.rarity).mult - rarityByKey(a.item.rarity).mult || b.inv.star - a.inv.star)
+      .map(({ item, inv }) => {
+        const r = rarityByKey(item.rarity);
         return `
-          <article class="collection-item ${active}">
-            <div class="row"><strong>${item.name}</strong><span>${starString(star)}</span></div>
-            <p>보유 ${data.copies} | 레벨 ${data.level}</p>
-            <button type="button" ${attr}="${item.id}">장착</button>
+          <article class="collection-item">
+            <div class="top"><strong style="color:${r.color}">[${r.name}] ${item.name}</strong><span>${starText(inv.star)}</span></div>
+            <p>Lv.${inv.level} | 조각 ${inv.shards} | 총 획득 ${inv.total}</p>
+            <button data-equip-id="${item.id}">선택 슬롯에 장착</button>
           </article>
         `;
       });
 
-    if (!rows.length) return '<article class="collection-item"><p>아직 없음</p></article>';
-    return rows.join("");
+    host.innerHTML = rows.length ? rows.join("") : '<article class="collection-item"><p>없음</p></article>';
   }
 
-  function starString(star) {
-    return "★".repeat(star) + "☆".repeat(Math.max(0, 5 - star));
+  function log(msg) {
+    runtime.lastLog = `${msg} | ${new Date().toLocaleTimeString("ko-KR", { hour12: false })}`;
   }
 
-  function findById(pool, id) {
-    return pool.find((x) => x.id === id) || pool[0];
-  }
-
-  function shadeColor(hex, percent) {
-    const n = hex.replace("#", "");
-    const r = parseInt(n.substring(0, 2), 16);
-    const g = parseInt(n.substring(2, 4), 16);
-    const b = parseInt(n.substring(4, 6), 16);
-    const p = percent / 100;
-    const nr = Math.max(0, Math.min(255, Math.round(r + (p >= 0 ? (255 - r) * p : r * p))));
-    const ng = Math.max(0, Math.min(255, Math.round(g + (p >= 0 ? (255 - g) * p : g * p))));
-    const nb = Math.max(0, Math.min(255, Math.round(b + (p >= 0 ? (255 - b) * p : b * p))));
-    return `rgb(${nr}, ${ng}, ${nb})`;
-  }
-
-  function hexToRgba(hex, alpha) {
-    const raw = String(hex || "#ffffff").replace("#", "");
-    const safe = raw.length === 3 ? raw.split("").map((c) => c + c).join("") : raw.padEnd(6, "f");
-    const r = parseInt(safe.slice(0, 2), 16);
-    const g = parseInt(safe.slice(2, 4), 16);
-    const b = parseInt(safe.slice(4, 6), 16);
-    return `rgba(${r}, ${g}, ${b}, ${Math.max(0, Math.min(1, alpha))})`;
-  }
-
-  function log(message) {
-    runtime.lastLog = `${message} | ${new Date().toLocaleTimeString("ko-KR", { hour12: false })}`;
-  }
-
-  function fmt(value) {
-    const n = Number(value || 0);
+  function fmt(v) {
+    const n = Number(v || 0);
     if (n >= 1e12) return `${(n / 1e12).toFixed(2)}T`;
     if (n >= 1e9) return `${(n / 1e9).toFixed(2)}B`;
     if (n >= 1e6) return `${(n / 1e6).toFixed(2)}M`;
