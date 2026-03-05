@@ -278,6 +278,16 @@
     });
 
     el.bossChallenge.addEventListener("click", () => {
+      if (state.climbMode) {
+        log("현재 보스 처치 후 자동으로 다음 보스로 진행됩니다");
+        render();
+        return;
+      }
+      if (runtime.roundTransition > 0 || runtime.pendingRespawn) {
+        log("전투 전환 중에는 도전할 수 없습니다");
+        render();
+        return;
+      }
       if (state.farmStage) state.farmStage = null;
       state.climbMode = true;
       if (state.wave >= 10) {
@@ -1961,6 +1971,7 @@
 
     el.toggleAutoSkill.textContent = `자동 스킬: ${state.autoSkill ? "ON" : "OFF"}`;
     el.bossChallenge.textContent = state.climbMode ? "다음 보스 도전" : "보스 등반 재개";
+    el.bossChallenge.disabled = state.climbMode || runtime.roundTransition > 0 || runtime.pendingRespawn;
     if (state.farmStage) {
       el.farmModeText.textContent = `현재 모드: Stage ${state.farmStage} 고정 반복 사냥 (${state.climbMode ? "등반" : "반복"})`;
     } else {
