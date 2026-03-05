@@ -76,7 +76,7 @@ h1 { margin: 3px 0 4px; font-family: "Black Han Sans", sans-serif; font-size: cl
 
 .resource-grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(7, minmax(0, 1fr));
   gap: 8px;
 }
 
@@ -246,6 +246,31 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   font-size: 0.86rem;
 }
 
+.dungeon-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.dungeon-card {
+  border: 1px solid rgba(140, 190, 255, 0.28);
+  border-radius: 10px;
+  padding: 10px;
+  background: rgba(12, 28, 48, 0.72);
+  display: grid;
+  gap: 6px;
+}
+
+.dungeon-card h3 {
+  margin: 0;
+  font-size: 0.92rem;
+}
+
+.dungeon-card .hint {
+  margin: 0;
+  min-height: 32px;
+}
+
 .collection-list::-webkit-scrollbar,
 .summon-results::-webkit-scrollbar,
 .stage-rank-list::-webkit-scrollbar {
@@ -266,4 +291,5 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   .farm-row { grid-template-columns: 1fr; }
   .skill-slot-list, .slot-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .summon-row { grid-template-columns: 1fr; }
+  .dungeon-grid { grid-template-columns: 1fr; }
 }

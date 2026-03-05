@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Pretendard:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=20260305j" />
+  <link rel="stylesheet" href="styles.css?v=20260305k" />
 </head>
 <body>
   <main class="shell">
@@ -25,6 +25,9 @@
       <article class="resource-card"><p>Stage</p><strong id="stage">1-1</strong></article>
       <article class="resource-card"><p>Power</p><strong id="power">0</strong></article>
       <article class="resource-card"><p>Summon Lv</p><strong id="summon-levels">H1/P1/S1</strong></article>
+      <article class="resource-card"><p>Hero Ticket</p><strong id="ticket-heroes">0</strong></article>
+      <article class="resource-card"><p>Pet Ticket</p><strong id="ticket-pets">0</strong></article>
+      <article class="resource-card"><p>Skill Ticket</p><strong id="ticket-skills">0</strong></article>
     </section>
 
     <section class="battle-panel">
@@ -133,6 +136,33 @@
       </article>
     </section>
 
+    <section class="panel">
+      <h2>일일 던전</h2>
+      <p id="daily-reset-text" class="hint">일일 입장 초기화: 매일 00:00 (KST)</p>
+      <div class="dungeon-grid">
+        <article class="dungeon-card">
+          <h3>골드 던전</h3>
+          <p id="dungeon-gold-meta" class="hint">-</p>
+          <button id="dungeon-gold" type="button">입장</button>
+        </article>
+        <article class="dungeon-card">
+          <h3>영웅 던전</h3>
+          <p id="dungeon-heroes-meta" class="hint">-</p>
+          <button id="dungeon-heroes" type="button">입장</button>
+        </article>
+        <article class="dungeon-card">
+          <h3>펫 던전</h3>
+          <p id="dungeon-pets-meta" class="hint">-</p>
+          <button id="dungeon-pets" type="button">입장</button>
+        </article>
+        <article class="dungeon-card">
+          <h3>스킬 던전</h3>
+          <p id="dungeon-skills-meta" class="hint">-</p>
+          <button id="dungeon-skills" type="button">입장</button>
+        </article>
+      </div>
+    </section>
+
     <section class="panel stats">
       <h2>상태</h2>
       <ul id="stat-list" class="stat-list"></ul>
@@ -149,7 +179,7 @@
 
   <script>window.APP_ROOT = "../../";</script>
   <script type="module" src="../../shared/auth-guard.js?v=20260224m"></script>
-  <script src="game.js?v=20260305v"></script>
+  <script src="game.js?v=20260305w"></script>
   <script type="module" src="ranking.js?v=20260305a"></script>
 </body>
 </html>

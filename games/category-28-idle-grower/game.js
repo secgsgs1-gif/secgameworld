@@ -122,6 +122,11 @@
       pets: { level: 1, draws: 0 },
       skills: { level: 1, draws: 0 }
     },
+    tickets: { heroes: 0, pets: 0, skills: 0 },
+    dungeons: {
+      lastResetDay: "",
+      entries: { gold: 2, heroes: 2, pets: 2, skills: 2 }
+    },
     heroHp: 280,
     lastSave: Date.now()
   };
@@ -209,6 +214,18 @@
     summonSkill1: document.getElementById("summon-skill-1"),
     summonSkill10: document.getElementById("summon-skill-10"),
     summonSkillMeta: document.getElementById("summon-skill-meta"),
+    ticketHeroes: document.getElementById("ticket-heroes"),
+    ticketPets: document.getElementById("ticket-pets"),
+    ticketSkills: document.getElementById("ticket-skills"),
+    dailyResetText: document.getElementById("daily-reset-text"),
+    dungeonGoldBtn: document.getElementById("dungeon-gold"),
+    dungeonHeroBtn: document.getElementById("dungeon-heroes"),
+    dungeonPetBtn: document.getElementById("dungeon-pets"),
+    dungeonSkillBtn: document.getElementById("dungeon-skills"),
+    dungeonGoldMeta: document.getElementById("dungeon-gold-meta"),
+    dungeonHeroMeta: document.getElementById("dungeon-heroes-meta"),
+    dungeonPetMeta: document.getElementById("dungeon-pets-meta"),
+    dungeonSkillMeta: document.getElementById("dungeon-skills-meta"),
     costHero1: document.getElementById("cost-hero-1"),
     costHero10: document.getElementById("cost-hero-10"),
     costPet1: document.getElementById("cost-pet-1"),
@@ -245,6 +262,7 @@
   emitStageProgress(true);
 
   function bindEvents() {
+    resetDailyDungeonsIfNeeded();
     el.toggleAutoSkill.addEventListener("click", () => {
       state.autoSkill = !state.autoSkill;
       render();
@@ -332,6 +350,10 @@
     el.summonPet10.addEventListener("click", () => summon("pets", 10));
     el.summonSkill1.addEventListener("click", () => summon("skills", 1));
     el.summonSkill10.addEventListener("click", () => summon("skills", 10));
+    if (el.dungeonGoldBtn) el.dungeonGoldBtn.addEventListener("click", () => runDailyDungeon("gold"));
+    if (el.dungeonHeroBtn) el.dungeonHeroBtn.addEventListener("click", () => runDailyDungeon("heroes"));
+    if (el.dungeonPetBtn) el.dungeonPetBtn.addEventListener("click", () => runDailyDungeon("pets"));
+    if (el.dungeonSkillBtn) el.dungeonSkillBtn.addEventListener("click", () => runDailyDungeon("skills"));
 
   }
 
@@ -441,14 +463,21 @@
   function summon(type, count) {
     const costs = getSummonCosts(type);
     const price = count === 10 ? costs.ten : costs.one;
+    const ticketKey = type;
+    const tickets = Number(state.tickets[ticketKey] || 0);
+    const useTickets = tickets >= count;
 
-    if (state.gold < price) {
+    if (!useTickets && state.gold < price) {
       el.summonLog.textContent = "Gold 부족";
       log("Gold 부족");
       return;
     }
 
-    state.gold -= price;
+    if (useTickets) {
+      state.tickets[ticketKey] -= count;
+    } else {
+      state.gold -= price;
+    }
 
     const pool = getPool(type);
     const rows = [];
@@ -480,9 +509,90 @@
       text: `${rarityByKey(r.item.rarity).name} ${r.item.name} ${r.result.promoted ? `-> ${r.result.star}성` : ""}`
     }));
 
-    el.summonLog.textContent = `${categoryName(type)} ${count}회 뽑기 완료`;
-    log(`${categoryName(type)} ${count}회 뽑기`);
+    const payLabel = useTickets ? `${categoryName(type)} 뽑기권 ${count}장 사용` : `${fmt(price)} Gold 사용`;
+    el.summonLog.textContent = `${categoryName(type)} ${count}회 뽑기 완료 (${payLabel})`;
+    log(`${categoryName(type)} ${count}회 뽑기 (${payLabel})`);
     render();
+  }
+
+  function runDailyDungeon(type) {
+    resetDailyDungeonsIfNeeded();
+    const entries = state.dungeons.entries;
+    if (!Number.isFinite(entries[type])) entries[type] = 2;
+    if (entries[type] <= 0) {
+      log("해당 던전 일일 입장 횟수를 모두 사용했습니다");
+      render();
+      return;
+    }
+    entries[type] -= 1;
+
+    const best = Math.max(1, Math.floor(Number(state.bestStage || state.stage || 1)));
+    const power = getTeamPower() * getAttackSpeed();
+    const diffBase = Math.pow(best, 1.42) * 230;
+    const diffMul = type === "gold" ? 0.9 : type === "pets" ? 1.06 : type === "heroes" ? 1.12 : 1.2;
+    const ratio = power / Math.max(1, diffBase * diffMul);
+
+    const grade = ratio >= 1.28 ? "perfect" : ratio >= 0.86 ? "clear" : "fail";
+    const reward = computeDungeonReward(type, best, grade);
+
+    state.gold += reward.gold;
+    state.tickets.heroes += reward.heroTickets;
+    state.tickets.pets += reward.petTickets;
+    state.tickets.skills += reward.skillTickets;
+
+    const gradeKo = grade === "perfect" ? "완벽 클리어" : grade === "clear" ? "클리어" : "실패";
+    const rewardText = [
+      reward.gold > 0 ? `Gold +${fmt(reward.gold)}` : "",
+      reward.heroTickets > 0 ? `영웅권 +${reward.heroTickets}` : "",
+      reward.petTickets > 0 ? `펫권 +${reward.petTickets}` : "",
+      reward.skillTickets > 0 ? `스킬권 +${reward.skillTickets}` : ""
+    ].filter(Boolean).join(" / ");
+
+    log(`일일 ${dungeonName(type)} ${gradeKo} (${rewardText || "보상 없음"})`);
+    runtime.roundBanner = `${dungeonName(type)} ${gradeKo}`;
+    runtime.roundBannerTimer = 1.4;
+    runtime.stagePulse = Math.max(runtime.stagePulse, 0.7);
+    render();
+  }
+
+  function dungeonName(type) {
+    if (type === "gold") return "골드 던전";
+    if (type === "heroes") return "영웅 던전";
+    if (type === "pets") return "펫 던전";
+    return "스킬 던전";
+  }
+
+  function computeDungeonReward(type, bestStage, grade) {
+    const mult = grade === "perfect" ? 1.55 : grade === "clear" ? 1 : 0.42;
+    if (type === "gold") {
+      const baseGold = Math.floor((Math.pow(bestStage, 1.24) * 1500) + 18000);
+      return { gold: Math.floor(baseGold * mult), heroTickets: 0, petTickets: 0, skillTickets: 0 };
+    }
+
+    if (grade === "fail") {
+      return { gold: Math.floor(8000 * mult), heroTickets: 0, petTickets: 0, skillTickets: 0 };
+    }
+
+    const baseTicket = Math.max(1, 1 + Math.floor(bestStage / 120));
+    const bonus = grade === "perfect" ? 1 : 0;
+    return {
+      gold: Math.floor(10000 * mult),
+      heroTickets: type === "heroes" ? baseTicket + bonus : 0,
+      petTickets: type === "pets" ? baseTicket + bonus : 0,
+      skillTickets: type === "skills" ? baseTicket + bonus : 0
+    };
+  }
+
+  function todayKeyKST() {
+    return new Intl.DateTimeFormat("sv-SE", { timeZone: "Asia/Seoul" }).format(new Date());
+  }
+
+  function resetDailyDungeonsIfNeeded() {
+    if (!state.dungeons) return;
+    const nowKey = todayKeyKST();
+    if (state.dungeons.lastResetDay === nowKey) return;
+    state.dungeons.lastResetDay = nowKey;
+    state.dungeons.entries = { gold: 2, heroes: 2, pets: 2, skills: 2 };
   }
 
   function obtainItem(type, id) {
@@ -969,7 +1079,18 @@
     const draws = Math.max(0, Number(s.draws || 0));
     const nextNeed = lvl >= 10 ? 0 : (lvl * 100) - draws;
     const rates = getRarityRatesByLevel(lvl);
-    return `Lv.${lvl} | 누적 ${draws}회 | ${lvl >= 10 ? "MAX" : `다음 Lv까지 ${Math.max(0, nextNeed)}회`} | 신화 ${(rates.myth * 100).toFixed(3)}% · 전설 ${(rates.legend * 100).toFixed(2)}% · 유니크 ${(rates.unique * 100).toFixed(2)}%`;
+    const ticket = Math.max(0, Math.floor(Number(state.tickets[type] || 0)));
+    return `Lv.${lvl} | 누적 ${draws}회 | ${lvl >= 10 ? "MAX" : `다음 Lv까지 ${Math.max(0, nextNeed)}회`} | 뽑기권 ${ticket}장 | 신화 ${(rates.myth * 100).toFixed(3)}% · 전설 ${(rates.legend * 100).toFixed(2)}% · 유니크 ${(rates.unique * 100).toFixed(2)}%`;
+  }
+
+  function dungeonMetaText(type) {
+    const left = Math.max(0, Number(state.dungeons.entries[type] || 0));
+    const best = Math.max(1, Math.floor(Number(state.bestStage || state.stage || 1)));
+    const perfect = computeDungeonReward(type, best, "perfect");
+    const reward = type === "gold"
+      ? `최대 Gold +${fmt(perfect.gold)}`
+      : `최대 ${type === "heroes" ? "영웅권" : type === "pets" ? "펫권" : "스킬권"} +${type === "heroes" ? perfect.heroTickets : type === "pets" ? perfect.petTickets : perfect.skillTickets}`;
+    return `남은 횟수 ${left}/2 | ${reward}`;
   }
 
   function resetRuntime() {
@@ -1000,6 +1121,11 @@
     if (!state.equipped) state.equipped = cloneBase().equipped;
     if (!state.selectedSlots) state.selectedSlots = cloneBase().selectedSlots;
     if (!state.summon) state.summon = cloneBase().summon;
+    if (!state.tickets) state.tickets = { heroes: 0, pets: 0, skills: 0 };
+    if (!state.dungeons) {
+      state.dungeons = { lastResetDay: "", entries: { gold: 2, heroes: 2, pets: 2, skills: 2 } };
+    }
+    if (!state.dungeons.entries) state.dungeons.entries = { gold: 2, heroes: 2, pets: 2, skills: 2 };
 
     ["heroes", "pets", "skills"].forEach((t) => {
       if (!Array.isArray(state.equipped[t])) state.equipped[t] = new Array(SLOT_COUNT).fill(null);
@@ -1016,6 +1142,13 @@
       state.farmStage = Number.isFinite(n) && n >= 1 ? n : null;
     }
     if (typeof state.climbMode !== "boolean") state.climbMode = true;
+    state.tickets.heroes = Math.max(0, Math.floor(Number(state.tickets.heroes || 0)));
+    state.tickets.pets = Math.max(0, Math.floor(Number(state.tickets.pets || 0)));
+    state.tickets.skills = Math.max(0, Math.floor(Number(state.tickets.skills || 0)));
+    ["gold", "heroes", "pets", "skills"].forEach((k) => {
+      state.dungeons.entries[k] = Math.max(0, Math.floor(Number(state.dungeons.entries[k] ?? 2)));
+    });
+    resetDailyDungeonsIfNeeded();
     state.wave = Math.max(1, Math.min(10, Math.floor(Number(state.wave || 1))));
 
     if (!Number.isFinite(Number(state.bestStage))) {
@@ -1679,6 +1812,7 @@
     const heroCosts = getSummonCosts("heroes");
     const petCosts = getSummonCosts("pets");
     const skillCosts = getSummonCosts("skills");
+    resetDailyDungeonsIfNeeded();
 
     const heroHp = getHeroHp();
     const heroMaxHp = getHeroMaxHp();
@@ -1725,15 +1859,27 @@
     el.costSkill1.textContent = `${fmt(skillCosts.one)} G`;
     el.costSkill10.textContent = `${fmt(skillCosts.ten)} G`;
 
-    el.summonHero1.disabled = state.gold < heroCosts.one;
-    el.summonHero10.disabled = state.gold < heroCosts.ten;
-    el.summonPet1.disabled = state.gold < petCosts.one;
-    el.summonPet10.disabled = state.gold < petCosts.ten;
-    el.summonSkill1.disabled = state.gold < skillCosts.one;
-    el.summonSkill10.disabled = state.gold < skillCosts.ten;
+    el.summonHero1.disabled = state.gold < heroCosts.one && state.tickets.heroes < 1;
+    el.summonHero10.disabled = state.gold < heroCosts.ten && state.tickets.heroes < 10;
+    el.summonPet1.disabled = state.gold < petCosts.one && state.tickets.pets < 1;
+    el.summonPet10.disabled = state.gold < petCosts.ten && state.tickets.pets < 10;
+    el.summonSkill1.disabled = state.gold < skillCosts.one && state.tickets.skills < 1;
+    el.summonSkill10.disabled = state.gold < skillCosts.ten && state.tickets.skills < 10;
     if (el.summonHeroMeta) el.summonHeroMeta.textContent = summonMetaText("heroes");
     if (el.summonPetMeta) el.summonPetMeta.textContent = summonMetaText("pets");
     if (el.summonSkillMeta) el.summonSkillMeta.textContent = summonMetaText("skills");
+    if (el.ticketHeroes) el.ticketHeroes.textContent = fmt(state.tickets.heroes);
+    if (el.ticketPets) el.ticketPets.textContent = fmt(state.tickets.pets);
+    if (el.ticketSkills) el.ticketSkills.textContent = fmt(state.tickets.skills);
+    if (el.dailyResetText) el.dailyResetText.textContent = `일일 입장 초기화: 매일 00:00 (KST) | 오늘 키 ${state.dungeons.lastResetDay}`;
+    if (el.dungeonGoldMeta) el.dungeonGoldMeta.textContent = dungeonMetaText("gold");
+    if (el.dungeonHeroMeta) el.dungeonHeroMeta.textContent = dungeonMetaText("heroes");
+    if (el.dungeonPetMeta) el.dungeonPetMeta.textContent = dungeonMetaText("pets");
+    if (el.dungeonSkillMeta) el.dungeonSkillMeta.textContent = dungeonMetaText("skills");
+    if (el.dungeonGoldBtn) el.dungeonGoldBtn.disabled = state.dungeons.entries.gold <= 0;
+    if (el.dungeonHeroBtn) el.dungeonHeroBtn.disabled = state.dungeons.entries.heroes <= 0;
+    if (el.dungeonPetBtn) el.dungeonPetBtn.disabled = state.dungeons.entries.pets <= 0;
+    if (el.dungeonSkillBtn) el.dungeonSkillBtn.disabled = state.dungeons.entries.skills <= 0;
 
     el.skillSlotList.innerHTML = state.equipped.skills.map((id, i) => {
       if (!id) {
@@ -1779,6 +1925,7 @@
       `뽑기횟수(영웅) <strong>${state.summon.heroes.draws}</strong>`,
       `뽑기횟수(펫) <strong>${state.summon.pets.draws}</strong>`,
       `뽑기횟수(스킬) <strong>${state.summon.skills.draws}</strong>`,
+      `보유권(영웅/펫/스킬) <strong>${state.tickets.heroes}/${state.tickets.pets}/${state.tickets.skills}</strong>`,
       `오프라인/s <strong>${fmt(getOfflineIncomePerSec())}</strong>`,
       `오프라인 배율 <strong>x${getOfflineStageMultiplier().toFixed(2)}</strong>`
     ].map((x) => `<li>${x}</li>`).join("");
