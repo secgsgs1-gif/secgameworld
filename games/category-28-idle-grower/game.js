@@ -95,6 +95,7 @@
 
   const BASE_STATE = {
     gold: 35000,
+    pendingOfflineGold: 0,
     stage: 1,
     bestStage: 1,
     wave: 1,
@@ -158,7 +159,8 @@
     camX: 0,
     camY: 0,
     summonResultRows: [],
-    rankEmitTimer: 0
+    rankEmitTimer: 0,
+    inventoryUiDirty: true
   };
 
   const canvas = document.getElementById("battle-canvas");
@@ -171,6 +173,7 @@
     summonLevels: document.getElementById("summon-levels"),
     battleStatus: document.getElementById("battle-status"),
     offlineReward: document.getElementById("offline-reward"),
+    claimOfflineBtn: document.getElementById("claim-offline-btn"),
     heroLabel: document.getElementById("hero-label"),
     heroHpFill: document.getElementById("hero-hp-fill"),
     heroHpText: document.getElementById("hero-hp-text"),
@@ -218,7 +221,9 @@
   spawnEnemy();
 
   const offline = applyOfflineReward();
-  el.offlineReward.textContent = `오프라인 보상: ${fmt(offline)} Gold`;
+  if (offline > 0) {
+    log(`오프라인 누적 +${fmt(offline)} Gold`);
+  }
 
   setInterval(tick, TICK * 1000);
   setInterval(save, 12000);
@@ -278,6 +283,19 @@
       render();
     });
 
+    el.claimOfflineBtn.addEventListener("click", () => {
+      const gain = Math.max(0, Number(state.pendingOfflineGold || 0));
+      if (gain <= 0) {
+        log("받을 오프라인 보상이 없습니다");
+        return;
+      }
+      state.gold += gain;
+      state.pendingOfflineGold = 0;
+      log(`오프라인 보상 수령 +${fmt(gain)} Gold`);
+      emitStageProgress(true);
+      render();
+    });
+
     el.resetBtn.addEventListener("click", () => {
       if (!window.confirm("정말 초기화할까요?")) return;
       localStorage.removeItem(SAVE_KEY);
@@ -305,13 +323,17 @@
       const t = arr[slot];
       arr[slot] = id;
       arr[prevIdx] = t;
+      runtime.inventoryUiDirty = true;
       return;
     }
     arr[slot] = id;
+    runtime.inventoryUiDirty = true;
   }
 
   function tick() {
     const dt = TICK;
+
+    state.pendingOfflineGold = Number(state.pendingOfflineGold || 0) + getOfflineIncomePerSec() * dt;
 
     runtime.attackTimer += dt;
     runtime.enemyAttackTimer += dt;
@@ -425,6 +447,7 @@
     state.summon[type].level = calcSummonLevel(state.summon[type].draws);
 
     autoFillEmptySlots(type, rows.map((r) => r.item.id));
+    runtime.inventoryUiDirty = true;
 
     runtime.summonResultRows = rows.map((r) => ({
       name: r.item.name,
@@ -740,6 +763,7 @@
     }
     state.gold -= cost;
     state.inventories[type][id].level += 1;
+    runtime.inventoryUiDirty = true;
     log("강화 성공");
   }
 
@@ -866,11 +890,15 @@
     const now = Date.now();
     const elapsed = Math.max(0, Math.floor((now - Number(state.lastSave || now)) / 1000));
     const clamped = Math.min(MAX_OFFLINE_SECONDS, elapsed);
-    const reward = getTeamPower() * getAttackSpeed() * 0.28 * clamped;
-    state.gold += reward;
+    const reward = getOfflineIncomePerSec() * clamped;
+    state.pendingOfflineGold = Number(state.pendingOfflineGold || 0) + reward;
     state.lastSave = now;
     state.heroHp = getHeroMaxHp();
     return reward;
+  }
+
+  function getOfflineIncomePerSec() {
+    return getTeamPower() * getAttackSpeed() * 0.28;
   }
 
   function resetRuntime() {
@@ -881,6 +909,7 @@
     runtime.projectiles = [];
     runtime.floatTexts = [];
     runtime.summonResultRows = [];
+    runtime.inventoryUiDirty = true;
   }
 
   function cloneBase() {
@@ -924,6 +953,8 @@
 
     if (!state.heroHp || Number.isNaN(state.heroHp)) state.heroHp = getHeroMaxHp();
     state.heroHp = Math.min(state.heroHp, getHeroMaxHp());
+    if (!Number.isFinite(Number(state.pendingOfflineGold))) state.pendingOfflineGold = 0;
+    state.pendingOfflineGold = Math.max(0, Number(state.pendingOfflineGold));
   }
 
   function emitStageProgress(force) {
@@ -1327,6 +1358,7 @@
     el.summonLevels.textContent = `H${state.summon.heroes.level}/P${state.summon.pets.level}/S${state.summon.skills.level}`;
 
     el.battleStatus.textContent = runtime.statusMsg;
+    el.offlineReward.textContent = `오프라인 보상: ${fmt(state.pendingOfflineGold)} Gold`;
     el.heroLabel.textContent = "파티 HP";
     el.enemyName.textContent = runtime.isBoss ? `[BOSS] ${runtime.enemyName}` : runtime.enemyName;
 
@@ -1373,13 +1405,16 @@
       return `<article class="skill-cd-item"><p>${i + 1}. ${s.name}</p><strong>${cd > 0 ? `${cd.toFixed(1)}s` : "READY"}</strong></article>`;
     }).join("");
 
-    renderSlots("heroes", el.heroSlots);
-    renderSlots("pets", el.petSlots);
-    renderSlots("skills", el.skillSlots);
+    if (runtime.inventoryUiDirty) {
+      renderSlots("heroes", el.heroSlots);
+      renderSlots("pets", el.petSlots);
+      renderSlots("skills", el.skillSlots);
 
-    renderCollection("heroes", el.heroCollection);
-    renderCollection("pets", el.petCollection);
-    renderCollection("skills", el.skillCollection);
+      renderCollection("heroes", el.heroCollection);
+      renderCollection("pets", el.petCollection);
+      renderCollection("skills", el.skillCollection);
+      runtime.inventoryUiDirty = false;
+    }
 
     if (!runtime.summonResultRows.length) {
       el.summonResults.innerHTML = '<article class="result-item">최근 결과 없음</article>';
@@ -1445,6 +1480,7 @@
     host.querySelectorAll("button[data-pick-slot]").forEach((btn) => {
       btn.addEventListener("click", () => {
         state.selectedSlots[type] = Number(btn.getAttribute("data-pick-slot"));
+        runtime.inventoryUiDirty = true;
         render();
       });
     });
@@ -1453,6 +1489,7 @@
       btn.addEventListener("click", () => {
         const idx = Number(btn.getAttribute("data-clear-slot"));
         state.equipped[type][idx] = null;
+        runtime.inventoryUiDirty = true;
         render();
       });
     });
