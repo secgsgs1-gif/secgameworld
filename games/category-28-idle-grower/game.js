@@ -257,34 +257,6 @@
     el.summonSkill1.addEventListener("click", () => summon("skills", 1));
     el.summonSkill10.addEventListener("click", () => summon("skills", 10));
 
-    bindSlotEvents("heroes", el.heroSlots, el.heroCollection);
-    bindSlotEvents("pets", el.petSlots, el.petCollection);
-    bindSlotEvents("skills", el.skillSlots, el.skillCollection);
-  }
-
-  function bindSlotEvents(type, slotHost, collectionHost) {
-    slotHost.addEventListener("click", (e) => {
-      const pick = e.target.closest("button[data-pick-slot]");
-      if (pick) {
-        state.selectedSlots[type] = Number(pick.getAttribute("data-pick-slot"));
-        render();
-        return;
-      }
-      const clear = e.target.closest("button[data-clear-slot]");
-      if (clear) {
-        const idx = Number(clear.getAttribute("data-clear-slot"));
-        state.equipped[type][idx] = null;
-        render();
-      }
-    });
-
-    collectionHost.addEventListener("click", (e) => {
-      const btn = e.target.closest("button[data-equip-id]");
-      if (!btn) return;
-      const id = btn.getAttribute("data-equip-id");
-      equipToSelectedSlot(type, id);
-      render();
-    });
   }
 
   function equipToSelectedSlot(type, id) {
@@ -1372,6 +1344,21 @@
         render();
       });
     });
+
+    host.querySelectorAll("button[data-pick-slot]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        state.selectedSlots[type] = Number(btn.getAttribute("data-pick-slot"));
+        render();
+      });
+    });
+
+    host.querySelectorAll("button[data-clear-slot]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const idx = Number(btn.getAttribute("data-clear-slot"));
+        state.equipped[type][idx] = null;
+        render();
+      });
+    });
   }
 
   function renderCollection(type, host) {
@@ -1397,6 +1384,15 @@
       });
 
     host.innerHTML = rows.length ? rows.join("") : '<article class="collection-item"><p>없음</p></article>';
+
+    host.querySelectorAll("button[data-equip-id]").forEach((btn) => {
+      btn.addEventListener("click", () => {
+        const id = btn.getAttribute("data-equip-id");
+        equipToSelectedSlot(type, id);
+        log(`${categoryName(type)} 장착: ${findById(pool, id).name}`);
+        render();
+      });
+    });
   }
 
   function log(msg) {
