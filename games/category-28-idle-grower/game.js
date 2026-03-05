@@ -764,12 +764,19 @@
   }
 
   function heroTakeDamage(damage, label) {
-    setHeroHp(getHeroHp() - damage);
+    const reduction = getDefenseRate();
+    const mitigated = damage * (1 - reduction);
+    const minimum = Math.max(1, runtime.enemyAtk * 0.08);
+    const finalDamage = Math.max(minimum, mitigated);
+    setHeroHp(getHeroHp() - finalDamage);
     runtime.statusMsg = label;
     runtime.comboHits = 0;
     runtime.comboTimer = 0;
     runtime.dangerVignette = Math.min(1, runtime.dangerVignette + 0.55);
-    floatText(`-${fmt(damage)}`, 240, 120, "#ffb4b4");
+    floatText(`-${fmt(finalDamage)}`, 240, 120, "#ffb4b4");
+    if (reduction > 0.02) {
+      floatText(`BLOCK ${(reduction * 100).toFixed(1)}%`, 210, 98, "#8fd8ff");
+    }
     burstParticles(250, 220, "#ffb4b4", 10);
     shake(0.12);
     if (getHeroHp() <= 0) onHeroDefeated();
@@ -1033,6 +1040,40 @@
   function getCritChance() {
     const pet = getPetBuff();
     return Math.min(0.75, 0.05 + pet.crit);
+  }
+
+  function getDefenseRate() {
+    const heroes = state.equipped.heroes.filter(Boolean);
+    const pets = state.equipped.pets.filter(Boolean);
+    const skills = state.equipped.skills.filter(Boolean);
+
+    let defensePower = 0;
+
+    heroes.forEach((id) => {
+      const hero = findById(HERO_POOL, id);
+      const inv = state.inventories.heroes[id];
+      if (!hero || !inv) return;
+      const rarity = rarityByKey(hero.rarity).mult;
+      defensePower += hero.baseHp * 0.065 * rarity * (1 + (inv.level - 1) * 0.05) * (1 + (inv.star - 1) * 0.11);
+    });
+
+    pets.forEach((id) => {
+      const pet = findById(PET_POOL, id);
+      const inv = state.inventories.pets[id];
+      if (!pet || !inv) return;
+      const rarity = rarityByKey(pet.rarity).mult;
+      defensePower += (pet.spdAmp * 430 + pet.critAmp * 520) * rarity * (1 + (inv.level - 1) * 0.04) * (1 + (inv.star - 1) * 0.06);
+    });
+
+    skills.forEach((id) => {
+      const inv = state.inventories.skills[id];
+      if (!inv) return;
+      defensePower += 16 * inv.level + 28 * (inv.star - 1);
+    });
+
+    defensePower *= 1 + (state.accountLv - 1) * 0.02;
+    const mitigation = defensePower / (defensePower + runtime.enemyAtk * 3.4 + 260);
+    return Math.max(0, Math.min(0.75, mitigation));
   }
 
   function getCritMul() {
@@ -1946,6 +1987,7 @@
     el.statList.innerHTML = [
       `파티 구성 <strong>H${heroes}/P${pets}/S${skills}</strong>`,
       `공격속도 <strong>${getAttackSpeed().toFixed(2)}/s</strong>`,
+      `방어율 <strong>${(getDefenseRate() * 100).toFixed(2)}%</strong>`,
       `치명타 <strong>${(getCritChance() * 100).toFixed(2)}%</strong>`,
       `치명 배율 <strong>x${getCritMul().toFixed(2)}</strong>`,
       `누적 처치 <strong>${fmt(state.kills)}</strong>`,
