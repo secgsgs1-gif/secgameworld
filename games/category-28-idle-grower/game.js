@@ -751,20 +751,31 @@
     runtime.bossTimerMax = 25;
     runtime.bossTimer = runtime.bossTimerMax;
 
+    if (state.stage <= 10) {
+      // Beginner zone: force-clear friendly tuning through stage 10-10.
+      const stagePow = Math.pow(state.stage, 1.2);
+      const waveRamp = 1 + (state.wave - 1) * 0.09;
+      const bossMul = 1.1 + state.wave * 0.08;
+      runtime.enemyMaxHp = Math.max(70, Math.floor((70 + stagePow * 12) * waveRamp * bossMul));
+      runtime.enemyHp = runtime.enemyMaxHp;
+
+      runtime.enemyAtk = Math.max(4, (6 + Math.pow(state.stage, 1.08) * 1.35) * (1 + state.wave * 0.05));
+      runtime.enemyAtkInterval = Math.max(1.15, 1.62 - state.wave * 0.02);
+      return;
+    }
+
     const stagePow = Math.pow(state.stage, 1.95);
     const stageRamp = Math.pow(1.018, Math.max(0, state.stage - 1));
     const waveRamp = Math.pow(1.22, Math.max(0, state.wave - 1));
     const bossMul = 3.2 + state.wave * 0.22;
-    const earlyProgress = Math.max(0, Math.min(1, (state.stage - 1) / 9));
-    const earlyEase = state.stage <= 10 ? (0.28 + earlyProgress * 0.72) : 1;
 
-    runtime.enemyMaxHp = Math.max(160, Math.floor((240 + stagePow * 42) * stageRamp * waveRamp * bossMul * earlyEase));
+    runtime.enemyMaxHp = Math.max(260, Math.floor((240 + stagePow * 42) * stageRamp * waveRamp * bossMul));
     runtime.enemyHp = runtime.enemyMaxHp;
 
     const atkStagePow = Math.pow(state.stage, 1.52);
     const atkRamp = Math.pow(1.012, Math.max(0, state.stage - 1));
-    runtime.enemyAtk = Math.max(10, (22 + atkStagePow * 6.4) * atkRamp * (1.45 + state.wave * 0.18) * earlyEase);
-    runtime.enemyAtkInterval = Math.max(0.82, (1.38 - state.wave * 0.03) + (1 - earlyEase) * 0.42);
+    runtime.enemyAtk = Math.max(18, (22 + atkStagePow * 6.4) * atkRamp * (1.45 + state.wave * 0.18));
+    runtime.enemyAtkInterval = Math.max(0.82, 1.38 - state.wave * 0.03);
   }
 
   function recoverForNextRound() {
