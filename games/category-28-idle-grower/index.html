@@ -7,7 +7,7 @@
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Pretendard:wght@400;500;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="styles.css?v=20260305f" />
+  <link rel="stylesheet" href="styles.css?v=20260305g" />
 </head>
 <body>
   <main class="shell">
@@ -58,6 +58,16 @@
         <button id="boss-challenge" type="button">보스 즉시 도전</button>
         <button id="save-btn" type="button">수동 저장</button>
         <button id="reset-btn" type="button" class="danger">게임 초기화</button>
+      </section>
+
+      <section class="panel inner">
+        <h3>사냥터 고정</h3>
+        <div class="farm-row">
+          <input id="farm-stage-input" type="number" min="1" step="1" placeholder="스테이지 번호" />
+          <button id="set-farm-stage" type="button">해당 스테이지 고정</button>
+          <button id="clear-farm-stage" type="button">고정 해제</button>
+        </div>
+        <p id="farm-mode-text" class="hint">현재 모드: 진행 모드</p>
       </section>
 
       <section class="panel inner">
@@ -124,6 +134,6 @@
     </section>
   </main>
 
-  <script src="game.js?v=20260305f"></script>
+  <script src="game.js?v=20260305g"></script>
 </body>
 </html>

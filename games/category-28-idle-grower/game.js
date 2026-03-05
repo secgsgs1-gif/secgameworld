@@ -97,6 +97,7 @@
     gold: 35000,
     stage: 1,
     wave: 1,
+    farmStage: null,
     autoSkill: true,
     kills: 0,
     bossFailCount: 0,
@@ -180,6 +181,10 @@
     skillSlotList: document.getElementById("skill-slot-list"),
     toggleAutoSkill: document.getElementById("toggle-auto-skill"),
     bossChallenge: document.getElementById("boss-challenge"),
+    farmStageInput: document.getElementById("farm-stage-input"),
+    setFarmStageBtn: document.getElementById("set-farm-stage"),
+    clearFarmStageBtn: document.getElementById("clear-farm-stage"),
+    farmModeText: document.getElementById("farm-mode-text"),
     saveBtn: document.getElementById("save-btn"),
     resetBtn: document.getElementById("reset-btn"),
     summonHero1: document.getElementById("summon-hero-1"),
@@ -230,7 +235,29 @@
       state.wave = 10;
       runtime.statusMsg = `Stage ${state.stage} 보스 도전`;
       log("보스 즉시 도전 시작");
+      recoverForNextRound();
       spawnEnemy();
+      render();
+    });
+
+    el.setFarmStageBtn.addEventListener("click", () => {
+      const picked = Math.floor(Number(el.farmStageInput.value || 0));
+      if (picked < 1) {
+        log("사냥터 스테이지는 1 이상만 가능합니다");
+        return;
+      }
+      state.farmStage = picked;
+      state.stage = picked;
+      state.wave = 1;
+      recoverForNextRound();
+      spawnEnemy();
+      log(`사냥터 고정: Stage ${picked}`);
+      render();
+    });
+
+    el.clearFarmStageBtn.addEventListener("click", () => {
+      state.farmStage = null;
+      log("사냥터 고정 해제: 진행 모드");
       render();
     });
 
@@ -573,7 +600,11 @@
     gainExp(runtime.isBoss ? 18 : 5);
 
     if (runtime.isBoss) {
-      state.stage += 1;
+      if (state.farmStage) {
+        state.stage = state.farmStage;
+      } else {
+        state.stage += 1;
+      }
       state.wave = 1;
       runtime.statusMsg = `보스 처치! Stage ${state.stage}`;
       log("보스 토벌 성공: 다음 스테이지 진입");
@@ -585,7 +616,7 @@
       runtime.statusMsg = `Wave ${state.wave}`;
     }
 
-    healHero(0.2);
+    recoverForNextRound();
     spawnEnemy();
   }
 
@@ -595,7 +626,7 @@
     runtime.statusMsg = "보스 제한시간 초과";
     log("보스 제한시간 실패: 스테이지 상승 실패");
     burstParticles(780, 200, "#ff9cbc", 24);
-    healHero(1);
+    recoverForNextRound();
     spawnEnemy();
   }
 
@@ -603,11 +634,15 @@
     runtime.statusMsg = "파티 전멸";
     log("패배: 웨이브 후퇴");
     state.wave = Math.max(1, state.wave - 1);
-    state.heroHp = getHeroMaxHp();
+    recoverForNextRound();
     spawnEnemy();
   }
 
   function spawnEnemy() {
+    if (state.farmStage) {
+      state.stage = state.farmStage;
+    }
+
     runtime.projectiles = [];
     runtime.particles = [];
     runtime.enemyShield = 0;
@@ -642,6 +677,13 @@
 
     runtime.enemyAtk = Math.max(14, (16 + stagePow * 4.2) * (runtime.isBoss ? 2.55 : 1));
     runtime.enemyAtkInterval = runtime.isBoss ? 1.3 : 1.75;
+  }
+
+  function recoverForNextRound() {
+    state.heroHp = getHeroMaxHp();
+    runtime.skillCooldowns = [0, 0, 0, 0];
+    runtime.attackTimer = 0;
+    runtime.enemyAttackTimer = 0;
   }
 
   function gainExp(v) {
@@ -847,6 +889,11 @@
       if (!state.inventories[t]) state.inventories[t] = {};
       if (!state.summon[t]) state.summon[t] = { level: 1, draws: 0 };
     });
+
+    if (state.farmStage !== null) {
+      const n = Math.floor(Number(state.farmStage));
+      state.farmStage = Number.isFinite(n) && n >= 1 ? n : null;
+    }
 
     if (!state.heroHp || Number.isNaN(state.heroHp)) state.heroHp = getHeroMaxHp();
     state.heroHp = Math.min(state.heroHp, getHeroMaxHp());
@@ -1252,6 +1299,12 @@
     }
 
     el.toggleAutoSkill.textContent = `자동 스킬: ${state.autoSkill ? "ON" : "OFF"}`;
+    el.farmModeText.textContent = state.farmStage
+      ? `현재 모드: Stage ${state.farmStage} 고정 반복 사냥`
+      : "현재 모드: 진행 모드";
+    if (document.activeElement !== el.farmStageInput) {
+      el.farmStageInput.value = state.farmStage ? String(state.farmStage) : "";
+    }
 
     el.costHero1.textContent = `${fmt(heroCosts.one)} G`;
     el.costHero10.textContent = `${fmt(heroCosts.ten)} G`;

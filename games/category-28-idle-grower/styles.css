@@ -123,6 +123,15 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 
 .inner { margin-top: 8px; padding: 8px; }
 .inner h3 { margin: 0 0 8px; font-size: 0.95rem; }
+.farm-row { display: grid; grid-template-columns: 160px 1fr 1fr; gap: 6px; }
+.farm-row input {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: rgba(15, 30, 52, 0.9);
+  color: var(--text);
+  padding: 8px 10px;
+  font: inherit;
+}
 .skill-slot-list { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; }
 .skill-cd-item { padding: 7px; }
 .skill-cd-item p { margin: 0; font-size: 0.79rem; color: #c8e2ff; }
@@ -164,6 +173,7 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   .resource-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .bars-grid, .grid-2, .grid-3, .stats .stat-list { grid-template-columns: 1fr; }
   .combat-actions { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .farm-row { grid-template-columns: 1fr; }
   .skill-slot-list, .slot-row { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .summon-row { grid-template-columns: 1fr; }
 }
