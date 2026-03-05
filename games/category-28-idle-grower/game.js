@@ -171,6 +171,9 @@
     roundBannerTimer: 0,
     dangerVignette: 0,
     stagePulse: 0,
+    roundTransition: 0,
+    pendingRespawn: false,
+    transitionLabel: "",
     summonResultRows: [],
     rankEmitTimer: 0,
     inventoryUiDirty: true
@@ -394,6 +397,25 @@
     if (runtime.enemyShieldTimer <= 0) runtime.enemyShield = 0;
 
     runtime.skillCooldowns = runtime.skillCooldowns.map((v) => Math.max(0, v - dt));
+
+    if (runtime.roundTransition > 0) {
+      runtime.roundTransition = Math.max(0, runtime.roundTransition - dt);
+      runtime.statusMsg = `${runtime.transitionLabel || "다음 전투 준비"} (${runtime.roundTransition.toFixed(1)}s)`;
+      if (runtime.roundTransition <= 0 && runtime.pendingRespawn) {
+        runtime.pendingRespawn = false;
+        spawnEnemy();
+      }
+      updateParticles(dt);
+      updateFloatTexts(dt);
+      updateCameraShake();
+      runtime.rankEmitTimer += dt;
+      if (runtime.rankEmitTimer >= 1) {
+        runtime.rankEmitTimer = 0;
+        emitStageProgress(false);
+      }
+      render();
+      return;
+    }
 
     const atkInterval = 1 / Math.max(0.3, getAttackSpeed());
     if (runtime.attackTimer >= atkInterval) {
@@ -806,8 +828,7 @@
       log(`반복 사냥: ${state.stage}-${state.wave}`);
     }
 
-    recoverForNextRound();
-    spawnEnemy();
+    scheduleNextEncounter(1.0, "다음 적 출현");
     emitStageProgress(true);
   }
 
@@ -820,8 +841,7 @@
     runtime.roundBannerTimer = 1.5;
     log(`보스 제한시간 실패: ${state.stage}-${state.wave} 반복 사냥`);
     burstParticles(780, 200, "#ff9cbc", 24);
-    recoverForNextRound();
-    spawnEnemy();
+    scheduleNextEncounter(1.0, "전투 재정비");
     emitStageProgress(true);
   }
 
@@ -832,9 +852,15 @@
     state.climbMode = false;
     state.wave = Math.max(1, state.wave - 1);
     log(`패배: ${state.stage}-${state.wave}로 후퇴, 반복 사냥`);
-    recoverForNextRound();
-    spawnEnemy();
+    scheduleNextEncounter(1.0, "파티 재정비");
     emitStageProgress(true);
+  }
+
+  function scheduleNextEncounter(delaySec, label) {
+    recoverForNextRound();
+    runtime.roundTransition = Math.max(0.2, Number(delaySec || 1));
+    runtime.pendingRespawn = true;
+    runtime.transitionLabel = label || "다음 전투 준비";
   }
 
   function spawnEnemy() {
@@ -1101,6 +1127,9 @@
     runtime.particles = [];
     runtime.projectiles = [];
     runtime.floatTexts = [];
+    runtime.roundTransition = 0;
+    runtime.pendingRespawn = false;
+    runtime.transitionLabel = "";
     runtime.summonResultRows = [];
     runtime.inventoryUiDirty = true;
   }
