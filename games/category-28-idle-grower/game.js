@@ -566,8 +566,6 @@
       render();
       return;
     }
-    entries[type] -= 1;
-
     const best = Math.max(1, Math.floor(Number(state.bestStage || state.stage || 1)));
     const power = getTeamPower() * getAttackSpeed();
     const diffBase = Math.pow(best, 1.42) * 230;
@@ -575,6 +573,15 @@
     const ratio = power / Math.max(1, diffBase * diffMul);
 
     const grade = ratio >= 1.28 ? "perfect" : ratio >= 0.86 ? "clear" : "fail";
+    if (grade === "fail") {
+      log(`일일 ${dungeonName(type)} 실패 (입장권 소모 없음)`);
+      runtime.roundBanner = `${dungeonName(type)} 실패`;
+      runtime.roundBannerTimer = 1.2;
+      render();
+      return;
+    }
+
+    entries[type] -= 1;
     const reward = computeDungeonReward(type, best, grade);
 
     state.gold += reward.gold;
@@ -605,18 +612,18 @@
   }
 
   function computeDungeonReward(type, bestStage, grade) {
-    const mult = grade === "perfect" ? 1.55 : grade === "clear" ? 1 : 0.42;
+    const mult = grade === "perfect" ? 1.55 : grade === "clear" ? 1 : 0;
     if (type === "gold") {
       const baseGold = Math.floor((Math.pow(bestStage, 1.24) * 1500) + 18000);
       return { gold: Math.floor(baseGold * mult), heroTickets: 0, petTickets: 0, skillTickets: 0 };
     }
 
     if (grade === "fail") {
-      return { gold: Math.floor(8000 * mult), heroTickets: 0, petTickets: 0, skillTickets: 0 };
+      return { gold: 0, heroTickets: 0, petTickets: 0, skillTickets: 0 };
     }
 
-    const baseTicket = Math.max(1, 1 + Math.floor(bestStage / 120));
-    const bonus = grade === "perfect" ? 1 : 0;
+    const baseTicket = Math.max(10, 10 + Math.floor(bestStage / 150));
+    const bonus = grade === "perfect" ? 2 : 0;
     return {
       gold: Math.floor(10000 * mult),
       heroTickets: type === "heroes" ? baseTicket + bonus : 0,
