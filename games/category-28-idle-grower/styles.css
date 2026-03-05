@@ -33,6 +33,17 @@ body {
   box-shadow: 0 16px 38px rgba(4, 8, 20, 0.48);
   display: grid;
   gap: 10px;
+  position: relative;
+  overflow: hidden;
+}
+
+.shell::before {
+  content: "";
+  position: absolute;
+  inset: -20% -10% auto;
+  height: 220px;
+  background: radial-gradient(55% 80% at 50% 0%, rgba(128, 197, 255, 0.16), rgba(128, 197, 255, 0));
+  pointer-events: none;
 }
 
 .topbar,
@@ -97,6 +108,7 @@ h1 { margin: 3px 0 4px; font-family: "Black Han Sans", sans-serif; font-size: cl
   border-radius: 10px;
   border: 1px solid rgba(151, 200, 255, 0.24);
   background: linear-gradient(180deg, rgba(30, 49, 81, 0.76), rgba(17, 24, 42, 0.9));
+  box-shadow: inset 0 0 0 1px rgba(179, 220, 255, 0.15), 0 12px 24px rgba(5, 9, 20, 0.36);
 }
 
 .combat-actions {
@@ -116,6 +128,18 @@ button {
   font-weight: 700;
   font-size: 0.84rem;
   cursor: pointer;
+  transition: transform 120ms ease, border-color 120ms ease, box-shadow 120ms ease, filter 120ms ease;
+}
+
+button:hover:enabled {
+  transform: translateY(-1px);
+  border-color: rgba(181, 228, 255, 0.8);
+  box-shadow: 0 6px 14px rgba(10, 28, 52, 0.4);
+  filter: saturate(1.12);
+}
+
+button:active:enabled {
+  transform: translateY(0);
 }
 
 button span { margin-top: 4px; display: block; color: #9cc8ff; font-family: "JetBrains Mono", monospace; font-size: 0.8rem; }
@@ -161,6 +185,9 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
 
 .collection-list { display: grid; gap: 6px; max-height: 280px; overflow: auto; padding-right: 2px; }
 .collection-item { padding: 8px; display: grid; gap: 5px; }
+.collection-item {
+  background: linear-gradient(155deg, rgba(18, 39, 69, 0.86), rgba(13, 28, 50, 0.86));
+}
 .collection-item .top { display: flex; justify-content: space-between; gap: 6px; }
 .collection-item p { margin: 0; font-size: 0.8rem; color: #c6ddff; }
 .collection-item button { padding: 6px 8px; font-size: 0.77rem; }
@@ -189,6 +216,19 @@ button:disabled { opacity: 0.45; cursor: not-allowed; }
   padding: 7px 9px;
   background: rgba(14, 29, 50, 0.8);
   font-size: 0.86rem;
+}
+
+.collection-list::-webkit-scrollbar,
+.summon-results::-webkit-scrollbar,
+.stage-rank-list::-webkit-scrollbar {
+  width: 8px;
+}
+
+.collection-list::-webkit-scrollbar-thumb,
+.summon-results::-webkit-scrollbar-thumb,
+.stage-rank-list::-webkit-scrollbar-thumb {
+  background: rgba(146, 190, 235, 0.45);
+  border-radius: 999px;
 }
 
 @media (max-width: 1040px) {

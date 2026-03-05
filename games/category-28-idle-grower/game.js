@@ -158,6 +158,12 @@
     screenShake: 0,
     camX: 0,
     camY: 0,
+    comboHits: 0,
+    comboTimer: 0,
+    roundBanner: "",
+    roundBannerTimer: 0,
+    dangerVignette: 0,
+    stagePulse: 0,
     summonResultRows: [],
     rankEmitTimer: 0,
     inventoryUiDirty: true
@@ -343,6 +349,11 @@
     runtime.hitFlash = Math.max(0, runtime.hitFlash - dt * 1.7);
     runtime.enemyShieldTimer = Math.max(0, runtime.enemyShieldTimer - dt);
     runtime.screenShake = Math.max(0, runtime.screenShake - dt * 1.9);
+    runtime.comboTimer = Math.max(0, runtime.comboTimer - dt);
+    runtime.roundBannerTimer = Math.max(0, runtime.roundBannerTimer - dt);
+    runtime.dangerVignette = Math.max(0, runtime.dangerVignette - dt * 1.2);
+    runtime.stagePulse = Math.max(0, runtime.stagePulse - dt * 1.8);
+    if (runtime.comboTimer <= 0) runtime.comboHits = 0;
 
     if (runtime.enemyShieldTimer <= 0) runtime.enemyShield = 0;
 
@@ -604,6 +615,9 @@
   function heroTakeDamage(damage, label) {
     setHeroHp(getHeroHp() - damage);
     runtime.statusMsg = label;
+    runtime.comboHits = 0;
+    runtime.comboTimer = 0;
+    runtime.dangerVignette = Math.min(1, runtime.dangerVignette + 0.55);
     floatText(`-${fmt(damage)}`, 240, 120, "#ffb4b4");
     burstParticles(250, 220, "#ffb4b4", 10);
     shake(0.12);
@@ -625,7 +639,11 @@
     runtime.statusMsg = crit ? `${source} 치명타` : `${source} 적중`;
     floatText(`-${fmt(damage)}`, 780, 125, crit ? "#ffe690" : "#dcf7ff");
 
-    if (byHero) runtime.hitFlash = 0.2;
+    if (byHero) {
+      runtime.hitFlash = 0.2;
+      runtime.comboHits += 1;
+      runtime.comboTimer = 2.2;
+    }
 
     if (runtime.enemyHp <= 0) onEnemyDefeated();
   }
@@ -647,6 +665,9 @@
       }
       state.wave = 1;
       runtime.statusMsg = `보스 처치! Stage ${state.stage}`;
+      runtime.roundBanner = `STAGE ${state.stage} 진입`;
+      runtime.roundBannerTimer = 1.8;
+      runtime.stagePulse = 1;
       log("보스 토벌 성공: 다음 스테이지 진입");
       burstParticles(790, 200, "#ffe59b", 34);
       shake(0.24);
@@ -665,6 +686,8 @@
     state.bossFailCount += 1;
     state.wave = 9;
     runtime.statusMsg = "보스 제한시간 초과";
+    runtime.roundBanner = "BOSS FAIL - 9웨이브 복귀";
+    runtime.roundBannerTimer = 1.5;
     log("보스 제한시간 실패: 스테이지 상승 실패");
     burstParticles(780, 200, "#ff9cbc", 24);
     recoverForNextRound();
@@ -674,8 +697,16 @@
 
   function onHeroDefeated() {
     runtime.statusMsg = "파티 전멸";
-    log("패배: 웨이브 후퇴");
-    state.wave = Math.max(1, state.wave - 1);
+    runtime.roundBanner = "DEFEAT - 재정비";
+    runtime.roundBannerTimer = 1.5;
+    if (runtime.isBoss || state.wave >= 10) {
+      // Boss defeat loop: always return to x-9 farming wave.
+      state.wave = 9;
+      log("보스전 패배: 해당 스테이지 9웨이브로 복귀");
+    } else {
+      log("패배: 웨이브 후퇴");
+      state.wave = Math.max(1, state.wave - 1);
+    }
     recoverForNextRound();
     spawnEnemy();
     emitStageProgress(true);
@@ -693,6 +724,7 @@
     runtime.patternTimer = 0;
     runtime.dotTimer = 0;
     runtime.dotTick = 0;
+    runtime.stagePulse = Math.max(runtime.stagePulse, 0.52);
 
     runtime.isBoss = state.wave >= 10;
 
@@ -1005,6 +1037,21 @@
     return pool.find((x) => x.id === id) || pool[0];
   }
 
+  function hashString(input) {
+    const s = String(input || "");
+    let h = 2166136261;
+    for (let i = 0; i < s.length; i += 1) {
+      h ^= s.charCodeAt(i);
+      h = Math.imul(h, 16777619);
+    }
+    return h >>> 0;
+  }
+
+  function seedFloat(seed, offset) {
+    const x = Math.sin((seed + offset * 101) * 12.9898) * 43758.5453;
+    return x - Math.floor(x);
+  }
+
   function starText(star) {
     return "★".repeat(Math.min(10, star));
   }
@@ -1111,16 +1158,21 @@
 
     if (runtime.heroAttackFx > 0) drawSlash(495, h - 170, currentHeroAccent());
     if (runtime.enemyAttackFx > 0) drawSlash(650, h - 170, "#ffb6cc");
-    if (runtime.skillFx > 0) drawSkillEffect(w, h, runtime.skillColor, runtime.skillFx);
+    if (runtime.skillFx > 0) drawSkillEffect(w, h, runtime.skillColor, runtime.skillFx, state.equipped.skills);
 
     drawProjectiles();
     drawParticles();
     drawFloatTexts();
+    drawComboHud(w, h);
+    drawBossWarning(w, h, t);
+    drawRoundBanner(w, h, t);
+    drawStageBadge(w, h, t);
 
     if (runtime.hitFlash > 0) {
       ctx.fillStyle = `rgba(255, 242, 196, ${runtime.hitFlash * 0.22})`;
       ctx.fillRect(0, 0, w, h);
     }
+    drawDamageVignette(w, h, t);
 
     ctx.restore();
   }
@@ -1131,6 +1183,14 @@
     sky.addColorStop(1, "#131d35");
     ctx.fillStyle = sky;
     ctx.fillRect(0, 0, w, h);
+
+    const moon = ctx.createRadialGradient(w * 0.82, 72, 2, w * 0.82, 72, 90);
+    moon.addColorStop(0, "rgba(220, 240, 255, 0.9)");
+    moon.addColorStop(1, "rgba(220, 240, 255, 0)");
+    ctx.fillStyle = moon;
+    ctx.beginPath();
+    ctx.arc(w * 0.82, 72, 90, 0, Math.PI * 2);
+    ctx.fill();
 
     for (let i = 0; i < 22; i += 1) {
       const x = (i * 62 + t * 14) % (w + 30) - 15;
@@ -1152,18 +1212,46 @@
       ctx.fill();
     }
 
+    for (let i = 0; i < 4; i += 1) {
+      const fx = ((i * 300) + t * (8 + i * 1.8)) % (w + 240) - 240;
+      const fog = ctx.createLinearGradient(0, h - 220, 0, h - 70);
+      fog.addColorStop(0, "rgba(166, 213, 255, 0)");
+      fog.addColorStop(1, "rgba(166, 213, 255, 0.12)");
+      ctx.fillStyle = fog;
+      ctx.beginPath();
+      ctx.ellipse(fx, h - 106 - i * 6, 130, 44, 0, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
     const ground = ctx.createLinearGradient(0, h - 112, 0, h);
     ground.addColorStop(0, "#1f4f46");
     ground.addColorStop(1, "#0f2f2b");
     ctx.fillStyle = ground;
     ctx.fillRect(0, h - 112, w, 112);
+
+    if (runtime.stagePulse > 0) {
+      ctx.fillStyle = `rgba(255, 227, 154, ${runtime.stagePulse * 0.1})`;
+      ctx.fillRect(0, 0, w, h);
+    }
   }
 
   function drawHero(x, y, hero, attacking) {
+    const seed = hashString(hero.id || hero.name || "hero");
+    const f1 = seedFloat(seed, 1);
+    const f2 = seedFloat(seed, 2);
+    const f3 = seedFloat(seed, 3);
     ctx.save();
     ctx.translate(x, y);
 
-    ctx.fillStyle = hero.accent;
+    const aura = ctx.createRadialGradient(0, -18, 8, 0, -18, 44 + f1 * 16);
+    aura.addColorStop(0, hexToRgba(hero.accent, 0.45));
+    aura.addColorStop(1, "rgba(0,0,0,0)");
+    ctx.fillStyle = aura;
+    ctx.beginPath();
+    ctx.arc(0, -18, 44 + f1 * 16, 0, Math.PI * 2);
+    ctx.fill();
+
+    ctx.fillStyle = hexToRgba(hero.accent, 0.95);
     ctx.beginPath();
     ctx.arc(0, -56, 14, 0, Math.PI * 2);
     ctx.fill();
@@ -1180,7 +1268,37 @@
     ctx.closePath();
     ctx.fill();
 
-    ctx.strokeStyle = hero.accent;
+    // Shoulder plates for silhouette variety.
+    ctx.fillStyle = hexToRgba(shadeColor(hero.color, -24), 0.95);
+    ctx.beginPath();
+    ctx.moveTo(-18, -24);
+    ctx.lineTo(-4, -20 - f2 * 6);
+    ctx.lineTo(-12, -5);
+    ctx.closePath();
+    ctx.moveTo(18, -24);
+    ctx.lineTo(4, -20 - f3 * 6);
+    ctx.lineTo(12, -5);
+    ctx.closePath();
+    ctx.fill();
+
+    // Emblem by id hash.
+    ctx.fillStyle = hexToRgba(hero.accent, 0.85);
+    if ((seed % 3) === 0) {
+      ctx.fillRect(-4, -20, 8, 8);
+    } else if ((seed % 3) === 1) {
+      ctx.beginPath();
+      ctx.arc(0, -16, 4, 0, Math.PI * 2);
+      ctx.fill();
+    } else {
+      ctx.beginPath();
+      ctx.moveTo(0, -23);
+      ctx.lineTo(5, -14);
+      ctx.lineTo(-5, -14);
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    ctx.strokeStyle = hexToRgba(hero.accent, 0.95);
     ctx.lineWidth = 5;
     ctx.beginPath();
     const ex = attacking ? 58 : 38;
@@ -1188,6 +1306,12 @@
     ctx.moveTo(8, -22);
     ctx.lineTo(ex, ey);
     ctx.stroke();
+
+    // Weapon tip glow.
+    ctx.fillStyle = hexToRgba(hero.accent, attacking ? 0.9 : 0.45);
+    ctx.beginPath();
+    ctx.arc(ex, ey, attacking ? 4 : 2.6, 0, Math.PI * 2);
+    ctx.fill();
 
     ctx.strokeStyle = "#243c60";
     ctx.lineWidth = 6;
@@ -1202,21 +1326,48 @@
   }
 
   function drawPet(x, y, pet) {
+    const seed = hashString(pet.id || pet.name || "pet");
+    const mode = seed % 3;
     ctx.save();
     ctx.translate(x, y);
 
-    const glow = ctx.createRadialGradient(0, 0, 3, 0, 0, 26);
+    const glow = ctx.createRadialGradient(0, 0, 3, 0, 0, 30);
     glow.addColorStop(0, hexToRgba(pet.color, 0.95));
     glow.addColorStop(1, "rgba(0,0,0,0)");
     ctx.fillStyle = glow;
     ctx.beginPath();
-    ctx.arc(0, 0, 26, 0, Math.PI * 2);
+    ctx.arc(0, 0, 30, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.fillStyle = pet.color;
-    ctx.beginPath();
-    ctx.arc(0, 0, 10, 0, Math.PI * 2);
-    ctx.fill();
+    if (mode === 0) {
+      ctx.beginPath();
+      ctx.arc(0, 0, 10, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.beginPath();
+      ctx.moveTo(-8, -6);
+      ctx.lineTo(-14, -14);
+      ctx.lineTo(-3, -10);
+      ctx.closePath();
+      ctx.moveTo(8, -6);
+      ctx.lineTo(14, -14);
+      ctx.lineTo(3, -10);
+      ctx.closePath();
+      ctx.fill();
+    } else if (mode === 1) {
+      ctx.beginPath();
+      ctx.ellipse(0, 0, 12, 8, 0, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillRect(-3, -12, 6, 6);
+    } else {
+      ctx.beginPath();
+      ctx.moveTo(0, -12);
+      ctx.lineTo(11, 0);
+      ctx.lineTo(0, 12);
+      ctx.lineTo(-11, 0);
+      ctx.closePath();
+      ctx.fill();
+    }
 
     ctx.fillStyle = "#fff";
     ctx.beginPath();
@@ -1240,12 +1391,40 @@
       ctx.fillRect(-19, -35, 38, 50);
     } else {
       const hue = model.hue;
-      ctx.fillStyle = `hsl(${hue} 58% 56%)`;
+      const bossGrad = ctx.createLinearGradient(-36, -70, 36, 36);
+      bossGrad.addColorStop(0, `hsl(${hue} 72% 64%)`);
+      bossGrad.addColorStop(1, `hsl(${hue} 54% 28%)`);
+      ctx.fillStyle = bossGrad;
       ctx.beginPath();
       ctx.arc(0, -60, 28, 0, Math.PI * 2);
       ctx.fill();
       ctx.fillStyle = `hsl(${hue} 54% 30%)`;
       ctx.fillRect(-31, -35, 62, 66);
+
+      // Boss unique ornaments.
+      if (model.key === "ogre") {
+        ctx.fillStyle = "#ffd9a5";
+        ctx.fillRect(-24, -75, 10, 16);
+        ctx.fillRect(14, -75, 10, 16);
+      } else if (model.key === "lich") {
+        ctx.fillStyle = "#d8b8ff";
+        ctx.beginPath();
+        ctx.arc(0, -77, 9, 0, Math.PI * 2);
+        ctx.fill();
+      } else if (model.key === "golem") {
+        ctx.strokeStyle = "#9be8ff";
+        ctx.lineWidth = 3;
+        ctx.strokeRect(-25, -31, 50, 56);
+      } else if (model.key === "wyrm") {
+        ctx.fillStyle = "#ffb0dc";
+        ctx.beginPath();
+        ctx.moveTo(0, -40);
+        ctx.lineTo(20, -6);
+        ctx.lineTo(0, 12);
+        ctx.lineTo(-20, -6);
+        ctx.closePath();
+        ctx.fill();
+      }
     }
 
     if (shieldOn) {
@@ -1286,18 +1465,48 @@
     ctx.restore();
   }
 
-  function drawSkillEffect(w, h, color, power) {
+  function drawSkillEffect(w, h, color, power, skillIds) {
+    const ids = Array.isArray(skillIds) ? skillIds : [];
+    const sig = hashString(ids.filter(Boolean).join("|") || "none");
+    const mode = sig % 3;
+    const cx = w * 0.72;
+    const cy = h * 0.43;
+
     ctx.save();
     ctx.fillStyle = hexToRgba(color, Math.min(0.22, power * 0.3));
     ctx.beginPath();
-    ctx.arc(w * 0.72, h * 0.43, 190 * power, 0, Math.PI * 2);
+    ctx.arc(cx, cy, 190 * power, 0, Math.PI * 2);
     ctx.fill();
 
     ctx.strokeStyle = hexToRgba(color, 0.9);
     ctx.lineWidth = 4;
     for (let i = 0; i < 3; i += 1) {
       ctx.beginPath();
-      ctx.arc(w * 0.72, h * 0.43, (110 + i * 40) * power, 0, Math.PI * 2);
+      ctx.arc(cx, cy, (110 + i * 40) * power, 0, Math.PI * 2);
+      ctx.stroke();
+    }
+
+    if (mode === 0) {
+      for (let i = 0; i < 8; i += 1) {
+        const a = (Math.PI * 2 * i) / 8 + power * 2.4;
+        ctx.beginPath();
+        ctx.moveTo(cx + Math.cos(a) * 50 * power, cy + Math.sin(a) * 50 * power);
+        ctx.lineTo(cx + Math.cos(a) * 150 * power, cy + Math.sin(a) * 150 * power);
+        ctx.stroke();
+      }
+    } else if (mode === 1) {
+      for (let i = 0; i < 5; i += 1) {
+        ctx.beginPath();
+        ctx.moveTo(cx - 130 * power + i * 52 * power, cy - 100 * power);
+        ctx.lineTo(cx - 90 * power + i * 52 * power, cy + 110 * power);
+        ctx.stroke();
+      }
+    } else {
+      ctx.beginPath();
+      ctx.moveTo(cx, cy - 155 * power);
+      ctx.lineTo(cx + 140 * power, cy + 90 * power);
+      ctx.lineTo(cx - 140 * power, cy + 90 * power);
+      ctx.closePath();
       ctx.stroke();
     }
 
@@ -1335,6 +1544,84 @@
       ctx.fillText(f.text, f.x, f.y);
       ctx.restore();
     });
+  }
+
+  function drawComboHud(w, h) {
+    if (runtime.comboHits < 2 || runtime.comboTimer <= 0) return;
+    const alpha = Math.min(1, runtime.comboTimer / 1.8);
+    ctx.save();
+    ctx.globalAlpha = alpha;
+    ctx.font = "700 24px 'JetBrains Mono'";
+    ctx.fillStyle = "#ffe49a";
+    ctx.fillText(`${runtime.comboHits} HIT`, w * 0.43, 58);
+    ctx.font = "600 12px 'Pretendard'";
+    ctx.fillStyle = "#cfe9ff";
+    ctx.fillText("COMBO", w * 0.43, 76);
+    ctx.restore();
+  }
+
+  function drawBossWarning(w, h, t) {
+    if (!runtime.isBoss || runtime.bossTimer >= 8) return;
+    const pulse = (Math.sin(t * 12) + 1) / 2;
+    const a = 0.08 + pulse * 0.12;
+    ctx.save();
+    ctx.fillStyle = `rgba(255, 120, 120, ${a})`;
+    ctx.fillRect(0, 0, w, h);
+    ctx.font = "700 20px 'JetBrains Mono'";
+    ctx.fillStyle = `rgba(255, 225, 205, ${0.65 + pulse * 0.35})`;
+    ctx.fillText("BOSS TIME OUT WARNING", w - 360, 42);
+    ctx.restore();
+  }
+
+  function drawRoundBanner(w, h, t) {
+    if (runtime.roundBannerTimer <= 0 || !runtime.roundBanner) return;
+    const life = Math.min(1, runtime.roundBannerTimer / 1.8);
+    const y = 54 + Math.sin(t * 7) * 2;
+    ctx.save();
+    ctx.globalAlpha = life;
+    const bw = 360;
+    const bx = (w - bw) / 2;
+    const grad = ctx.createLinearGradient(bx, 0, bx + bw, 0);
+    grad.addColorStop(0, "rgba(14, 38, 72, 0.2)");
+    grad.addColorStop(0.5, "rgba(36, 78, 132, 0.75)");
+    grad.addColorStop(1, "rgba(14, 38, 72, 0.2)");
+    ctx.fillStyle = grad;
+    ctx.fillRect(bx, y - 24, bw, 36);
+    ctx.strokeStyle = "rgba(207, 232, 255, 0.8)";
+    ctx.strokeRect(bx, y - 24, bw, 36);
+    ctx.font = "700 16px 'JetBrains Mono'";
+    ctx.fillStyle = "#eaf4ff";
+    ctx.fillText(runtime.roundBanner, bx + 16, y);
+    ctx.restore();
+  }
+
+  function drawStageBadge(w, h, t) {
+    const bounce = Math.sin(t * 3.7) * 1.5;
+    ctx.save();
+    ctx.fillStyle = "rgba(10, 29, 52, 0.72)";
+    ctx.fillRect(18, 14 + bounce, 156, 42);
+    ctx.strokeStyle = "rgba(168, 214, 255, 0.75)";
+    ctx.strokeRect(18, 14 + bounce, 156, 42);
+    ctx.font = "700 13px 'JetBrains Mono'";
+    ctx.fillStyle = "#9fd5ff";
+    ctx.fillText("HUNT ZONE", 30, 32 + bounce);
+    ctx.font = "700 16px 'JetBrains Mono'";
+    ctx.fillStyle = "#e9f5ff";
+    ctx.fillText(`${state.stage}-${state.wave}`, 30, 50 + bounce);
+    ctx.restore();
+  }
+
+  function drawDamageVignette(w, h, t) {
+    if (runtime.dangerVignette <= 0) return;
+    const pulse = (Math.sin(t * 18) + 1) / 2;
+    const a = runtime.dangerVignette * (0.12 + pulse * 0.08);
+    ctx.save();
+    const g = ctx.createRadialGradient(w / 2, h / 2, 50, w / 2, h / 2, Math.max(w, h) * 0.65);
+    g.addColorStop(0, "rgba(255, 130, 130, 0)");
+    g.addColorStop(1, `rgba(255, 96, 96, ${a})`);
+    ctx.fillStyle = g;
+    ctx.fillRect(0, 0, w, h);
+    ctx.restore();
   }
 
   function currentHeroAccent() {
