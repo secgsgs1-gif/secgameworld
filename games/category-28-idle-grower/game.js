@@ -134,14 +134,14 @@
     enemyHp: 0,
     enemyAtk: 0,
     enemyAtkInterval: 1.7,
-    bossTimerMax: 30,
+    bossTimerMax: 25,
     enemyModel: BOSS_MODELS[0],
     enemyKind: "mob",
     isBoss: false,
     attackTimer: 0,
     enemyAttackTimer: 0,
     skillCooldowns: [0, 0, 0, 0],
-    bossTimer: 30,
+    bossTimer: 25,
     statusMsg: "전투 시작",
     lastLog: "자동 전투 진행중...",
     heroAttackFx: 0,
@@ -748,8 +748,7 @@
 
     runtime.enemyName = `${bossModel.name} ${state.stage}-${state.wave}`;
     runtime.enemyKind = bossModel.key;
-    const timerBase = 30 - (state.wave - 1) * 0.85 - Math.floor(state.stage / 120);
-    runtime.bossTimerMax = Math.max(12, timerBase);
+    runtime.bossTimerMax = 25;
     runtime.bossTimer = runtime.bossTimerMax;
 
     const stagePow = Math.pow(state.stage, 1.95);
@@ -964,7 +963,7 @@
     runtime.attackTimer = 0;
     runtime.enemyAttackTimer = 0;
     runtime.skillCooldowns = [0, 0, 0, 0];
-    runtime.bossTimerMax = 30;
+    runtime.bossTimerMax = 25;
     runtime.particles = [];
     runtime.projectiles = [];
     runtime.floatTexts = [];
@@ -1689,7 +1688,7 @@
 
     el.bossTimerBox.hidden = !runtime.isBoss;
     if (runtime.isBoss) {
-      const maxTimer = Math.max(1, runtime.bossTimerMax || 30);
+      const maxTimer = Math.max(1, runtime.bossTimerMax || 25);
       const r = Math.max(0, runtime.bossTimer / maxTimer);
       el.bossTimeFill.style.width = `${r * 100}%`;
       el.bossTimerLabel.textContent = `보스 제한시간 ${runtime.bossTimer.toFixed(1)} / ${maxTimer.toFixed(1)}초`;
