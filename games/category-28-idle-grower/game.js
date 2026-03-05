@@ -1311,7 +1311,7 @@
   function starText(star) {
     const n = Math.max(1, Math.min(10, Math.floor(Number(star || 1))));
     const filled = Math.max(0, Math.min(5, n - 5));
-    const normal = 5 - filled;
+    const normal = n <= 5 ? n : 10 - n;
     return `<span class="star-tier"><span class="tier-num">${n}성</span><span class="tier-stars"><span class="normal">${"★".repeat(normal)}</span><span class="fill">${"★".repeat(filled)}</span></span></span>`;
   }
 
