@@ -507,23 +507,14 @@
   }
 
   function summon(type, count) {
-    const costs = getSummonCosts(type);
-    const price = count === 10 ? costs.ten : costs.one;
     const ticketKey = type;
     const tickets = Number(state.tickets[ticketKey] || 0);
-    const useTickets = tickets >= count;
-
-    if (!useTickets && state.gold < price) {
-      el.summonLog.textContent = "Gold 부족";
-      log("Gold 부족");
+    if (tickets < count) {
+      el.summonLog.textContent = "소환권 부족";
+      log("소환권 부족");
       return;
     }
-
-    if (useTickets) {
-      state.tickets[ticketKey] -= count;
-    } else {
-      state.gold -= price;
-    }
+    state.tickets[ticketKey] -= count;
 
     const pool = getPool(type);
     const rows = [];
@@ -555,7 +546,7 @@
       text: `${rarityByKey(r.item.rarity).name} ${r.item.name} ${r.result.promoted ? `-> ${r.result.star}성` : ""}`
     }));
 
-    const payLabel = useTickets ? `${categoryName(type)} 뽑기권 ${count}장 사용` : `${fmt(price)} Gold 사용`;
+    const payLabel = `${categoryName(type)} 뽑기권 ${count}장 사용`;
     el.summonLog.textContent = `${categoryName(type)} ${count}회 뽑기 완료 (${payLabel})`;
     log(`${categoryName(type)} ${count}회 뽑기 (${payLabel})`);
     render();
@@ -1939,9 +1930,6 @@
   }
 
   function render() {
-    const heroCosts = getSummonCosts("heroes");
-    const petCosts = getSummonCosts("pets");
-    const skillCosts = getSummonCosts("skills");
     resetDailyDungeonsIfNeeded();
 
     const heroHp = getHeroHp();
@@ -1982,19 +1970,19 @@
       el.farmStageInput.value = state.farmStage ? String(state.farmStage) : "";
     }
 
-    el.costHero1.textContent = `${fmt(heroCosts.one)} G`;
-    el.costHero10.textContent = `${fmt(heroCosts.ten)} G`;
-    el.costPet1.textContent = `${fmt(petCosts.one)} G`;
-    el.costPet10.textContent = `${fmt(petCosts.ten)} G`;
-    el.costSkill1.textContent = `${fmt(skillCosts.one)} G`;
-    el.costSkill10.textContent = `${fmt(skillCosts.ten)} G`;
+    el.costHero1.textContent = `티켓 1`;
+    el.costHero10.textContent = `티켓 10`;
+    el.costPet1.textContent = `티켓 1`;
+    el.costPet10.textContent = `티켓 10`;
+    el.costSkill1.textContent = `티켓 1`;
+    el.costSkill10.textContent = `티켓 10`;
 
-    el.summonHero1.disabled = state.gold < heroCosts.one && state.tickets.heroes < 1;
-    el.summonHero10.disabled = state.gold < heroCosts.ten && state.tickets.heroes < 10;
-    el.summonPet1.disabled = state.gold < petCosts.one && state.tickets.pets < 1;
-    el.summonPet10.disabled = state.gold < petCosts.ten && state.tickets.pets < 10;
-    el.summonSkill1.disabled = state.gold < skillCosts.one && state.tickets.skills < 1;
-    el.summonSkill10.disabled = state.gold < skillCosts.ten && state.tickets.skills < 10;
+    el.summonHero1.disabled = state.tickets.heroes < 1;
+    el.summonHero10.disabled = state.tickets.heroes < 10;
+    el.summonPet1.disabled = state.tickets.pets < 1;
+    el.summonPet10.disabled = state.tickets.pets < 10;
+    el.summonSkill1.disabled = state.tickets.skills < 1;
+    el.summonSkill10.disabled = state.tickets.skills < 10;
     if (el.summonHeroMeta) el.summonHeroMeta.textContent = summonMetaText("heroes");
     if (el.summonPetMeta) el.summonPetMeta.textContent = summonMetaText("pets");
     if (el.summonSkillMeta) el.summonSkillMeta.textContent = summonMetaText("skills");
