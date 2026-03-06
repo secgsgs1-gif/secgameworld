@@ -859,10 +859,15 @@
   function onEnemyDefeated() {
     state.kills += 1;
 
+    const clearedStage = Math.max(1, Math.floor(Number(state.stage || 1)));
+    const clearedWave = Math.max(1, Math.floor(Number(state.wave || 1)));
+
     const reward = runtime.enemyMaxHp * 0.15 * 2.5 * (1 + state.stage * 0.02);
     state.gold += reward;
 
     gainExp(18);
+
+    grantMilestoneDungeonTickets(clearedStage, clearedWave);
 
     if (state.climbMode) {
       if (state.wave >= 10) {
@@ -887,6 +892,28 @@
 
     scheduleNextEncounter(1.0, "다음 적 출현");
     emitStageProgress(true);
+  }
+
+  function grantMilestoneDungeonTickets(stage, wave) {
+    if (wave !== 10) return;
+
+    const keys = ["heroes", "pets", "skills"];
+    const gains = { heroes: 0, pets: 0, skills: 0 };
+    for (let i = 0; i < 2; i += 1) {
+      const pick = keys[Math.floor(Math.random() * keys.length)];
+      gains[pick] += 1;
+      state.tickets[pick] += 1;
+    }
+
+    const gainedText = [
+      gains.heroes > 0 ? `영웅 던전 입장권 +${gains.heroes}` : "",
+      gains.pets > 0 ? `펫 던전 입장권 +${gains.pets}` : "",
+      gains.skills > 0 ? `스킬 던전 입장권 +${gains.skills}` : ""
+    ].filter(Boolean).join(" / ");
+
+    log(`${stage}-${wave} 클리어 보상: ${gainedText}`);
+    runtime.roundBanner = `${stage}-${wave} 클리어 보상`;
+    runtime.roundBannerTimer = Math.max(runtime.roundBannerTimer, 1.8);
   }
 
   function onBossTimeout() {
