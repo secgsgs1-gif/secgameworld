@@ -1076,7 +1076,7 @@
       petStars,
       skillStars,
       heroAtk: Math.min(2.5, heroStars * 0.0035),
-      heroHp: Math.min(2.8, heroStars * 0.004),
+      heroHp: Math.min(4.2, heroStars * 0.0065),
       petSpd: Math.min(1.1, petStars * 0.0025),
       petCrit: Math.min(0.35, petStars * 0.00075),
       skillBurst: Math.min(2.2, skillStars * 0.004),
@@ -1208,7 +1208,7 @@
 
   function getHeroMaxHp() {
     const heroes = state.equipped.heroes.filter(Boolean);
-    if (!heroes.length) return 200;
+    if (!heroes.length) return 320;
     const passive = getCollectionPassive();
 
     let hp = 0;
@@ -1217,10 +1217,11 @@
       const inv = state.inventories.heroes[id];
       if (!hero || !inv) return;
       const rarity = rarityByKey(hero.rarity).mult;
-      hp += hero.baseHp * rarity * (1 + (inv.level - 1) * 0.17) * (1 + (inv.star - 1) * 0.31);
+      hp += hero.baseHp * rarity * (1 + (inv.level - 1) * 0.22) * (1 + (inv.star - 1) * 0.38);
     });
 
-    return hp * (1 + (state.accountLv - 1) * 0.06) * (1 + passive.heroHp);
+    const globalHpBoost = 1.75;
+    return hp * globalHpBoost * (1 + (state.accountLv - 1) * 0.075) * (1 + passive.heroHp);
   }
 
   function getHeroHp() {
