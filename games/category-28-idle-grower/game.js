@@ -178,7 +178,8 @@
     transitionLabel: "",
     summonResultRows: [],
     rankEmitTimer: 0,
-    inventoryUiDirty: true
+    inventoryUiDirty: true,
+    lastHeroMaxHp: 0
   };
 
   const canvas = document.getElementById("battle-canvas");
@@ -408,8 +409,25 @@
     }
   }
 
+  function syncHeroHpToMax() {
+    const maxHp = getHeroMaxHp();
+    const prevMax = Math.max(1, Number(runtime.lastHeroMaxHp || maxHp));
+    const currentHp = Number(state.heroHp || 0);
+
+    if (!Number.isFinite(currentHp) || currentHp <= 0) {
+      state.heroHp = maxHp;
+    } else if (Math.abs(maxHp - prevMax) > 0.0001) {
+      const ratio = Math.max(0, Math.min(1, currentHp / prevMax));
+      state.heroHp = maxHp * ratio;
+    }
+
+    state.heroHp = Math.max(0, Math.min(maxHp, Number(state.heroHp || 0)));
+    runtime.lastHeroMaxHp = maxHp;
+  }
+
   function tick() {
     const dt = TICK;
+    syncHeroHpToMax();
 
     state.pendingOfflineGold = Number(state.pendingOfflineGold || 0) + getOfflineIncomePerSec() * dt;
 
@@ -1352,6 +1370,7 @@
 
     if (!state.heroHp || Number.isNaN(state.heroHp)) state.heroHp = getHeroMaxHp();
     state.heroHp = Math.min(state.heroHp, getHeroMaxHp());
+    runtime.lastHeroMaxHp = getHeroMaxHp();
     if (!Number.isFinite(Number(state.pendingOfflineGold))) state.pendingOfflineGold = 0;
     state.pendingOfflineGold = Math.max(0, Number(state.pendingOfflineGold));
   }
