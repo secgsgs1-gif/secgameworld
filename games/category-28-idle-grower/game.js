@@ -898,11 +898,12 @@
     if (wave !== 10) return;
 
     const keys = ["heroes", "pets", "skills"];
+    const ticketPerRoll = 10;
     const gains = { heroes: 0, pets: 0, skills: 0 };
     for (let i = 0; i < 2; i += 1) {
       const pick = keys[Math.floor(Math.random() * keys.length)];
-      gains[pick] += 1;
-      state.tickets[pick] += 1;
+      gains[pick] += ticketPerRoll;
+      state.tickets[pick] += ticketPerRoll;
     }
 
     const gainedText = [
