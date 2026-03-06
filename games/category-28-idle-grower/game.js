@@ -1033,6 +1033,11 @@
     const atkStagePow = Math.pow(state.stage, 1.52);
     const atkRamp = Math.pow(1.012, Math.max(0, state.stage - 1));
     runtime.enemyAtk = Math.max(18, (22 + atkStagePow * 6.4) * atkRamp * (1.45 + state.wave * 0.18));
+    if (state.stage >= 100) {
+      const over = state.stage - 100;
+      const lateStageMul = 1.8 + Math.min(3.4, over * 0.035) + (state.wave - 1) * 0.09;
+      runtime.enemyAtk *= lateStageMul;
+    }
     runtime.enemyAtkInterval = Math.max(0.82, 1.38 - state.wave * 0.03);
   }
 
