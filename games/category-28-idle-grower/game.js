@@ -818,7 +818,7 @@
   function heroTakeDamage(damage, label) {
     const reduction = getDefenseRate();
     const mitigated = damage * (1 - reduction);
-    const minimum = Math.max(1, runtime.enemyAtk * 0.08);
+    const minimum = Math.max(1, runtime.enemyAtk * 0.05);
     const finalDamage = Math.max(minimum, mitigated);
     setHeroHp(getHeroHp() - finalDamage);
     runtime.statusMsg = label;
@@ -1163,7 +1163,7 @@
       const inv = state.inventories.heroes[id];
       if (!hero || !inv) return;
       const rarity = rarityByKey(hero.rarity).mult;
-      defensePower += hero.baseHp * 0.14 * rarity * (1 + (inv.level - 1) * 0.09) * (1 + (inv.star - 1) * 0.18);
+      defensePower += hero.baseHp * 0.19 * rarity * (1 + (inv.level - 1) * 0.11) * (1 + (inv.star - 1) * 0.22);
     });
 
     pets.forEach((id) => {
@@ -1171,28 +1171,28 @@
       const inv = state.inventories.pets[id];
       if (!pet || !inv) return;
       const rarity = rarityByKey(pet.rarity).mult;
-      defensePower += (pet.spdAmp * 860 + pet.critAmp * 1020) * rarity * (1 + (inv.level - 1) * 0.08) * (1 + (inv.star - 1) * 0.12);
+      defensePower += (pet.spdAmp * 1100 + pet.critAmp * 1300) * rarity * (1 + (inv.level - 1) * 0.1) * (1 + (inv.star - 1) * 0.15);
     });
 
     skills.forEach((id) => {
       const inv = state.inventories.skills[id];
       if (!inv) return;
-      defensePower += 30 * inv.level + 52 * (inv.star - 1);
+      defensePower += 44 * inv.level + 68 * (inv.star - 1);
     });
 
-    defensePower *= 1 + (state.accountLv - 1) * 0.02;
-    const mitigation = defensePower / (defensePower + runtime.enemyAtk * 2.05 + 120);
-    return Math.max(0, Math.min(0.88, mitigation));
+    defensePower *= 1 + (state.accountLv - 1) * 0.026;
+    const mitigation = defensePower / (defensePower + runtime.enemyAtk * 1.75 + 95);
+    return Math.max(0, Math.min(0.93, mitigation));
   }
 
   function getHpRegenPerSec() {
     const heroCount = state.equipped.heroes.filter(Boolean).length;
     const petCount = state.equipped.pets.filter(Boolean).length;
     const skillCount = state.equipped.skills.filter(Boolean).length;
-    const base = 0.008;
-    const byParty = heroCount * 0.0012 + petCount * 0.0022 + skillCount * 0.0014;
-    const byAccount = Math.max(0, state.accountLv - 1) * 0.00035;
-    return Math.min(0.03, base + byParty + byAccount);
+    const base = 0.013;
+    const byParty = heroCount * 0.0018 + petCount * 0.0032 + skillCount * 0.0021;
+    const byAccount = Math.max(0, state.accountLv - 1) * 0.00055;
+    return Math.min(0.055, base + byParty + byAccount);
   }
 
   function getCritMul() {
@@ -1217,10 +1217,10 @@
       const inv = state.inventories.heroes[id];
       if (!hero || !inv) return;
       const rarity = rarityByKey(hero.rarity).mult;
-      hp += hero.baseHp * rarity * (1 + (inv.level - 1) * 0.13) * (1 + (inv.star - 1) * 0.24);
+      hp += hero.baseHp * rarity * (1 + (inv.level - 1) * 0.17) * (1 + (inv.star - 1) * 0.31);
     });
 
-    return hp * (1 + (state.accountLv - 1) * 0.045) * (1 + passive.heroHp);
+    return hp * (1 + (state.accountLv - 1) * 0.06) * (1 + passive.heroHp);
   }
 
   function getHeroHp() {
