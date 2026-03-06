@@ -902,7 +902,7 @@
     const keys = ["heroes", "pets", "skills"];
     const ticketPerRoll = 10;
     const gains = { heroes: 0, pets: 0, skills: 0 };
-    for (let i = 0; i < 2; i += 1) {
+    for (let i = 0; i < 3; i += 1) {
       const pick = keys[Math.floor(Math.random() * keys.length)];
       gains[pick] += ticketPerRoll;
       state.tickets[pick] += ticketPerRoll;
