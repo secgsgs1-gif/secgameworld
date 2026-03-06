@@ -840,17 +840,30 @@
     heroTakeDamage(runtime.enemyAtk * (0.86 + Math.random() * 0.33), "적의 반격");
   }
 
+  function getBossHpPercentDamageRate() {
+    const stage = Math.max(1, Math.floor(Number(state.stage || 1)));
+    const wave = Math.max(1, Math.floor(Number(state.wave || 1)));
+    if (stage <= 10) {
+      return Math.min(0.015, 0.004 + stage * 0.0006 + (wave - 1) * 0.00035);
+    }
+    const late = Math.max(0, stage - 10);
+    return Math.min(0.06, 0.012 + late * 0.00045 + (wave - 1) * 0.0012);
+  }
+
   function heroTakeDamage(damage, label) {
     const reduction = getDefenseRate();
     const mitigated = damage * (1 - reduction);
     const minimum = Math.max(1, runtime.enemyAtk * 0.05);
-    const finalDamage = Math.max(minimum, mitigated);
+    const hpPercentRate = getBossHpPercentDamageRate();
+    const hpPercentDamage = getHeroMaxHp() * hpPercentRate;
+    const finalDamage = Math.max(minimum, mitigated) + hpPercentDamage;
     setHeroHp(getHeroHp() - finalDamage);
     runtime.statusMsg = label;
     runtime.comboHits = 0;
     runtime.comboTimer = 0;
     runtime.dangerVignette = Math.min(1, runtime.dangerVignette + 0.55);
     floatText(`-${fmt(finalDamage)}`, 240, 120, "#ffb4b4");
+    floatText(`HP% -${(hpPercentRate * 100).toFixed(2)}%`, 210, 140, "#ff9fc7");
     if (reduction > 0.02) {
       floatText(`BLOCK ${(reduction * 100).toFixed(1)}%`, 210, 98, "#8fd8ff");
     }
