@@ -160,6 +160,7 @@
     projectiles: [],
     floatTexts: [],
     enemyShield: 0,
+    enemyDefense: 0,
     enemyShieldTimer: 0,
     patternTimer: 0,
     dotTimer: 0,
@@ -863,6 +864,13 @@
 
     const crit = Math.random() < getCritChance();
     let damage = raw * (crit ? getCritMul() : 1);
+    const bossDefense = Math.max(0, Math.min(0.95, Number(runtime.enemyDefense || 0)));
+    if (bossDefense > 0) {
+      damage *= 1 - bossDefense;
+      if (bossDefense >= 0.15) {
+        floatText(`DEF ${(bossDefense * 100).toFixed(0)}%`, 760, 84, "#c1ddff");
+      }
+    }
 
     if (runtime.enemyShield > 0) {
       damage *= 1 - runtime.enemyShield;
@@ -982,6 +990,7 @@
     runtime.projectiles = [];
     runtime.particles = [];
     runtime.enemyShield = 0;
+    runtime.enemyDefense = 0;
     runtime.enemyShieldTimer = 0;
     runtime.patternTimer = 0;
     runtime.dotTimer = 0;
@@ -1005,6 +1014,7 @@
       const bossMul = 1.1 + state.wave * 0.08;
       runtime.enemyMaxHp = Math.max(70, Math.floor((70 + stagePow * 12) * waveRamp * bossMul));
       runtime.enemyHp = runtime.enemyMaxHp;
+      runtime.enemyDefense = Math.min(0.72, 0.22 + state.stage * 0.026 + (state.wave - 1) * 0.018);
 
       runtime.enemyAtk = Math.max(4, (6 + Math.pow(state.stage, 1.08) * 1.35) * (1 + state.wave * 0.05));
       runtime.enemyAtkInterval = Math.max(1.15, 1.62 - state.wave * 0.02);
@@ -1018,6 +1028,7 @@
 
     runtime.enemyMaxHp = Math.max(260, Math.floor((240 + stagePow * 42) * stageRamp * waveRamp * bossMul));
     runtime.enemyHp = runtime.enemyMaxHp;
+    runtime.enemyDefense = Math.min(0.9, 0.45 + Math.max(0, state.stage - 11) * 0.008 + (state.wave - 1) * 0.03);
 
     const atkStagePow = Math.pow(state.stage, 1.52);
     const atkRamp = Math.pow(1.012, Math.max(0, state.stage - 1));
