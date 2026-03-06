@@ -503,8 +503,10 @@
     if (!inv) return;
 
     const rarityMult = rarityByKey(skill.rarity).mult;
-    const burst = getTeamPower() * skill.burst * rarityMult * (1 + (inv.level - 1) * 0.08) * (1 + (inv.star - 1) * 0.16);
-    const cd = Math.max(2.4, skill.cooldown - inv.level * 0.05 - inv.star * 0.04);
+    const passive = getCollectionPassive();
+    const burst = getTeamPower() * skill.burst * rarityMult * (1 + (inv.level - 1) * 0.08) * (1 + (inv.star - 1) * 0.16) * (1 + passive.skillBurst);
+    const cdRaw = (skill.cooldown - inv.level * 0.05 - inv.star * 0.04) * (1 - passive.skillCdCut);
+    const cd = Math.max(2.4, cdRaw);
 
     runtime.skillCooldowns[slotIndex] = cd;
     runtime.skillFx = 0.58;
@@ -1056,6 +1058,32 @@
     return "스킬";
   }
 
+  function getCollectionStarTotal(type) {
+    const inv = state.inventories[type] || {};
+    return Object.values(inv).reduce((sum, row) => {
+      const star = Math.max(1, Math.floor(Number(row?.star || 1)));
+      return sum + star;
+    }, 0);
+  }
+
+  function getCollectionPassive() {
+    const heroStars = getCollectionStarTotal("heroes");
+    const petStars = getCollectionStarTotal("pets");
+    const skillStars = getCollectionStarTotal("skills");
+
+    return {
+      heroStars,
+      petStars,
+      skillStars,
+      heroAtk: Math.min(2.5, heroStars * 0.0035),
+      heroHp: Math.min(2.8, heroStars * 0.004),
+      petSpd: Math.min(1.1, petStars * 0.0025),
+      petCrit: Math.min(0.35, petStars * 0.00075),
+      skillBurst: Math.min(2.2, skillStars * 0.004),
+      skillCdCut: Math.min(0.45, skillStars * 0.0012)
+    };
+  }
+
   function getEquipped(type) {
     return state.equipped[type]
       .map((id) => (id ? findById(getPool(type), id) : null));
@@ -1083,6 +1111,7 @@
   function getTeamPower() {
     const heroes = state.equipped.heroes.filter(Boolean);
     const petBuff = getPetBuff();
+    const passive = getCollectionPassive();
 
     let heroPower = 0;
     heroes.forEach((id) => {
@@ -1095,12 +1124,13 @@
     });
 
     const account = 1 + (state.accountLv - 1) * 0.04;
-    return heroPower * (1 + petBuff.atk) * account;
+    return heroPower * (1 + petBuff.atk) * account * (1 + passive.heroAtk);
   }
 
   function getAttackSpeed() {
     const heroes = state.equipped.heroes.filter(Boolean);
     if (!heroes.length) return 0.4;
+    const passive = getCollectionPassive();
 
     let speed = 0;
     heroes.forEach((id) => {
@@ -1112,12 +1142,13 @@
     });
 
     const avg = speed / heroes.length;
-    return avg * (1 + getPetBuff().spd);
+    return avg * (1 + getPetBuff().spd) * (1 + passive.petSpd);
   }
 
   function getCritChance() {
     const pet = getPetBuff();
-    return Math.min(0.75, 0.05 + pet.crit);
+    const passive = getCollectionPassive();
+    return Math.min(0.85, 0.05 + pet.crit + passive.petCrit);
   }
 
   function getDefenseRate() {
@@ -1178,6 +1209,7 @@
   function getHeroMaxHp() {
     const heroes = state.equipped.heroes.filter(Boolean);
     if (!heroes.length) return 200;
+    const passive = getCollectionPassive();
 
     let hp = 0;
     heroes.forEach((id) => {
@@ -1188,7 +1220,7 @@
       hp += hero.baseHp * rarity * (1 + (inv.level - 1) * 0.13) * (1 + (inv.star - 1) * 0.24);
     });
 
-    return hp * (1 + (state.accountLv - 1) * 0.045);
+    return hp * (1 + (state.accountLv - 1) * 0.045) * (1 + passive.heroHp);
   }
 
   function getHeroHp() {
@@ -2078,6 +2110,7 @@
     const heroes = state.equipped.heroes.filter(Boolean).length;
     const pets = state.equipped.pets.filter(Boolean).length;
     const skills = state.equipped.skills.filter(Boolean).length;
+    const passive = getCollectionPassive();
 
     el.statList.innerHTML = [
       `파티 구성 <strong>H${heroes}/P${pets}/S${skills}</strong>`,
@@ -2092,6 +2125,10 @@
       `뽑기횟수(영웅) <strong>${state.summon.heroes.draws}</strong>`,
       `뽑기횟수(펫) <strong>${state.summon.pets.draws}</strong>`,
       `뽑기횟수(스킬) <strong>${state.summon.skills.draws}</strong>`,
+      `보유 성급합 <strong>H${passive.heroStars}/P${passive.petStars}/S${passive.skillStars}</strong>`,
+      `보유효과(영웅) <strong>공격 +${(passive.heroAtk * 100).toFixed(2)}% / HP +${(passive.heroHp * 100).toFixed(2)}%</strong>`,
+      `보유효과(펫) <strong>공속 +${(passive.petSpd * 100).toFixed(2)}% / 치명 +${(passive.petCrit * 100).toFixed(2)}%</strong>`,
+      `보유효과(스킬) <strong>피해 +${(passive.skillBurst * 100).toFixed(2)}% / 쿨감 ${(passive.skillCdCut * 100).toFixed(2)}%</strong>`,
       `보유권(영웅/펫/스킬) <strong>${state.tickets.heroes}/${state.tickets.pets}/${state.tickets.skills}</strong>`,
       `오프라인/s <strong>${fmt(getOfflineIncomePerSec())}</strong>`,
       `오프라인 배율 <strong>x${getOfflineStageMultiplier().toFixed(2)}</strong>`
