@@ -843,11 +843,9 @@
   function getBossHpPercentDamageRate() {
     const stage = Math.max(1, Math.floor(Number(state.stage || 1)));
     const wave = Math.max(1, Math.floor(Number(state.wave || 1)));
-    if (stage <= 10) {
-      return Math.min(0.015, 0.004 + stage * 0.0006 + (wave - 1) * 0.00035);
-    }
-    const late = Math.max(0, stage - 10);
-    return Math.min(0.06, 0.012 + late * 0.00045 + (wave - 1) * 0.0012);
+    if (stage < 100) return 0;
+    const over = stage - 100;
+    return Math.min(0.15, 0.028 + over * 0.0009 + (wave - 1) * 0.004);
   }
 
   function heroTakeDamage(damage, label) {
