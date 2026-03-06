@@ -845,7 +845,7 @@
     const wave = Math.max(1, Math.floor(Number(state.wave || 1)));
     if (stage < 100) return 0;
     const over = stage - 100;
-    return Math.min(0.15, 0.028 + over * 0.0009 + (wave - 1) * 0.004);
+    return Math.min(0.075, 0.028 + over * 0.0009 + (wave - 1) * 0.004);
   }
 
   function heroTakeDamage(damage, label) {
