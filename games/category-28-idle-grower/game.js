@@ -1224,10 +1224,10 @@
     const heroCount = state.equipped.heroes.filter(Boolean).length;
     const petCount = state.equipped.pets.filter(Boolean).length;
     const skillCount = state.equipped.skills.filter(Boolean).length;
-    const base = 0.013;
-    const byParty = heroCount * 0.0018 + petCount * 0.0032 + skillCount * 0.0021;
-    const byAccount = Math.max(0, state.accountLv - 1) * 0.00055;
-    return Math.min(0.055, base + byParty + byAccount);
+    const base = 0.004;
+    const byParty = heroCount * 0.0007 + petCount * 0.0011 + skillCount * 0.0008;
+    const byAccount = Math.max(0, state.accountLv - 1) * 0.0002;
+    return Math.min(0.022, base + byParty + byAccount);
   }
 
   function getCritMul() {
