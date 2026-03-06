@@ -411,7 +411,13 @@
 
   function syncHeroHpToMax() {
     const maxHp = getHeroMaxHp();
-    const prevMax = Math.max(1, Number(runtime.lastHeroMaxHp || maxHp));
+    const prevMaxRaw = Number(runtime.lastHeroMaxHp || 0);
+    if (!Number.isFinite(prevMaxRaw) || prevMaxRaw <= 0) {
+      state.heroHp = maxHp;
+      runtime.lastHeroMaxHp = maxHp;
+      return;
+    }
+    const prevMax = Math.max(1, prevMaxRaw);
     const currentHp = Number(state.heroHp || 0);
 
     if (!Number.isFinite(currentHp) || currentHp <= 0) {
@@ -1370,7 +1376,6 @@
 
     if (!state.heroHp || Number.isNaN(state.heroHp)) state.heroHp = getHeroMaxHp();
     state.heroHp = Math.min(state.heroHp, getHeroMaxHp());
-    runtime.lastHeroMaxHp = getHeroMaxHp();
     if (!Number.isFinite(Number(state.pendingOfflineGold))) state.pendingOfflineGold = 0;
     state.pendingOfflineGold = Math.max(0, Number(state.pendingOfflineGold));
   }
