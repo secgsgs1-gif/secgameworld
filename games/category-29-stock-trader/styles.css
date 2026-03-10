@@ -126,6 +126,46 @@ input {
   gap: 10px;
 }
 
+.market-policy {
+  padding: 16px 18px;
+}
+
+.policy-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.policy-card {
+  border: 1px solid rgba(124, 174, 221, 0.2);
+  border-radius: 14px;
+  background: linear-gradient(160deg, rgba(15, 31, 51, 0.88), rgba(11, 22, 38, 0.88));
+  padding: 12px;
+}
+
+.policy-card p,
+.policy-copy {
+  margin: 0;
+  color: var(--muted);
+}
+
+.policy-card p {
+  font-size: 0.8rem;
+}
+
+.policy-card strong {
+  display: block;
+  margin-top: 8px;
+  font-size: 1.04rem;
+  font-family: "JetBrains Mono", monospace;
+}
+
+.policy-copy {
+  margin-top: 12px;
+  font-size: 0.88rem;
+  line-height: 1.6;
+}
+
 .stat-card {
   padding: 14px;
   background: linear-gradient(160deg, rgba(12, 24, 41, 0.9), rgba(8, 17, 31, 0.9));
@@ -401,6 +441,10 @@ button:hover {
 
   .top-grid {
     grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+
+  .policy-grid {
+    grid-template-columns: 1fr;
   }
 }
 
