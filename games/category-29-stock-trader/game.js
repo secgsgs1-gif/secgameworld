@@ -24,6 +24,7 @@ const els = {
   positionsValue: document.getElementById("positions-value"),
   marketUpdatedValue: document.getElementById("market-updated-value"),
   marketSourcePill: document.getElementById("market-source-pill"),
+  marketSyncNotice: document.getElementById("market-sync-notice"),
   searchInput: document.getElementById("search-input"),
   marketList: document.getElementById("market-list"),
   detailName: document.getElementById("detail-name"),
@@ -59,11 +60,9 @@ const state = {
   filteredSymbols: [],
   selectedSymbol: null,
   timeframe: "3M",
-  usingFallback: true,
+  marketReady: false,
   valuationSync: ""
 };
-
-const fallbackStocks = buildFallbackStocks();
 const timeframeButtons = [...document.querySelectorAll(".timeframe-btn")];
 
 bindEvents();
@@ -144,19 +143,16 @@ function wireStreams() {
   });
 
   onSnapshot(collection(db, "stock_market_cache"), (snap) => {
-    if (!snap.empty) {
-      state.usingFallback = false;
-      state.marketMap = new Map(snap.docs.map((item) => [item.id, normalizeMarketDoc(item.id, item.data())]));
-    } else {
-      state.usingFallback = true;
-      state.marketMap = new Map(fallbackStocks.map((item) => [item.symbol, item]));
-    }
+    state.marketReady = !snap.empty;
+    state.marketMap = !snap.empty
+      ? new Map(snap.docs.map((item) => [item.id, normalizeMarketDoc(item.id, item.data())]))
+      : new Map();
     hydrateSelection();
     renderAllMarketViews();
     syncProfileValuation();
   }, async () => {
-    state.usingFallback = true;
-    state.marketMap = new Map(fallbackStocks.map((item) => [item.symbol, item]));
+    state.marketReady = false;
+    state.marketMap = new Map();
     hydrateSelection();
     renderAllMarketViews();
   });
@@ -169,18 +165,24 @@ function hydrateSelection() {
 }
 
 function renderAllMarketViews() {
-  els.marketSourcePill.textContent = state.usingFallback ? "내장 한국주식 샘플 시세" : "Firestore market_cache 시세";
+  els.marketSourcePill.textContent = state.marketReady ? "Firestore market_cache 시세" : "시세 동기화 필요";
+  els.marketSyncNotice.hidden = state.marketReady;
   const latestUpdatedAt = [...state.marketMap.values()]
     .map((item) => item.updatedAtLabel || "")
     .filter(Boolean)
     .sort()
     .at(-1);
-  els.marketUpdatedValue.textContent = latestUpdatedAt || "시세 준비중";
+  els.marketUpdatedValue.textContent = latestUpdatedAt || "동기화 전";
   renderMarketList();
   renderSelectedStock();
+  setTradingEnabled(state.marketReady);
 }
 
 function renderMarketList() {
+  if (!state.marketReady) {
+    els.marketList.innerHTML = `<div class="table-row"><div><strong>실데이터 없음</strong><p>KIS 동기화 스크립트로 stock_market_cache를 채운 뒤 다시 확인하세요.</p></div></div>`;
+    return;
+  }
   const keyword = String(els.searchInput.value || "").trim().toLowerCase();
   const rows = [...state.marketMap.values()]
     .filter((item) => !keyword || item.name.toLowerCase().includes(keyword) || item.symbol.includes(keyword))
@@ -220,7 +222,10 @@ function renderMarketList() {
 
 function renderSelectedStock() {
   const stock = getSelectedStock();
-  if (!stock) return;
+  if (!stock) {
+    resetDetailPanel();
+    return;
+  }
   const position = findPosition(stock.symbol);
   els.detailName.textContent = stock.name;
   els.detailMeta.textContent = `${stock.symbol} · ${stock.market} · ${stock.sector}`;
@@ -357,7 +362,11 @@ function renderLeaderboard() {
 function renderOrderEstimate() {
   const stock = getSelectedStock();
   const qty = sanitizeQty(els.qtyInput.value);
-  if (!stock) return;
+  if (!stock) {
+    els.estimatePrice.textContent = "-";
+    els.estimateTotal.textContent = "-";
+    return;
+  }
   els.estimatePrice.textContent = formatKRW(stock.currentPrice);
   els.estimateTotal.textContent = formatKRW(stock.currentPrice * qty);
 }
@@ -389,7 +398,10 @@ function fillSellAllQty() {
 async function submitOrder(side) {
   const stock = getSelectedStock();
   const qty = sanitizeQty(els.qtyInput.value);
-  if (!stock) return;
+  if (!state.marketReady || !stock) {
+    setStatus("실데이터 동기화 후에만 거래할 수 있습니다.");
+    return;
+  }
   if (qty < 1) {
     setStatus("수량은 1주 이상이어야 합니다.");
     return;
@@ -473,7 +485,7 @@ async function submitOrder(side) {
 }
 
 async function syncProfileValuation() {
-  if (!state.profile || !state.user || !state.marketMap.size) return;
+  if (!state.profile || !state.user) return;
   const holdingsValue = state.positions.reduce((sum, item) => {
     const market = state.marketMap.get(item.symbol);
     return sum + Number(item.qty || 0) * Number(market?.currentPrice || item.lastPrice || 0);
@@ -506,6 +518,31 @@ function findPosition(symbol) {
 
 function setStatus(message) {
   els.orderStatus.textContent = message;
+}
+
+function setTradingEnabled(enabled) {
+  els.qtyInput.disabled = !enabled;
+  els.buyMaxBtn.disabled = !enabled;
+  els.sellAllBtn.disabled = !enabled;
+  els.buyBtn.disabled = !enabled;
+  els.sellBtn.disabled = !enabled;
+  if (!enabled) {
+    els.orderStatus.textContent = "실데이터 동기화 후 거래 가능";
+  }
+}
+
+function resetDetailPanel() {
+  els.detailName.textContent = "실데이터 대기중";
+  els.detailMeta.textContent = "stock_market_cache 동기화 필요";
+  els.detailPrice.textContent = "-";
+  els.detailChange.textContent = "-";
+  els.detailChange.className = "";
+  els.detailVolume.textContent = "-";
+  els.detailOhlc.textContent = "-";
+  els.positionSummary.innerHTML = "실데이터가 준비되면 선택 종목 보유 정보가 표시됩니다.";
+  els.chartCaption.textContent = "시세 동기화 전에는 차트를 표시하지 않습니다.";
+  drawChart(null);
+  renderOrderEstimate();
 }
 
 function drawChart(stock) {
@@ -616,9 +653,7 @@ function normalizeMarketDoc(id, data) {
 }
 
 function normalizeCandles(candles, latestPrice) {
-  if (!Array.isArray(candles) || !candles.length) {
-    return buildSyntheticCandles(latestPrice || 100000, 66);
-  }
+  if (!Array.isArray(candles) || !candles.length) return [];
   return candles.map((item, index) => ({
     label: item.label || String(index + 1),
     open: Number(item.open || item.close || latestPrice || 0),
@@ -627,72 +662,6 @@ function normalizeCandles(candles, latestPrice) {
     close: Number(item.close || latestPrice || 0),
     volume: Number(item.volume || 0)
   }));
-}
-
-function buildFallbackStocks() {
-  const seeds = [
-    ["005930", "삼성전자", "KOSPI", "반도체", 73400, 72100, 18820344],
-    ["000660", "SK하이닉스", "KOSPI", "반도체", 182400, 177800, 3621901],
-    ["035420", "NAVER", "KOSPI", "인터넷", 218500, 221000, 1302880],
-    ["005380", "현대차", "KOSPI", "자동차", 248000, 244500, 1650200],
-    ["035720", "카카오", "KOSPI", "인터넷", 54200, 54800, 2210930],
-    ["051910", "LG화학", "KOSPI", "화학", 382500, 376000, 421882],
-    ["068270", "셀트리온", "KOSPI", "바이오", 192800, 190900, 510233],
-    ["105560", "KB금융", "KOSPI", "금융", 78200, 77400, 1184204],
-    ["207940", "삼성바이오로직스", "KOSPI", "바이오", 842000, 836000, 102934],
-    ["042700", "한미반도체", "KOSDAQ", "반도체 장비", 125600, 121400, 2449920]
-  ];
-
-  return seeds.map(([symbol, name, market, sector, currentPrice, previousClose, volume], index) => {
-    const candles = buildSyntheticCandles(currentPrice, 132, index * 13 + 7);
-    candles[candles.length - 1] = {
-      ...candles[candles.length - 1],
-      open: previousClose,
-      high: Math.max(currentPrice * 1.012, previousClose * 1.01),
-      low: Math.min(currentPrice * 0.988, previousClose * 0.99),
-      close: currentPrice,
-      volume
-    };
-    return {
-      symbol,
-      name,
-      market,
-      sector,
-      currentPrice,
-      previousClose,
-      change: currentPrice - previousClose,
-      changeRate: calcRate(currentPrice, previousClose),
-      open: previousClose,
-      high: Math.round(Math.max(currentPrice, previousClose) * 1.012),
-      low: Math.round(Math.min(currentPrice, previousClose) * 0.988),
-      volume,
-      updatedAtLabel: "샘플 시세",
-      candles
-    };
-  });
-}
-
-function buildSyntheticCandles(anchorPrice, count, seed = 11) {
-  const rows = [];
-  let prev = Number(anchorPrice || 100000) * 0.9;
-  for (let i = 0; i < count; i += 1) {
-    const swing = Math.sin((i + seed) / 4.8) * 0.021 + Math.cos((i + seed) / 8.2) * 0.013;
-    const open = prev;
-    const close = Math.max(1000, Math.round(open * (1 + swing)));
-    const high = Math.round(Math.max(open, close) * (1 + 0.008 + ((i + seed) % 5) * 0.001));
-    const low = Math.round(Math.min(open, close) * (1 - 0.008 - ((i + seed) % 4) * 0.001));
-    const volume = Math.round(300000 + ((Math.sin(i / 6) + 1) * 0.5) * 1400000 + (i % 7) * 80000);
-    rows.push({
-      label: `${i + 1}`,
-      open: Math.round(open),
-      high,
-      low,
-      close,
-      volume
-    });
-    prev = close;
-  }
-  return rows;
 }
 
 function sanitizeQty(value) {
