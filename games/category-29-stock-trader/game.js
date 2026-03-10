@@ -720,7 +720,7 @@ function compareMarketRows(a, b) {
 
   if (as !== bs) return bs - as;
   if (as === 1) return br - ar;
-  if (as === -1) return ar - br;
+  if (as === -1) return br - ar;
 
   const av = Number(a.volume || 0);
   const bv = Number(b.volume || 0);
