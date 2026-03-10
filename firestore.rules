@@ -240,6 +240,32 @@ service cloud.firestore {
       allow delete: if false;
     }
 
+    // ====================
+    // K-Stock Arena
+    // ====================
+    match /stock_game_profiles/{uid} {
+      allow read: if isSignedIn();
+      allow create, update: if isSelf(uid);
+      allow delete: if false;
+
+      match /positions/{symbol} {
+        allow read: if isSignedIn();
+        allow create, update, delete: if isSelf(uid);
+      }
+
+      match /trades/{tradeId} {
+        allow read: if isSelf(uid);
+        allow create: if isSelf(uid);
+        allow update, delete: if false;
+      }
+    }
+
+    match /stock_market_cache/{symbol} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn();
+      allow delete: if false;
+    }
+
     // Default deny
     match /{document=**} {
       allow read, write: if false;

@@ -1,0 +1,170 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>K-Stock Arena</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Pretendard:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="styles.css?v=20260310a" />
+</head>
+<body>
+  <main class="shell">
+    <header class="hero">
+      <section>
+        <p class="eyebrow">KOREA PAPER TRADING</p>
+        <h1>K-Stock Arena</h1>
+        <p class="hero-copy">코스피/코스닥 종목으로 가상 매매를 진행하는 독립 경제권 게임입니다. 홈페이지 포인트와 전혀 연결되지 않습니다.</p>
+      </section>
+      <div class="hero-actions">
+        <p id="market-source-pill" class="pill">시세 소스 확인중</p>
+        <a class="home-link" href="../../index.html">Back to Home</a>
+      </div>
+    </header>
+
+    <section class="top-grid">
+      <article class="stat-card">
+        <p>게임 캐시</p>
+        <strong id="cash-value">0 KRW</strong>
+      </article>
+      <article class="stat-card">
+        <p>총 평가금액</p>
+        <strong id="equity-value">0 KRW</strong>
+      </article>
+      <article class="stat-card">
+        <p>총 손익</p>
+        <strong id="pnl-value">0 KRW</strong>
+      </article>
+      <article class="stat-card">
+        <p>수익률</p>
+        <strong id="return-value">0.00%</strong>
+      </article>
+      <article class="stat-card">
+        <p>보유 종목</p>
+        <strong id="positions-value">0</strong>
+      </article>
+      <article class="stat-card">
+        <p>최종 시세 갱신</p>
+        <strong id="market-updated-value">-</strong>
+      </article>
+    </section>
+
+    <section class="layout">
+      <aside class="left-panel panel">
+        <div class="panel-head">
+          <div>
+            <p class="panel-kicker">MARKET BOARD</p>
+            <h2>한국주식 리스트</h2>
+          </div>
+          <input id="search-input" class="search-input" type="search" placeholder="종목명 또는 코드 검색" />
+        </div>
+        <div id="market-list" class="market-list"></div>
+      </aside>
+
+      <section class="main-panel">
+        <article class="panel chart-panel">
+          <div class="panel-head">
+            <div>
+              <p class="panel-kicker">DETAIL</p>
+              <h2 id="detail-name">종목 선택</h2>
+              <p id="detail-meta" class="meta">-</p>
+            </div>
+            <div class="timeframe-row">
+              <button class="timeframe-btn active" data-range="1M" type="button">1M</button>
+              <button class="timeframe-btn" data-range="3M" type="button">3M</button>
+              <button class="timeframe-btn" data-range="6M" type="button">6M</button>
+            </div>
+          </div>
+          <div class="quote-strip">
+            <div>
+              <p>현재가</p>
+              <strong id="detail-price">-</strong>
+            </div>
+            <div>
+              <p>전일대비</p>
+              <strong id="detail-change">-</strong>
+            </div>
+            <div>
+              <p>거래량</p>
+              <strong id="detail-volume">-</strong>
+            </div>
+            <div>
+              <p>시가 / 고가 / 저가</p>
+              <strong id="detail-ohlc">-</strong>
+            </div>
+          </div>
+          <canvas id="chart-canvas" width="920" height="360" aria-label="Stock chart"></canvas>
+          <p id="chart-caption" class="chart-caption">종목을 선택하면 최근 흐름을 확인할 수 있습니다.</p>
+        </article>
+
+        <section class="trade-grid">
+          <article class="panel order-panel">
+            <div class="panel-head">
+              <div>
+                <p class="panel-kicker">ORDER</p>
+                <h2>가상 매매</h2>
+              </div>
+              <p id="order-status" class="status">주문 대기중</p>
+            </div>
+            <label class="field">
+              <span>주문 수량</span>
+              <input id="qty-input" type="number" min="1" step="1" value="1" />
+            </label>
+            <div class="quick-actions">
+              <button id="buy-max-btn" type="button">최대 매수</button>
+              <button id="sell-all-btn" type="button">전량 입력</button>
+            </div>
+            <div class="order-summary">
+              <p>예상 체결가 <strong id="estimate-price">-</strong></p>
+              <p>예상 주문금액 <strong id="estimate-total">-</strong></p>
+            </div>
+            <div class="cta-row">
+              <button id="buy-btn" class="buy-btn" type="button">매수</button>
+              <button id="sell-btn" class="sell-btn" type="button">매도</button>
+            </div>
+            <p class="micro-copy">체결은 현재 표시 중인 시세 기준으로 즉시 반영됩니다. 홈페이지 포인트는 사용하지 않습니다.</p>
+          </article>
+
+          <article class="panel position-panel">
+            <div class="panel-head">
+              <div>
+                <p class="panel-kicker">MY HOLDINGS</p>
+                <h2>보유 현황</h2>
+              </div>
+            </div>
+            <div id="position-summary" class="position-summary">선택한 종목의 보유 정보가 여기에 표시됩니다.</div>
+            <div id="portfolio-list" class="table-list"></div>
+          </article>
+        </section>
+
+        <section class="bottom-grid">
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <p class="panel-kicker">TRADE LOG</p>
+                <h2>최근 체결</h2>
+              </div>
+            </div>
+            <div id="history-list" class="table-list compact"></div>
+          </article>
+
+          <article class="panel">
+            <div class="panel-head">
+              <div>
+                <p class="panel-kicker">LEADERBOARD</p>
+                <h2>평가금액 랭킹</h2>
+              </div>
+            </div>
+            <div id="leaderboard-list" class="leaderboard-list"></div>
+          </article>
+        </section>
+      </section>
+    </section>
+  </main>
+
+  <script>window.APP_ROOT = "../../";</script>
+  <script type="module" src="../../shared/auth-guard.js?v=20260224m"></script>
+  <script type="module" src="game.js?v=20260310a"></script>
+</body>
+</html>

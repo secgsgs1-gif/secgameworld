@@ -1,0 +1,8 @@
+{
+  "scripts": {
+    "sync:kstock": "node tools/sync-kstock-market.js"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.7.0"
+  }
+}
