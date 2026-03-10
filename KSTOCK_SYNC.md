@@ -4,15 +4,9 @@
 
 ## Source
 
-- KRX Information Data System
-- Current quote source: `전종목 시세`
-- Chart source: `개별종목 시세 추이`
-- Display basis: KRX delayed market data
-
-Reference:
-
-- https://data.krx.co.kr/contents/MDC/MAIN/main/index.cmd
-- https://data.krx.co.kr/contents/MMC/ISIF/isif/MMCISIF009.cmd
+- Naver Finance public stock pages
+- Current quote source: `item/main.naver`
+- Daily candle source: `item/sise_day.naver`
 
 ## Required secrets
 
@@ -24,8 +18,8 @@ Reference:
   - Example: `005930,000660,035420`
 - `KSTOCK_CANDLE_COUNT`
   - Default: `132`
-- `KRX_BASE_URL`
-  - Default: `http://data.krx.co.kr`
+- `NAVER_FINANCE_BASE_URL`
+  - Default: `https://finance.naver.com`
 
 ## Run
 
@@ -56,4 +50,4 @@ The script writes one document per symbol to `stock_market_cache/{symbol}` with:
 
 - The frontend now requires `stock_market_cache` to exist and does not show fake sample quotes.
 - This script is intended for manual runs or scheduler/cron integration.
-- KRX pages indicate delayed quotes; display the last synced time clearly in the UI.
+- This implementation scrapes public HTML pages, so selectors may need maintenance if the page structure changes.

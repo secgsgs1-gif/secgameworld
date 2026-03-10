@@ -3,10 +3,6 @@ const path = require("path");
 const admin = require("firebase-admin");
 
 const SERVICE_ACCOUNT_PATH = process.env.FIREBASE_SERVICE_ACCOUNT_PATH || process.argv[2] || "";
-const SYMBOLS = parseSymbols(process.env.KSTOCK_SYMBOLS);
-const CANDLE_COUNT = clampInt(process.env.KSTOCK_CANDLE_COUNT, 132, 22, 200);
-const KRX_BASE_URL = process.env.KRX_BASE_URL || "http://data.krx.co.kr";
-const KRX_REFERER = process.env.KRX_REFERER || "http://data.krx.co.kr/contents/MDC/MDI/mdiLoader/index.cmd?menuId=MDC0201020101";
 
 const STOCK_CATALOG = {
   "005930": { name: "삼성전자", market: "KOSPI", sector: "반도체" },
@@ -21,6 +17,10 @@ const STOCK_CATALOG = {
   "042700": { name: "한미반도체", market: "KOSDAQ", sector: "반도체 장비" }
 };
 
+const SYMBOLS = parseSymbols(process.env.KSTOCK_SYMBOLS);
+const CANDLE_COUNT = clampInt(process.env.KSTOCK_CANDLE_COUNT, 132, 22, 200);
+const NAVER_BASE_URL = process.env.NAVER_FINANCE_BASE_URL || "https://finance.naver.com";
+
 if (!SERVICE_ACCOUNT_PATH) {
   console.error("Missing service account path. Use FIREBASE_SERVICE_ACCOUNT_PATH or pass a JSON path as argv[2].");
   process.exit(1);
@@ -32,47 +32,37 @@ admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
 const db = admin.firestore();
 
 async function main() {
-  const tradeDate = await resolveLatestTradeDate();
-  const marketRows = await fetchAllMarketRows(tradeDate);
-  const marketIndex = new Map();
-
-  for (const row of marketRows) {
-    const shortCode = cleanCode(row["단축코드"] || row["종목코드"]);
-    if (shortCode) {
-      marketIndex.set(shortCode, row);
-    }
-  }
-
   const now = admin.firestore.FieldValue.serverTimestamp();
   let synced = 0;
 
   for (const symbol of SYMBOLS) {
     try {
-      const marketRow = marketIndex.get(symbol);
-      if (!marketRow) throw new Error("KRX 전종목 시세에서 종목을 찾지 못했습니다.");
-
-      const standardCode = cleanCode(marketRow["표준코드"] || marketRow["ISIN"] || marketRow["표준코드1"]);
-      const candles = standardCode
-        ? await fetchDailyCandles({ symbol, standardCode, tradeDate, marketRow })
-        : [];
-
       const catalog = STOCK_CATALOG[symbol] || {};
+      const [summary, candles] = await Promise.all([
+        fetchSummary(symbol),
+        fetchDailyCandles(symbol)
+      ]);
+
+      if (!summary || !candles.length) {
+        throw new Error("시세 또는 일봉 데이터를 수집하지 못했습니다.");
+      }
+
       const docData = {
         symbol,
-        name: catalog.name || marketRow["종목명"] || symbol,
-        market: catalog.market || normalizeMarket(marketRow["시장구분"]),
-        sector: catalog.sector || String(marketRow["소속부"] || marketRow["업종명"] || "기타"),
-        currentPrice: toNumber(marketRow["종가"] || marketRow["현재가"]),
-        previousClose: toNumber(marketRow["전일종가"]) || derivePreviousClose(marketRow),
-        change: signedValue(marketRow["대비"]),
-        changeRate: toNumber(marketRow["등락률"]),
-        open: toNumber(marketRow["시가"]),
-        high: toNumber(marketRow["고가"]),
-        low: toNumber(marketRow["저가"]),
-        volume: toNumber(marketRow["거래량"]),
+        name: summary.name || catalog.name || symbol,
+        market: catalog.market || summary.market || "KOSPI",
+        sector: catalog.sector || "기타",
+        currentPrice: summary.currentPrice,
+        previousClose: summary.previousClose,
+        change: summary.change,
+        changeRate: summary.changeRate,
+        open: summary.open,
+        high: summary.high,
+        low: summary.low,
+        volume: summary.volume,
         candles,
-        source: "KRX Information Data System (20-minute delay)",
-        tradeDate,
+        source: "Naver Finance scrape",
+        tradeDate: summary.tradeDate,
         updatedAt: now
       };
 
@@ -84,197 +74,102 @@ async function main() {
     }
   }
 
-  console.log(`done: synced ${synced}/${SYMBOLS.length} symbols for ${tradeDate}`);
+  console.log(`done: synced ${synced}/${SYMBOLS.length} symbols`);
 }
 
-async function resolveLatestTradeDate() {
-  for (let offset = 0; offset < 10; offset += 1) {
-    const date = new Date();
-    date.setDate(date.getDate() - offset);
-    const tradeDate = formatYmd(date);
-    try {
-      const rows = await fetchAllMarketRows(tradeDate);
-      if (rows.length) return tradeDate;
-    } catch (_) {
-      continue;
-    }
-  }
-  throw new Error("최근 영업일 KRX 시세를 찾지 못했습니다.");
-}
-
-async function fetchAllMarketRows(tradeDate) {
-  const otp = await generateOtp({
-    locale: "ko_KR",
-    mktId: "ALL",
-    trdDd: tradeDate,
-    share: "1",
-    money: "1",
-    csvxls_isNo: "false",
-    name: "fileDown",
-    url: "dbms/MDC/STAT/standard/MDCSTAT01501"
+async function fetchSummary(symbol) {
+  const response = await fetch(`${NAVER_BASE_URL}/item/main.naver?code=${symbol}`, {
+    headers: htmlHeaders()
   });
+  const html = await response.text();
+  if (!response.ok || !html) throw new Error(`summary fetch failed: ${response.status}`);
 
-  const csv = await downloadCsv(otp);
-  const rows = parseKrCsv(csv);
-  if (!rows.length) {
-    throw new Error(`전종목 시세 응답이 비어 있습니다: ${tradeDate}`);
+  const name = matchFirst(html, /<title>\s*([^:<]+)\s*:/i);
+  const blindBlock = matchFirst(html, /<dl class="blind">([\s\S]*?)<\/dl>/i);
+  const flat = squeezeHtml(blindBlock);
+  const summaryMatch = flat.match(/현재가\s*([\d,]+)\s*전일대비\s*(상승|하락|보합)\s*([\d,]+)\s*(?:플러스|마이너스)?\s*([\d.,]+)\s*퍼센트.*?전일가\s*([\d,]+).*?시가\s*([\d,]+).*?고가\s*([\d,]+).*?저가\s*([\d,]+).*?거래량\s*([\d,]+)/i);
+  if (!summaryMatch) {
+    throw new Error("summary parse failed");
   }
-  return rows;
-}
+  const tradeDateText = flat.match(/(\d{4})년\s*(\d{2})월\s*(\d{2})일/);
 
-async function fetchDailyCandles({ symbol, standardCode, tradeDate, marketRow }) {
-  const endDate = tradeDate;
-  const startDate = shiftDate(tradeDate, -Math.max(CANDLE_COUNT * 2, 220));
-  const payload = {
-    bld: "dbms/MDC/STAT/standard/MDCSTAT01701",
-    locale: "ko_KR",
-    isuCd: standardCode,
-    isuCd2: standardCode,
-    codeNmisuCd_finder_stkisu0_0: String(marketRow["종목명"] || symbol),
-    param1isuCd_finder_stkisu0_0: "ALL",
-    strtDd: startDate,
-    endDd: endDate,
-    share: "1",
-    money: "1",
-    csvxls_isNo: "false"
-  };
-
-  const response = await fetch(`${KRX_BASE_URL}/comm/bldAttendant/getJsonData.cmd`, {
-    method: "POST",
-    headers: formHeaders(),
-    body: new URLSearchParams(payload)
-  });
-
-  const json = await response.json();
-  const rows = Array.isArray(json.output) ? json.output : [];
-  return rows
-    .slice(-CANDLE_COUNT)
-    .map((item) => ({
-      label: formatDateLabel(item.TRD_DD),
-      open: toNumber(item.TDD_OPNPRC),
-      high: toNumber(item.TDD_HGPRC),
-      low: toNumber(item.TDD_LWPRC),
-      close: toNumber(item.TDD_CLSPRC),
-      volume: toNumber(item.ACC_TRDVOL)
-    }))
-    .filter((item) => item.close > 0);
-}
-
-async function generateOtp(params) {
-  const response = await fetch(`${KRX_BASE_URL}/comm/fileDn/GenerateOTP/generate.cmd`, {
-    method: "POST",
-    headers: formHeaders(),
-    body: new URLSearchParams(params)
-  });
-  const text = (await response.text()).trim();
-  if (!response.ok || !text) {
-    throw new Error(`OTP 발급 실패: ${response.status}`);
-  }
-  return text;
-}
-
-async function downloadCsv(otp) {
-  const response = await fetch(`${KRX_BASE_URL}/comm/fileDn/download_csv/download.cmd`, {
-    method: "POST",
-    headers: formHeaders(),
-    body: new URLSearchParams({ code: otp })
-  });
-  if (!response.ok) {
-    throw new Error(`CSV 다운로드 실패: ${response.status}`);
-  }
-  const buffer = Buffer.from(await response.arrayBuffer());
-  return decodeKr(buffer);
-}
-
-function formHeaders() {
+  const direction = summaryMatch[2];
+  const changeAbs = toNumber(summaryMatch[3]);
+  const rateAbs = toNumber(summaryMatch[4]);
   return {
-    "content-type": "application/x-www-form-urlencoded; charset=UTF-8",
-    referer: KRX_REFERER,
-    "user-agent": "Mozilla/5.0"
+    name: decodeEntities(name),
+    currentPrice: toNumber(summaryMatch[1]),
+    change: direction === "하락" ? -changeAbs : direction === "보합" ? 0 : changeAbs,
+    changeRate: direction === "하락" ? -rateAbs : direction === "보합" ? 0 : rateAbs,
+    previousClose: toNumber(summaryMatch[5]),
+    open: toNumber(summaryMatch[6]),
+    high: toNumber(summaryMatch[7]),
+    low: toNumber(summaryMatch[8]),
+    volume: toNumber(summaryMatch[9]),
+    tradeDate: tradeDateText ? `${tradeDateText[1]}${tradeDateText[2]}${tradeDateText[3]}` : formatYmd(new Date())
   };
 }
 
-function parseKrCsv(text) {
+async function fetchDailyCandles(symbol) {
   const rows = [];
-  const lines = String(text || "")
-    .replace(/^\uFEFF/, "")
-    .split(/\r?\n/)
-    .filter((line) => line.trim().length > 0);
-  if (lines.length < 2) return rows;
-
-  const headers = splitCsvLine(lines[0]).map((item) => item.trim());
-  for (const line of lines.slice(1)) {
-    const cells = splitCsvLine(line);
-    if (!cells.length) continue;
-    const row = {};
-    headers.forEach((header, index) => {
-      row[header] = (cells[index] || "").trim();
+  const pageCount = Math.ceil(CANDLE_COUNT / 10) + 2;
+  for (let page = 1; page <= pageCount; page += 1) {
+    const response = await fetch(`${NAVER_BASE_URL}/item/sise_day.naver?code=${symbol}&page=${page}`, {
+      headers: htmlHeaders()
     });
-    rows.push(row);
+    if (!response.ok) throw new Error(`candle fetch failed: ${response.status}`);
+    const buffer = Buffer.from(await response.arrayBuffer());
+    const html = new TextDecoder("euc-kr").decode(buffer);
+    rows.push(...parseDailyRows(html));
+    if (rows.length >= CANDLE_COUNT) break;
   }
-  return rows;
+  return rows.slice(0, CANDLE_COUNT).reverse();
 }
 
-function splitCsvLine(line) {
-  const cells = [];
-  let current = "";
-  let inQuotes = false;
-  for (let i = 0; i < line.length; i += 1) {
-    const char = line[i];
-    if (char === "\"") {
-      if (inQuotes && line[i + 1] === "\"") {
-        current += "\"";
-        i += 1;
-      } else {
-        inQuotes = !inQuotes;
-      }
-      continue;
-    }
-    if (char === "," && !inQuotes) {
-      cells.push(current);
-      current = "";
-      continue;
-    }
-    current += char;
-  }
-  cells.push(current);
-  return cells;
+function parseDailyRows(html) {
+  const matches = [...html.matchAll(/<tr[^>]*>\s*<td[^>]*>\s*<span class="tah p10 gray03">([\d.]+)<\/span><\/td>\s*<td class="num"><span class="tah p11">([\d,]+)<\/span><\/td>\s*<td class="num">\s*(?:<em[^>]*><span class="blind">(상승|하락|보합)<\/span><\/em>)?\s*<span class="tah p11(?: red02| nv01)?">\s*([\d,]*)\s*<\/span>\s*<\/td>\s*<td class="num"><span class="tah p11">([\d,]+)<\/span><\/td>\s*<td class="num"><span class="tah p11">([\d,]+)<\/span><\/td>\s*<td class="num"><span class="tah p11">([\d,]+)<\/span><\/td>\s*<td class="num"><span class="tah p11">([\d,]+)<\/span><\/td>/g)];
+  return matches.map((match) => ({
+    label: formatDateLabel(match[1].replace(/\./g, "")),
+    open: toNumber(match[5]),
+    high: toNumber(match[6]),
+    low: toNumber(match[7]),
+    close: toNumber(match[2]),
+    volume: toNumber(match[8])
+  })).filter((row) => row.close > 0);
 }
 
-function decodeKr(buffer) {
-  try {
-    return new TextDecoder("euc-kr").decode(buffer);
-  } catch (_) {
-    return buffer.toString("utf8");
-  }
+function htmlHeaders() {
+  return {
+    "user-agent": "Mozilla/5.0",
+    referer: "https://finance.naver.com/"
+  };
 }
 
-function cleanCode(value) {
-  return String(value || "").replace(/[^A-Z0-9]/gi, "");
+function squeezeHtml(html) {
+  return String(html || "")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/&nbsp;/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function matchFirst(text, regex) {
+  const match = String(text || "").match(regex);
+  return match ? match[1] : "";
+}
+
+function decodeEntities(text) {
+  return String(text || "")
+    .replace(/&amp;/g, "&")
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&#39;/g, "'")
+    .replace(/&quot;/g, "\"");
 }
 
 function toNumber(value) {
   const numeric = Number(String(value ?? "0").replace(/,/g, "").replace(/%/g, ""));
   return Number.isFinite(numeric) ? numeric : 0;
-}
-
-function signedValue(value) {
-  const text = String(value || "").trim();
-  if (!text) return 0;
-  if (text.startsWith("-")) return -toNumber(text);
-  if (text.startsWith("+")) return toNumber(text);
-  return toNumber(text);
-}
-
-function derivePreviousClose(row) {
-  return toNumber(row["종가"] || row["현재가"]) - signedValue(row["대비"]);
-}
-
-function normalizeMarket(value) {
-  const text = String(value || "").toUpperCase();
-  if (text.includes("KOSDAQ") || text.includes("코스닥")) return "KOSDAQ";
-  if (text.includes("KONEX") || text.includes("코넥스")) return "KONEX";
-  return "KOSPI";
 }
 
 function formatDateLabel(raw) {
@@ -288,12 +183,6 @@ function formatYmd(date) {
   const m = String(date.getMonth() + 1).padStart(2, "0");
   const d = String(date.getDate()).padStart(2, "0");
   return `${y}${m}${d}`;
-}
-
-function shiftDate(rawYmd, deltaDays) {
-  const date = new Date(Number(rawYmd.slice(0, 4)), Number(rawYmd.slice(4, 6)) - 1, Number(rawYmd.slice(6, 8)));
-  date.setDate(date.getDate() + deltaDays);
-  return formatYmd(date);
 }
 
 function clampInt(raw, fallback, min, max) {

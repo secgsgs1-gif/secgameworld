@@ -180,7 +180,7 @@ function renderAllMarketViews() {
 
 function renderMarketList() {
   if (!state.marketReady) {
-    els.marketList.innerHTML = `<div class="table-row"><div><strong>실데이터 없음</strong><p>KIS 동기화 스크립트로 stock_market_cache를 채운 뒤 다시 확인하세요.</p></div></div>`;
+    els.marketList.innerHTML = `<div class="table-row"><div><strong>실데이터 없음</strong><p>시세 동기화 스크립트로 stock_market_cache를 채운 뒤 다시 확인하세요.</p></div></div>`;
     return;
   }
   const keyword = String(els.searchInput.value || "").trim().toLowerCase();
