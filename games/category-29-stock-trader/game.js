@@ -186,7 +186,7 @@ function renderMarketList() {
   const keyword = String(els.searchInput.value || "").trim().toLowerCase();
   const rows = [...state.marketMap.values()]
     .filter((item) => !keyword || item.name.toLowerCase().includes(keyword) || item.symbol.includes(keyword))
-    .sort((a, b) => Math.abs(Number(b.changeRate || 0)) - Math.abs(Number(a.changeRate || 0)));
+    .sort(compareMarketRows);
 
   state.filteredSymbols = rows.map((item) => item.symbol);
   els.marketList.innerHTML = "";
@@ -710,6 +710,22 @@ function rateClass(value) {
   if (num > 0) return "positive";
   if (num < 0) return "negative";
   return "flat";
+}
+
+function compareMarketRows(a, b) {
+  const ar = Number(a.changeRate || 0);
+  const br = Number(b.changeRate || 0);
+  const as = ar > 0 ? 1 : ar < 0 ? -1 : 0;
+  const bs = br > 0 ? 1 : br < 0 ? -1 : 0;
+
+  if (as !== bs) return bs - as;
+  if (as === 1) return br - ar;
+  if (as === -1) return ar - br;
+
+  const av = Number(a.volume || 0);
+  const bv = Number(b.volume || 0);
+  if (bv !== av) return bv - av;
+  return String(a.name || "").localeCompare(String(b.name || ""), "ko");
 }
 
 function escapeHtml(value) {
