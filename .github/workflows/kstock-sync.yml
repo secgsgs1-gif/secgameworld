@@ -3,7 +3,14 @@ name: K-Stock Sync
 on:
   workflow_dispatch:
   schedule:
-    - cron: "*/30 * * * *"
+    # Weekdays 09:00-14:59 KST => 00:00-05:59 UTC, every 10 minutes
+    - cron: "*/10 0-5 * * 1-5"
+    # Weekdays 15:00-15:30 KST => 06:00-06:30 UTC, every 10 minutes
+    - cron: "0-30/10 6 * * 1-5"
+    # Weekdays after market close and before next open, hourly
+    - cron: "7 7-23 * * 1-5"
+    # Weekends, hourly
+    - cron: "7 * * * 0,6"
 
 jobs:
   sync:
