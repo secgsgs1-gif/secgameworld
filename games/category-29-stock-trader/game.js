@@ -14,7 +14,6 @@ import {
 import { auth, db, isFirebaseConfigured } from "../../shared/firebase-app.js?v=20260224m";
 
 const INITIAL_CASH = 100_000_000;
-const TIMEFRAME_POINTS = { "1M": 22, "3M": 66, "6M": 132 };
 
 const els = {
   cashValue: document.getElementById("cash-value"),
@@ -59,7 +58,7 @@ const state = {
   marketMap: new Map(),
   filteredSymbols: [],
   selectedSymbol: null,
-  timeframe: "3M",
+  timeframe: "1D",
   marketReady: false,
   valuationSync: ""
 };
@@ -629,8 +628,23 @@ function drawChart(stock) {
 }
 
 function getCandlesForRange(stock, range) {
-  const count = TIMEFRAME_POINTS[range] || TIMEFRAME_POINTS["3M"];
-  return Array.isArray(stock?.candles) ? stock.candles.slice(-count) : [];
+  const charts = stock?.charts || {};
+  const daily = Array.isArray(charts.history6mo1d) && charts.history6mo1d.length
+    ? charts.history6mo1d
+    : Array.isArray(stock?.candles) ? stock.candles : [];
+
+  if (range === "10m") {
+    return aggregateCandles(Array.isArray(charts.intraday1d5m) ? charts.intraday1d5m : [], 2).slice(-39);
+  }
+  if (range === "1H") {
+    return Array.isArray(charts.intraday5d60m) ? charts.intraday5d60m.slice(-35) : [];
+  }
+  if (range === "1D") {
+    return Array.isArray(charts.intraday1d5m) ? charts.intraday1d5m : [];
+  }
+  if (range === "1M") return daily.slice(-22);
+  if (range === "3M") return daily.slice(-66);
+  return daily.slice(-132);
 }
 
 function normalizeMarketDoc(id, data) {
@@ -648,8 +662,33 @@ function normalizeMarketDoc(id, data) {
     low: Number(data.low || data.currentPrice || 0),
     volume: Number(data.volume || 0),
     updatedAtLabel: formatDateTime(data.updatedAt),
-    candles: normalizeCandles(data.candles, Number(data.currentPrice || 0))
+    candles: normalizeCandles(data.candles, Number(data.currentPrice || 0)),
+    charts: normalizeCharts(data.charts, data.candles, Number(data.currentPrice || 0))
   };
+}
+
+function normalizeCharts(charts, fallbackCandles, latestPrice) {
+  const fallbackDaily = normalizeCandles(fallbackCandles, latestPrice);
+  return {
+    intraday1d5m: normalizeChartRows(charts?.intraday1d5m),
+    intraday5d60m: normalizeChartRows(charts?.intraday5d60m),
+    history6mo1d: normalizeChartRows(charts?.history6mo1d).length
+      ? normalizeChartRows(charts?.history6mo1d)
+      : fallbackDaily
+  };
+}
+
+function normalizeChartRows(rows) {
+  if (!Array.isArray(rows) || !rows.length) return [];
+  return rows.map((item, index) => ({
+    ts: Number(item.ts || 0),
+    label: String(item.label || index + 1),
+    open: Number(item.open || item.close || 0),
+    high: Number(item.high || item.close || 0),
+    low: Number(item.low || item.close || 0),
+    close: Number(item.close || 0),
+    volume: Number(item.volume || 0)
+  })).filter((item) => item.close > 0);
 }
 
 function normalizeCandles(candles, latestPrice) {
@@ -662,6 +701,25 @@ function normalizeCandles(candles, latestPrice) {
     close: Number(item.close || latestPrice || 0),
     volume: Number(item.volume || 0)
   }));
+}
+
+function aggregateCandles(candles, size) {
+  if (!Array.isArray(candles) || !candles.length || size <= 1) return Array.isArray(candles) ? candles : [];
+  const rows = [];
+  for (let index = 0; index < candles.length; index += size) {
+    const chunk = candles.slice(index, index + size);
+    if (!chunk.length) continue;
+    rows.push({
+      ts: Number(chunk[0].ts || 0),
+      label: chunk.at(-1).label || chunk[0].label,
+      open: Number(chunk[0].open || chunk[0].close || 0),
+      high: Math.max(...chunk.map((item) => Number(item.high || item.close || 0))),
+      low: Math.min(...chunk.map((item) => Number(item.low || item.close || 0))),
+      close: Number(chunk.at(-1).close || 0),
+      volume: chunk.reduce((sum, item) => sum + Number(item.volume || 0), 0)
+    });
+  }
+  return rows.filter((item) => item.close > 0);
 }
 
 function sanitizeQty(value) {

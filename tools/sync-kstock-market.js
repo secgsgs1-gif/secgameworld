@@ -53,6 +53,7 @@ const STOCK_CATALOG = {
 const SYMBOLS = parseSymbols(process.env.KSTOCK_SYMBOLS);
 const CANDLE_COUNT = clampInt(process.env.KSTOCK_CANDLE_COUNT, 132, 22, 200);
 const NAVER_BASE_URL = process.env.NAVER_FINANCE_BASE_URL || "https://finance.naver.com";
+const YAHOO_CHART_BASE_URL = process.env.YAHOO_CHART_BASE_URL || "https://query1.finance.yahoo.com/v8/finance/chart";
 
 if (!SERVICE_ACCOUNT_PATH) {
   console.error("Missing service account path. Use FIREBASE_SERVICE_ACCOUNT_PATH or pass a JSON path as argv[2].");
@@ -71,9 +72,10 @@ async function main() {
   for (const symbol of SYMBOLS) {
     try {
       const catalog = STOCK_CATALOG[symbol] || {};
-      const [summary, candles] = await Promise.all([
+      const [summary, candles, charts] = await Promise.all([
         fetchSummary(symbol),
-        fetchDailyCandles(symbol)
+        fetchDailyCandles(symbol),
+        fetchYahooCharts(symbol, catalog)
       ]);
 
       if (!summary || !candles.length) {
@@ -94,6 +96,7 @@ async function main() {
         low: summary.low,
         volume: summary.volume,
         candles,
+        charts,
         source: "Naver Finance scrape",
         tradeDate: summary.tradeDate,
         updatedAt: now
@@ -159,6 +162,49 @@ async function fetchDailyCandles(symbol) {
   return rows.slice(0, CANDLE_COUNT).reverse();
 }
 
+async function fetchYahooCharts(symbol, catalog) {
+  const yahooSymbol = toYahooSymbol(symbol, catalog);
+  const [intraday1d5m, intraday5d60m, history6mo1d] = await Promise.all([
+    fetchYahooChartSeries(yahooSymbol, "5m", "1d"),
+    fetchYahooChartSeries(yahooSymbol, "60m", "5d"),
+    fetchYahooChartSeries(yahooSymbol, "1d", "6mo")
+  ]);
+  return {
+    intraday1d5m,
+    intraday5d60m,
+    history6mo1d
+  };
+}
+
+async function fetchYahooChartSeries(yahooSymbol, interval, range) {
+  const response = await fetch(`${YAHOO_CHART_BASE_URL}/${encodeURIComponent(yahooSymbol)}?interval=${interval}&range=${range}`, {
+    headers: {
+      "user-agent": "Mozilla/5.0",
+      referer: "https://finance.yahoo.com/"
+    }
+  });
+  if (!response.ok) throw new Error(`yahoo chart fetch failed: ${response.status}`);
+  const json = await response.json();
+  const result = json?.chart?.result?.[0];
+  const quote = result?.indicators?.quote?.[0];
+  const timestamps = Array.isArray(result?.timestamp) ? result.timestamp : [];
+  const opens = Array.isArray(quote?.open) ? quote.open : [];
+  const highs = Array.isArray(quote?.high) ? quote.high : [];
+  const lows = Array.isArray(quote?.low) ? quote.low : [];
+  const closes = Array.isArray(quote?.close) ? quote.close : [];
+  const volumes = Array.isArray(quote?.volume) ? quote.volume : [];
+
+  return timestamps.map((ts, index) => ({
+    ts: Number(ts || 0) * 1000,
+    label: formatChartTimestamp(Number(ts || 0) * 1000, interval),
+    open: sanitizePrice(opens[index]),
+    high: sanitizePrice(highs[index]),
+    low: sanitizePrice(lows[index]),
+    close: sanitizePrice(closes[index]),
+    volume: toNumber(volumes[index])
+  })).filter((item) => item.close > 0);
+}
+
 function parseDailyRows(html) {
   const matches = [...html.matchAll(/<tr[^>]*>\s*<td[^>]*>\s*<span class="tah p10 gray03">([\d.]+)<\/span><\/td>\s*<td class="num"><span class="tah p11">([\d,]+)<\/span><\/td>\s*<td class="num">\s*(?:<em[^>]*><span class="blind">(상승|하락|보합)<\/span><\/em>)?\s*<span class="tah p11(?: red02| nv01)?">\s*([\d,]*)\s*<\/span>\s*<\/td>\s*<td class="num"><span class="tah p11">([\d,]+)<\/span><\/td>\s*<td class="num"><span class="tah p11">([\d,]+)<\/span><\/td>\s*<td class="num"><span class="tah p11">([\d,]+)<\/span><\/td>\s*<td class="num"><span class="tah p11">([\d,]+)<\/span><\/td>/g)];
   return matches.map((match) => ({
@@ -200,9 +246,33 @@ function decodeEntities(text) {
     .replace(/&quot;/g, "\"");
 }
 
+function toYahooSymbol(symbol, catalog) {
+  const market = String(catalog?.market || "").toUpperCase();
+  return `${symbol}.${market === "KOSDAQ" ? "KQ" : "KS"}`;
+}
+
+function sanitizePrice(value) {
+  const num = Number(value);
+  return Number.isFinite(num) ? Math.round(num) : 0;
+}
+
 function toNumber(value) {
   const numeric = Number(String(value ?? "0").replace(/,/g, "").replace(/%/g, ""));
   return Number.isFinite(numeric) ? numeric : 0;
+}
+
+function formatChartTimestamp(ms, interval) {
+  const date = new Date(ms);
+  if (Number.isNaN(date.getTime())) return "";
+  if (interval === "1d") {
+    const y = date.getFullYear();
+    const m = String(date.getMonth() + 1).padStart(2, "0");
+    const d = String(date.getDate()).padStart(2, "0");
+    return `${y}${m}${d}`;
+  }
+  const hh = String(date.getHours()).padStart(2, "0");
+  const mm = String(date.getMinutes()).padStart(2, "0");
+  return `${hh}:${mm}`;
 }
 
 function formatDateLabel(raw) {
