@@ -420,9 +420,53 @@ button:hover {
   align-items: flex-start;
 }
 
+.leaderboard-row {
+  align-items: flex-start;
+}
+
 .table-row .right,
 .leaderboard-row .right {
   text-align: right;
+}
+
+.leaderboard-main {
+  min-width: 0;
+  flex: 1 1 auto;
+}
+
+.leaderboard-holdings {
+  display: grid;
+  gap: 6px;
+  margin-top: 10px;
+}
+
+.holding-pill {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 10px;
+  border: 1px solid rgba(119, 172, 224, 0.18);
+  border-radius: 12px;
+  background: rgba(9, 20, 34, 0.88);
+  font-size: 0.8rem;
+}
+
+.holding-pill strong,
+.holding-pill span {
+  min-width: 0;
+}
+
+.holding-pill strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.leaderboard-empty {
+  margin-top: 10px;
+  color: var(--muted);
+  font-size: 0.82rem;
 }
 
 .compact {

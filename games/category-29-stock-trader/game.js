@@ -55,6 +55,8 @@ const state = {
   positions: [],
   trades: [],
   rankings: [],
+  rankingPositions: new Map(),
+  rankingPositionUnsubs: new Map(),
   marketMap: new Map(),
   filteredSymbols: [],
   selectedSymbol: null,
@@ -143,7 +145,8 @@ function wireStreams() {
   });
 
   onSnapshot(query(collection(db, "stock_game_profiles"), orderBy("totalValue", "desc"), limit(10)), (snap) => {
-    state.rankings = snap.docs.map((item) => item.data());
+    state.rankings = snap.docs.map((item) => ({ uid: item.id, ...item.data() }));
+    syncLeaderboardPositionStreams();
     renderLeaderboard();
   });
 
@@ -180,6 +183,7 @@ function renderAllMarketViews() {
   els.marketUpdatedValue.textContent = latestUpdatedAt || "동기화 전";
   renderMarketList();
   renderSelectedStock();
+  renderLeaderboard();
   setTradingEnabled(state.marketReady);
 }
 
@@ -348,12 +352,22 @@ function renderLeaderboard() {
     return;
   }
   state.rankings.forEach((entry, index) => {
+    const positions = summarizeRankingPositions(entry.uid);
     const row = document.createElement("div");
     row.className = "leaderboard-row";
     row.innerHTML = `
-      <div>
+      <div class="leaderboard-main">
         <strong>#${index + 1} ${escapeHtml(entry.username || "player")}</strong>
         <p>수익률 <span class="${rateClass(entry.totalReturnRate || 0)}">${formatPercent(entry.totalReturnRate || 0)}</span></p>
+        ${positions.length
+          ? `<div class="leaderboard-holdings">${positions.map((item) => `
+              <div class="holding-pill">
+                <strong>${escapeHtml(item.name)}</strong>
+                <span>${formatKRW(item.value)}</span>
+                <span class="${rateClass(item.returnRate)}">${formatPercent(item.returnRate)}</span>
+              </div>
+            `).join("")}</div>`
+          : `<p class="leaderboard-empty">보유 종목 없음</p>`}
       </div>
       <div class="right">
         <strong>${formatKRW(entry.totalValue || 0)}</strong>
@@ -362,6 +376,47 @@ function renderLeaderboard() {
     `;
     els.leaderboardList.appendChild(row);
   });
+}
+
+function syncLeaderboardPositionStreams() {
+  const activeUids = new Set(state.rankings.map((entry) => entry.uid).filter(Boolean));
+
+  for (const [uid, unsubscribe] of state.rankingPositionUnsubs.entries()) {
+    if (activeUids.has(uid)) continue;
+    unsubscribe();
+    state.rankingPositionUnsubs.delete(uid);
+    state.rankingPositions.delete(uid);
+  }
+
+  activeUids.forEach((uid) => {
+    if (state.rankingPositionUnsubs.has(uid)) return;
+    const unsubscribe = onSnapshot(collection(db, "stock_game_profiles", uid, "positions"), (snap) => {
+      state.rankingPositions.set(uid, snap.docs.map((item) => ({ id: item.id, ...item.data() })));
+      renderLeaderboard();
+    });
+    state.rankingPositionUnsubs.set(uid, unsubscribe);
+  });
+}
+
+function summarizeRankingPositions(uid) {
+  const positions = (state.rankingPositions.get(uid) || [])
+    .filter((item) => Number(item.qty || 0) > 0)
+    .map((item) => {
+      const stock = state.marketMap.get(item.symbol);
+      const currentPrice = Number(stock?.currentPrice || item.lastPrice || 0);
+      const value = currentPrice * Number(item.qty || 0);
+      const basis = Number(item.avgCost || 0) * Number(item.qty || 0);
+      const returnRate = basis > 0 ? ((value - basis) / basis) * 100 : 0;
+      return {
+        symbol: item.symbol,
+        name: item.name || stock?.name || item.symbol,
+        value,
+        returnRate
+      };
+    })
+    .sort((a, b) => b.value - a.value);
+
+  return positions.slice(0, 4);
 }
 
 function renderOrderEstimate() {
