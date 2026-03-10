@@ -60,7 +60,8 @@ const state = {
   selectedSymbol: null,
   timeframe: "1D",
   marketReady: false,
-  valuationSync: ""
+  valuationSync: "",
+  chartHover: null
 };
 const timeframeButtons = [...document.querySelectorAll(".timeframe-btn")];
 
@@ -98,6 +99,11 @@ function bindEvents() {
     });
   });
   window.addEventListener("resize", () => drawChart(getSelectedStock()));
+  els.chartCanvas.addEventListener("mousemove", handleChartPointerMove);
+  els.chartCanvas.addEventListener("mouseleave", () => {
+    state.chartHover = null;
+    drawChart(getSelectedStock());
+  });
 }
 
 async function ensureGameProfile() {
@@ -565,12 +571,13 @@ function drawChart(stock) {
   const chartTop = 24;
   const chartBottom = height - 68;
   const left = 18;
-  const right = width - 18;
+  const right = width - 84;
   const highs = candles.map((item) => item.high);
   const lows = candles.map((item) => item.low);
   const maxPrice = Math.max(...highs);
   const minPrice = Math.min(...lows);
   const yFor = (value) => chartTop + ((maxPrice - value) / Math.max(1, maxPrice - minPrice)) * (chartBottom - chartTop);
+  const step = (right - left) / Math.max(1, candles.length - 1);
 
   ctx.strokeStyle = "rgba(151, 197, 255, 0.18)";
   ctx.lineWidth = 1;
@@ -580,12 +587,15 @@ function drawChart(stock) {
     ctx.moveTo(left, y);
     ctx.lineTo(right, y);
     ctx.stroke();
+
+    const ratio = i / 3;
+    const price = maxPrice - (maxPrice - minPrice) * ratio;
+    drawAxisLabel(ctx, formatKRW(price), right + 8, y + 4, "left");
   }
 
   const gradient = ctx.createLinearGradient(0, chartTop, 0, chartBottom);
   gradient.addColorStop(0, "rgba(90, 184, 255, 0.38)");
   gradient.addColorStop(1, "rgba(90, 184, 255, 0)");
-  const step = (right - left) / Math.max(1, candles.length - 1);
 
   ctx.beginPath();
   candles.forEach((item, index) => {
@@ -621,10 +631,106 @@ function drawChart(stock) {
 
   ctx.fillStyle = "rgba(229, 241, 255, 0.9)";
   ctx.font = '12px "JetBrains Mono"';
-  ctx.fillText(formatKRW(maxPrice), left, 16);
-  ctx.fillText(formatKRW(minPrice), left, chartBottom + 16);
   ctx.fillText(candles[0].label || "", left, height - 6);
   ctx.fillText(candles.at(-1).label || "", right - 48, height - 6);
+
+  drawHoverOverlay(ctx, candles, { left, right, chartTop, chartBottom, height, step, yFor, maxPrice, minPrice });
+}
+
+function drawHoverOverlay(ctx, candles, layout) {
+  if (!state.chartHover) return;
+  const index = Math.max(0, Math.min(candles.length - 1, state.chartHover.index));
+  const candle = candles[index];
+  if (!candle) return;
+
+  const x = layout.left + layout.step * index;
+  const y = layout.yFor(candle.close);
+
+  ctx.strokeStyle = "rgba(255, 255, 255, 0.24)";
+  ctx.lineWidth = 1;
+  ctx.setLineDash([5, 5]);
+  ctx.beginPath();
+  ctx.moveTo(x, layout.chartTop);
+  ctx.lineTo(x, layout.chartBottom);
+  ctx.stroke();
+  ctx.beginPath();
+  ctx.moveTo(layout.left, y);
+  ctx.lineTo(layout.right, y);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  ctx.fillStyle = "rgba(123, 223, 255, 0.95)";
+  ctx.beginPath();
+  ctx.arc(x, y, 4, 0, Math.PI * 2);
+  ctx.fill();
+
+  drawTag(ctx, formatKRW(candle.close), layout.right + 8, y, { align: "left" });
+  drawTag(ctx, candle.label || "", x, layout.height - 22, { align: "center" });
+}
+
+function drawAxisLabel(ctx, text, x, y, align = "left") {
+  ctx.save();
+  ctx.fillStyle = "rgba(185, 210, 240, 0.82)";
+  ctx.font = '11px "JetBrains Mono"';
+  ctx.textAlign = align;
+  ctx.fillText(text, x, y);
+  ctx.restore();
+}
+
+function drawTag(ctx, text, x, y, { align = "left" } = {}) {
+  ctx.save();
+  ctx.font = '11px "JetBrains Mono"';
+  const paddingX = 8;
+  const paddingY = 6;
+  const metrics = ctx.measureText(text);
+  const width = metrics.width + paddingX * 2;
+  const height = 24;
+  let left = x;
+  if (align === "center") left = x - width / 2;
+  if (align === "right") left = x - width;
+  const top = y - height / 2;
+
+  ctx.fillStyle = "rgba(7, 18, 31, 0.92)";
+  ctx.strokeStyle = "rgba(131, 190, 255, 0.5)";
+  ctx.lineWidth = 1;
+  roundRect(ctx, left, top, width, height, 8);
+  ctx.fill();
+  ctx.stroke();
+
+  ctx.fillStyle = "rgba(236, 246, 255, 0.96)";
+  ctx.textAlign = "left";
+  ctx.fillText(text, left + paddingX, top + height - paddingY - 1);
+  ctx.restore();
+}
+
+function roundRect(ctx, x, y, width, height, radius) {
+  ctx.beginPath();
+  ctx.moveTo(x + radius, y);
+  ctx.lineTo(x + width - radius, y);
+  ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
+  ctx.lineTo(x + width, y + height - radius);
+  ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
+  ctx.lineTo(x + radius, y + height);
+  ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
+  ctx.lineTo(x, y + radius);
+  ctx.quadraticCurveTo(x, y, x + radius, y);
+  ctx.closePath();
+}
+
+function handleChartPointerMove(event) {
+  const stock = getSelectedStock();
+  if (!stock) return;
+  const candles = getCandlesForRange(stock, state.timeframe);
+  if (!candles.length) return;
+  const rect = els.chartCanvas.getBoundingClientRect();
+  const left = 18;
+  const right = rect.width - 84;
+  const relativeX = Math.max(left, Math.min(right, event.clientX - rect.left));
+  const step = (right - left) / Math.max(1, candles.length - 1);
+  state.chartHover = {
+    index: Math.round((relativeX - left) / Math.max(step, 1))
+  };
+  drawChart(stock);
 }
 
 function getCandlesForRange(stock, range) {
