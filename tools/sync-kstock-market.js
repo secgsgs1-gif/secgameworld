@@ -14,7 +14,10 @@ const STOCK_CATALOG = {
   "068270": { name: "셀트리온", market: "KOSPI", sector: "바이오" },
   "105560": { name: "KB금융", market: "KOSPI", sector: "금융" },
   "207940": { name: "삼성바이오로직스", market: "KOSPI", sector: "바이오" },
-  "042700": { name: "한미반도체", market: "KOSDAQ", sector: "반도체 장비" }
+  "042700": { name: "한미반도체", market: "KOSDAQ", sector: "반도체 장비" },
+  "122630": { name: "KODEX 레버리지", market: "KOSPI", sector: "ETF 레버리지" },
+  "114800": { name: "KODEX 인버스", market: "KOSPI", sector: "ETF 인버스" },
+  "252670": { name: "KODEX 200선물인버스2X", market: "KOSPI", sector: "ETF 곱버스" }
 };
 
 const SYMBOLS = parseSymbols(process.env.KSTOCK_SYMBOLS);
