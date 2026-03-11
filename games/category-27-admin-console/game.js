@@ -408,7 +408,14 @@ function renderStockSnapshot(rows) {
     .sort((a, b) => b.toDate() - a.toDate())[0];
   stockUpdatedAtEl.textContent = formatTs(latestUpdatedAt);
 
-  rows.forEach((row) => {
+  [...rows]
+    .sort((a, b) => {
+      const aRate = Number(a.data()?.changeRate || 0);
+      const bRate = Number(b.data()?.changeRate || 0);
+      if (bRate !== aRate) return bRate - aRate;
+      return String(a.data()?.name || a.id).localeCompare(String(b.data()?.name || b.id), "ko");
+    })
+    .forEach((row) => {
     const d = row.data() || {};
     const item = document.createElement("div");
     item.className = "stock-row";
@@ -423,7 +430,7 @@ function renderStockSnapshot(rows) {
       </div>
     `;
     stockListEl.appendChild(item);
-  });
+    });
 }
 
 function mountStockSnapshot() {
