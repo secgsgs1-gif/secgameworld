@@ -26,7 +26,8 @@ h1, h2 {
 
 .status-card,
 .command-panel,
-.history-panel {
+.history-panel,
+.stock-panel {
   margin-top: 12px;
   padding: 12px;
   border: 1px solid #6ea2ff3f;
@@ -98,6 +99,69 @@ button:disabled {
 .history-item p {
   margin: 2px 0;
   word-break: break-word;
+}
+
+.panel-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.stock-meta {
+  margin: 0;
+  color: #b7c8e8;
+  white-space: nowrap;
+}
+
+.stock-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.stock-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 12px;
+  align-items: center;
+  border: 1px solid #6ea2ff33;
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: #12203a;
+}
+
+.stock-row p {
+  margin: 2px 0;
+}
+
+.stock-row .left {
+  min-width: 0;
+}
+
+.stock-row .right {
+  text-align: right;
+}
+
+.stock-row strong {
+  display: block;
+}
+
+.stock-sub {
+  color: #b7c8e8;
+  font-size: 0.9rem;
+}
+
+.positive {
+  color: #ff8f8f;
+}
+
+.negative {
+  color: #7dc3ff;
+}
+
+.neutral {
+  color: #cfe3ff;
 }
 
 .status-success {

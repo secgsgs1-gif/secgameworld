@@ -52,6 +52,17 @@
       <ul id="history-list" class="history-list"></ul>
     </section>
 
+    <section id="stock-panel" class="stock-panel" hidden>
+      <div class="panel-head">
+        <div>
+          <h2>주식 마감 스냅샷</h2>
+          <p class="hint">`stock_market_cache` 최신 동기화 기준 종가와 등락률입니다. 15:40 KST 최종 동기화 이후에는 장 종료 기준값으로 유지됩니다.</p>
+        </div>
+        <p class="stock-meta">마지막 업데이트: <strong id="stock-updated-at">-</strong></p>
+      </div>
+      <div id="stock-list" class="stock-list"></div>
+    </section>
+
     <a class="back" href="../../index.html">Back to Home</a>
   </main>
 

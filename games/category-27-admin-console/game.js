@@ -23,15 +23,19 @@ const adminStatusEl = document.getElementById("admin-status");
 const adminMessageEl = document.getElementById("admin-message");
 const commandPanelEl = document.getElementById("command-panel");
 const historyPanelEl = document.getElementById("history-panel");
+const stockPanelEl = document.getElementById("stock-panel");
 const commandTypeEl = document.getElementById("command-type");
 const targetUidEl = document.getElementById("target-uid");
 const targetAmountEl = document.getElementById("target-amount");
 const runCommandBtn = document.getElementById("run-command");
 const historyListEl = document.getElementById("history-list");
+const stockListEl = document.getElementById("stock-list");
+const stockUpdatedAtEl = document.getElementById("stock-updated-at");
 
 let user = null;
 let booted = false;
 let historyUnsub = null;
+let stockUnsub = null;
 
 const PAGE_SIZE = 300;
 const KST_OFFSET_MS = 9 * 60 * 60 * 1000;
@@ -56,6 +60,23 @@ function parseInteger(v) {
   const n = Math.floor(Number(v));
   if (!Number.isFinite(n)) return null;
   return n;
+}
+
+function formatKRW(v) {
+  return `${Math.round(Number(v || 0)).toLocaleString("ko-KR")} KRW`;
+}
+
+function formatPercent(v) {
+  const n = Number(v || 0);
+  if (!Number.isFinite(n)) return "0.00%";
+  return `${n > 0 ? "+" : n < 0 ? "" : ""}${n.toFixed(2)}%`;
+}
+
+function rateClass(v) {
+  const n = Number(v || 0);
+  if (n > 0) return "positive";
+  if (n < 0) return "negative";
+  return "neutral";
 }
 
 function setMessage(text, isError = false) {
@@ -373,6 +394,49 @@ function mountHistory() {
   });
 }
 
+function renderStockSnapshot(rows) {
+  stockListEl.innerHTML = "";
+  if (!rows.length) {
+    stockListEl.innerHTML = `<div class="history-item">시세 캐시가 없습니다.</div>`;
+    stockUpdatedAtEl.textContent = "-";
+    return;
+  }
+
+  const latestUpdatedAt = rows
+    .map((row) => row.data()?.updatedAt)
+    .filter((ts) => ts?.toDate)
+    .sort((a, b) => b.toDate() - a.toDate())[0];
+  stockUpdatedAtEl.textContent = formatTs(latestUpdatedAt);
+
+  rows.forEach((row) => {
+    const d = row.data() || {};
+    const item = document.createElement("div");
+    item.className = "stock-row";
+    item.innerHTML = `
+      <div class="left">
+        <strong>${esc(d.name || row.id)}</strong>
+        <p class="stock-sub">${esc(row.id)} · ${esc(d.market || "-")} · 기준일 ${esc(d.tradeDate || "-")}</p>
+      </div>
+      <div class="right">
+        <strong>${esc(formatKRW(d.currentPrice || 0))}</strong>
+        <p class="${rateClass(d.changeRate || 0)}">${esc(formatPercent(d.changeRate || 0))}</p>
+      </div>
+    `;
+    stockListEl.appendChild(item);
+  });
+}
+
+function mountStockSnapshot() {
+  if (stockUnsub) stockUnsub();
+  const q = query(collection(db, "stock_market_cache"), orderBy("name"));
+  stockUnsub = onSnapshot(q, (snap) => {
+    renderStockSnapshot(snap.docs);
+  }, (err) => {
+    stockUpdatedAtEl.textContent = "오류";
+    stockListEl.innerHTML = `<div class="history-item status-error">시세 조회 실패: ${esc(err.message)}</div>`;
+  });
+}
+
 async function boot(nextUser) {
   if (booted) return;
   booted = true;
@@ -389,6 +453,7 @@ async function boot(nextUser) {
   adminStatusEl.textContent = `승인됨 (${access.via})`;
   commandPanelEl.hidden = false;
   historyPanelEl.hidden = false;
+  stockPanelEl.hidden = false;
   setMessage("관리자 명령을 실행할 수 있습니다.");
 
   runCommandBtn.addEventListener("click", () => {
@@ -399,6 +464,7 @@ async function boot(nextUser) {
   });
 
   mountHistory();
+  mountStockSnapshot();
 }
 
 document.addEventListener("app:user-ready", (e) => {
