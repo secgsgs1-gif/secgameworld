@@ -3,12 +3,12 @@ name: K-Stock Sync
 on:
   workflow_dispatch:
   schedule:
-    # Weekdays 09:00-14:59 KST => 00:00-05:59 UTC, every 10 minutes
-    - cron: "*/10 0-5 * * 1-5"
-    # Weekdays 15:00-15:30 KST => 06:00-06:30 UTC, every 10 minutes
-    - cron: "0-30/10 6 * * 1-5"
-    # Weekdays 15:40 KST => 06:40 UTC, final post-close snapshot
-    - cron: "40 6 * * 1-5"
+    # Weekdays 09:03-14:53 KST => 00:03-05:53 UTC, every 10 minutes
+    - cron: "3,13,23,33,43,53 0-5 * * 1-5"
+    # Weekdays 15:03-15:23 KST => 06:03-06:23 UTC, every 10 minutes
+    - cron: "3,13,23 6 * * 1-5"
+    # Weekdays 15:43 KST => 06:43 UTC, final post-close snapshot
+    - cron: "43 6 * * 1-5"
 
 jobs:
   sync:
