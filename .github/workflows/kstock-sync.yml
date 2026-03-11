@@ -13,8 +13,12 @@ on:
 jobs:
   sync:
     runs-on: ubuntu-latest
+    timeout-minutes: 15
     permissions:
       contents: read
+    concurrency:
+      group: kstock-sync
+      cancel-in-progress: false
 
     steps:
       - name: Checkout

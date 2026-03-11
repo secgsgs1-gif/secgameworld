@@ -110,7 +110,10 @@ async function main() {
     }
   }
 
+  const valuationUpdates = await recomputeAllProfileValuations(now);
+
   console.log(`done: synced ${synced}/${SYMBOLS.length} symbols`);
+  console.log(`done: recomputed ${valuationUpdates} stock game profiles`);
 }
 
 async function fetchSummary(symbol) {
@@ -244,6 +247,70 @@ function decodeEntities(text) {
     .replace(/&gt;/g, ">")
     .replace(/&#39;/g, "'")
     .replace(/&quot;/g, "\"");
+}
+
+async function recomputeAllProfileValuations(now) {
+  const [profileSnap, marketSnap, positionSnap] = await Promise.all([
+    db.collection("stock_game_profiles").get(),
+    db.collection("stock_market_cache").get(),
+    db.collectionGroup("positions").get()
+  ]);
+
+  if (profileSnap.empty) return 0;
+
+  const marketPriceMap = new Map(
+    marketSnap.docs.map((docSnap) => [docSnap.id, toNumber(docSnap.data()?.currentPrice)])
+  );
+  const holdingsByUid = new Map();
+
+  for (const docSnap of positionSnap.docs) {
+    const parentDoc = docSnap.ref.parent.parent;
+    if (!parentDoc || parentDoc.parent?.id !== "stock_game_profiles") continue;
+
+    const uid = parentDoc.id;
+    const data = docSnap.data() || {};
+    const qty = toNumber(data.qty);
+    const currentPrice = marketPriceMap.get(docSnap.id) || toNumber(data.lastPrice);
+    const currentValue = qty * currentPrice;
+    if (!currentValue) continue;
+
+    holdingsByUid.set(uid, (holdingsByUid.get(uid) || 0) + currentValue);
+  }
+
+  let updated = 0;
+  let batch = db.batch();
+  let batchCount = 0;
+
+  for (const profileDoc of profileSnap.docs) {
+    const data = profileDoc.data() || {};
+    const seedCapital = toNumber(data.seedCapital);
+    const cash = toNumber(data.cash);
+    const holdingsValue = holdingsByUid.get(profileDoc.id) || 0;
+    const totalValue = cash + holdingsValue;
+    const totalPnL = totalValue - seedCapital;
+    const totalReturnRate = seedCapital ? (totalPnL / seedCapital) * 100 : 0;
+
+    batch.set(profileDoc.ref, {
+      totalValue,
+      totalPnL,
+      totalReturnRate,
+      updatedAt: now
+    }, { merge: true });
+    batchCount += 1;
+    updated += 1;
+
+    if (batchCount === 400) {
+      await batch.commit();
+      batch = db.batch();
+      batchCount = 0;
+    }
+  }
+
+  if (batchCount > 0) {
+    await batch.commit();
+  }
+
+  return updated;
 }
 
 function toYahooSymbol(symbol, catalog) {

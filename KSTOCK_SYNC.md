@@ -46,6 +46,8 @@ The script writes one document per symbol to `stock_market_cache/{symbol}` with:
 - trade date
 - server timestamp
 
+After market sync completes, it also recomputes every document in `stock_game_profiles` using the latest cached prices so leaderboard totals do not depend on users being online.
+
 ## Notes
 
 - The frontend now requires `stock_market_cache` to exist and does not show fake sample quotes.
