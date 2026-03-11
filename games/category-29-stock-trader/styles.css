@@ -429,6 +429,23 @@ button:hover {
   text-align: right;
 }
 
+.leaderboard-metrics {
+  min-width: max-content;
+}
+
+.leaderboard-total-line {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.leaderboard-return {
+  font-size: 0.92rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
 .leaderboard-main {
   min-width: 0;
   flex: 1 1 auto;

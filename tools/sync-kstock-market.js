@@ -13,6 +13,7 @@ const STOCK_CATALOG = {
   "051910": { name: "LG화학", market: "KOSPI", sector: "화학" },
   "068270": { name: "셀트리온", market: "KOSPI", sector: "바이오" },
   "105560": { name: "KB금융", market: "KOSPI", sector: "금융" },
+  "006800": { name: "미래에셋증권", market: "KOSPI", sector: "증권" },
   "207940": { name: "삼성바이오로직스", market: "KOSPI", sector: "바이오" },
   "042700": { name: "한미반도체", market: "KOSDAQ", sector: "반도체 장비" },
   "122630": { name: "KODEX 레버리지", market: "KOSPI", sector: "ETF 레버리지" },

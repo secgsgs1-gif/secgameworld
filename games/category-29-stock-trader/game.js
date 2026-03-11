@@ -358,7 +358,6 @@ function renderLeaderboard() {
     row.innerHTML = `
       <div class="leaderboard-main">
         <strong>#${index + 1} ${escapeHtml(entry.username || "player")}</strong>
-        <p>수익률 <span class="${rateClass(entry.totalReturnRate || 0)}">${formatPercent(entry.totalReturnRate || 0)}</span></p>
         ${positions.length
           ? `<div class="leaderboard-holdings">${positions.map((item) => `
               <div class="holding-pill">
@@ -369,8 +368,11 @@ function renderLeaderboard() {
             `).join("")}</div>`
           : `<p class="leaderboard-empty">보유 종목 없음</p>`}
       </div>
-      <div class="right">
-        <strong>${formatKRW(entry.totalValue || 0)}</strong>
+      <div class="right leaderboard-metrics">
+        <div class="leaderboard-total-line">
+          <strong>${formatKRW(entry.totalValue || 0)}</strong>
+          <span class="leaderboard-return ${rateClass(entry.totalReturnRate || 0)}">${formatPercent(entry.totalReturnRate || 0)}</span>
+        </div>
         <p>${signedKRW(entry.totalPnL || 0)}</p>
       </div>
     `;
