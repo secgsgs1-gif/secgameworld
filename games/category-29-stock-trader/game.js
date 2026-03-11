@@ -144,7 +144,7 @@ function wireStreams() {
     renderHistory();
   });
 
-  onSnapshot(query(collection(db, "stock_game_profiles"), orderBy("totalValue", "desc"), limit(10)), (snap) => {
+  onSnapshot(query(collection(db, "stock_game_profiles"), orderBy("totalValue", "desc")), (snap) => {
     state.rankings = snap.docs.map((item) => ({ uid: item.id, ...item.data() }));
     syncLeaderboardPositionStreams();
     renderLeaderboard();
