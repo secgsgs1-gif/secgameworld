@@ -2,6 +2,9 @@ name: K-Stock Sync
 
 on:
   workflow_dispatch:
+  repository_dispatch:
+    types:
+      - kstock-sync
   schedule:
     # Weekdays 09:03-14:53 KST => 00:03-05:53 UTC, every 10 minutes
     - cron: "3,13,23,33,43,53 0-5 * * 1-5"
